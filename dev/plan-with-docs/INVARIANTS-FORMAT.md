@@ -18,6 +18,11 @@ Invoices are never shared across customers, even for split-billing scenarios.
 **A Fulfillment cannot be created for a Cancelled Order.**
 Downstream processes must check order state before initiating fulfillment.
 
+## Relationships
+
+- A Fulfillment cannot exist without an Order — see
+  [Ordering Invariants](../../ordering/docs/invariants/INVARIANTS.md)
+
 ## Flagged conflicts
 
 - "soft-delete" was used inconsistently — resolved: records are hard-deleted;
@@ -63,37 +68,13 @@ a scenario that would break it, it doesn't belong here.
 **Multiple scopes:** A `/docs/invariants/INVARIANTS.md` at any subdirectory introduces or extends
 invariants with rules that are unique to that directory.
 
-## Invariant relationships
-
-Invariant Maps: A `/docs/invariants/INVARIANTS-MAP.md` describes how invariant
-scopes relate to each other throughout the repo. Maps should only relate scopes that
-are entirely within their scope.
-
-```md
-# Invariants Map
-
-## Scopes
-
-- [Ordering](./src/ordering/docs/invariants/INVARIANTS.md) — rules governing order
-  lifecycle and state transitions
-- [Billing](./src/billing/docs/invariants/INVARIANTS.md) — rules governing invoice
-  creation and payment integrity
-- [Fulfillment](./src/fulfillment/docs/invariants/INVARIANTS.md) — rules governing
-  shipment and delivery constraints
-
-## Relationships
-
-- **Ordering → Fulfillment**: A Fulfillment cannot exist without a confirmed Order
-- **Fulfillment → Billing**: An Invoice cannot be issued before Fulfillment dispatches
-```
-
 The skill infers which structure applies:
 
 - If an `INVARIANTS.md` exists, read it to find its contents.
 - If it does not exist, create a root `INVARIANTS.md` lazily when the first rule is
   resolved.
-- If `INVARIANTS-MAP.md` exists, read it to find what other scopes are required for
-  understanding.
+- When the discussion requires a related scope, follow markdown links in
+  `## Relationships` lazily — only load what the current topic actually needs.
 
 When multiple scopes exist, infer which one the current topic relates to. If unclear,
 ask.

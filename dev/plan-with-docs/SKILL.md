@@ -93,7 +93,10 @@ Create files lazily — only when you have something to write. If no `/docs/cont
 
 ## Per-artifact specifics
 
-Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). Don't couple `CONTEXT.md` to implementation details. Only include terms that are meaningful to domain experts.
+Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). Don't couple `CONTEXT.md` to
+implementation details. Only include terms that are meaningful to domain experts. When the
+discussion requires a related context, follow markdown links in `## Relationships` lazily —
+only load what the current topic actually needs.
 
 </supporting-info:CONTEXT>
 
@@ -133,7 +136,11 @@ Create files lazily — only when you have something to write. If no `/docs/inva
 
 ## Per-artifact specifics
 
-Use the format in [INVARIANTS-FORMAT.md](./INVARIANTS-FORMAT.md). Don't couple `INVARIANTS.md` to implementation details. Only include rules that are meaningful to domain experts. A rule must be falsifiable — if you can't describe a scenario that would break it, it doesn't belong here.
+Use the format in [INVARIANTS-FORMAT.md](./INVARIANTS-FORMAT.md). Don't couple `INVARIANTS.md`
+to implementation details. Only include rules that are meaningful to domain experts. A rule
+must be falsifiable — if you can't describe a scenario that would break it, it doesn't belong
+here. When the discussion requires a related scope, follow markdown links in `## Relationships`
+lazily — only load what the current topic actually needs.
 
 </supporting-info:INVARIANTS>
 
