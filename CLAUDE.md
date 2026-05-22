@@ -1,7 +1,7 @@
 # Skills Repo
 
-Personal Claude Code skills. Each skill is a self-contained directory installed
-as a symlink into `~/.claude/skills/`.
+Personal Claude Code skills. Each skill is a self-contained directory copied
+into `~/.claude/skills/`.
 
 ## Layout
 
@@ -25,16 +25,16 @@ Current categories: `dev`
    ---
    ```
 3. Add any supporting files the skill references into the same directory.
-4. Run `bash scripts/link-skills.sh` to update the symlink.
+4. Run `just install` to copy skills into `~/.claude/skills/`.
 
-The directory name becomes the skill's link name in `~/.claude/skills/` and must
-match the `name:` frontmatter field.
+The directory name becomes the skill's install name in `~/.claude/skills/` and
+must match the `name:` frontmatter field.
 
 ## Installation
 
 ```bash
-bash scripts/link-skills.sh
+just install
 ```
 
-Symlinks every skill directory into `~/.claude/skills/<skill-name>`. Safe to
-re-run; uses `ln -sfn`.
+Copies every skill directory into `~/.claude/skills/<skill-name>`. Removes any
+symlinks previously created by this script before copying. Safe to re-run.
