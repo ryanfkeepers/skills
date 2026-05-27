@@ -34,6 +34,11 @@ Packages can also have multiple invariant declarations. The directory of the inv
 
 Create files lazily — only when you have something to write. If no `/docs/invariants/INVARIANTS.md` exists, create one when the first rule is resolved.
 
+Place each file at the lowest directory scope where it applies. Root-level
+`/docs/invariants/INVARIANTS.md` is only appropriate when rules are truly
+global — enforced across every package in the repo. When in doubt, prefer
+the narrower scope.
+
 ## Per-artifact specifics
 
 Use the format in [INVARIANTS-FORMAT.md](./INVARIANTS-FORMAT.md). Don't couple `INVARIANTS.md`

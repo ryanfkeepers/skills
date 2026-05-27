@@ -34,6 +34,11 @@ Packages can also have multiple context declarations. The directory of the conte
 
 Create files lazily — only when you have something to write. If no `/docs/context/CONTEXT.md` exists, create one when the first term is resolved.
 
+Place each file at the lowest directory scope where it applies. Root-level
+`/docs/context/CONTEXT.md` is only appropriate when terms are truly global —
+shared across every package in the repo. When in doubt, prefer the narrower
+scope.
+
 ## Per-artifact specifics
 
 Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). Don't couple `CONTEXT.md` to
