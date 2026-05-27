@@ -203,8 +203,8 @@ Step 4 (CONTEXT.md, INVARIANTS.md, ADRs).
 ## Step 6 — Aggregate and report
 
 Present the three sub-agent reports verbatim under their axis
-headings. Do not merge, rerank, or editorialize findings across
-axes.
+headings.  All lists should be numbered. Do not merge, rerank,
+or editorialize findings across axes.
 
 ```
 ## Correctness

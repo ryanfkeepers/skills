@@ -47,6 +47,8 @@ a scenario that would break it, it doesn't belong here.
   (non-engineer) care if this rule were violated? Only the former belongs.
 - **Flag conflicts explicitly.** If two rules contradict, or a rule contradicts the
   code, call it out in "Flagged conflicts" with a clear resolution.
+- Relationships must reference other md documents.  They cannot reference
+  arbitrary code or concepts.
 
 ## What qualifies (not an exhaustive list)
 
