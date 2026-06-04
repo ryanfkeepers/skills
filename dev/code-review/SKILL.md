@@ -10,6 +10,10 @@ description: >-
 
 # Code Review
 
+@~/.claude/shared/docs/context/FORMAT.md
+@~/.claude/shared/docs/invariants/FORMAT.md
+@~/.claude/shared/docs/adr/FORMAT.md
+
 ## Step 1 — Select commits
 
 Invoke the `select-revs` skill to identify which commits to review.

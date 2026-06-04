@@ -15,10 +15,10 @@ If a question can be answered by exploring the codebase, explore the codebase in
 
 Critical documentation artifacts are governed by this skill. Route each resolved decision to the correct one:
 
-- [PLANS](./PLAN.md) - documents recording any plans to be enacted with a lifespan bounded to the set of changes to implement the plan.
-- [CONTEXT.md](./CONTEXT.md) — common vocabulary and concepts. Use when a term is fuzzy, overloaded, or conflicts with existing glossary entries.
-- [INVARIANTS.md](./INVARIANTS.md) — unconditional, falsifiable rules. Use when the user states something that must always hold (or must never happen) and you can describe a scenario that would break it.
-- [ADRs](./ADR.md) — hard-to-reverse decisions with rejected alternatives. Use only when the decision is costly to undo, surprising without context, and resulted from a real trade-off.
+@~/.claude/shared/docs/plan/FORMAT.md
+@~/.claude/shared/docs/context/FORMAT.md
+@~/.claude/shared/docs/invariants/FORMAT.md
+@~/.claude/shared/docs/adr/FORMAT.md
 
 During codebase exploration, look for existing documentation in all `/docs/**`. Load CONTEXT.md, INVARIANTS.md, and ADRs in scope before challenging the plan.
 
@@ -58,6 +58,7 @@ When there are no more questions to ask, present a signal that the question phas
 
 Other skills and `AGENT.md` files can `@`-include these format docs directly:
 
-- `@~/.claude/skills/plan-with-docs/CONTEXT-FORMAT.md`
-- `@~/.claude/skills/plan-with-docs/INVARIANTS-FORMAT.md`
-- `@~/.claude/skills/plan-with-docs/ADR-FORMAT.md`
+- `@~/.claude/shared/docs/plan/FORMAT.md`
+- `@~/.claude/shared/docs/context/FORMAT.md`
+- `@~/.claude/shared/docs/invariants/FORMAT.md`
+- `@~/.claude/shared/docs/adr/FORMAT.md`

@@ -51,16 +51,36 @@ _Avoid_: Client, buyer, account
 - Relationships must reference other md documents.  They cannot reference
   arbitrary code or concepts.
 
-## Single vs multi-context repos
+## File placement
+
+Create files lazily — only when there is something to write. Place each file at the
+lowest directory scope where it applies. Root-level `/docs/context/CONTEXT.md` is only
+appropriate when terms are truly global — shared across every package in the repo. When
+in doubt, prefer the narrower scope.
 
 **Single context:** One `/docs/context/CONTEXT.md` at the repo root.
 
-**Multiple contexts:** A `/docs/context/CONTEXT.md` at any subdirectory introduces or extends contexts with details that are unique to that directory.
+**Multiple contexts:** A `/docs/context/CONTEXT.md` at any subdirectory introduces or
+extends contexts with details that are unique to that directory.
 
-The skill infers which structure applies:
+```
+/
+├── docs/
+│   └── context/
+│       └── CONTEXT.md            ← system-wide terms
+├── src/
+│   ├── ordering/
+│   │   └── docs/context/
+│   │       └── CONTEXT.md        ← ordering-specific terms
+│   └── billing/
+│       └── docs/context/
+│           └── CONTEXT.md
+```
 
-- If a `CONTEXT.md` exists, read it to find its contents.
-- If it does not exist, create a root `CONTEXT.md` lazily when the first term is resolved.
+Infer which structure applies:
+
+- If a `CONTEXT.md` exists, read it.
+- If it does not exist, create one lazily when the first term is resolved.
 - When the discussion requires a related context, follow markdown links in `## Relationships`
   lazily — only load what the current topic actually needs.
 

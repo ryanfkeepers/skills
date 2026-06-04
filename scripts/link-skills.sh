@@ -23,3 +23,12 @@ while IFS= read -r skill_md; do
     cp -r "${skill_dir}" "${target}"
     echo "installed ${skill_name}"
 done < <(find "${REPO_ROOT}" -mindepth 3 -maxdepth 3 -name "SKILL.md")
+
+# Install shared resources
+SHARED_SRC="${REPO_ROOT}/shared"
+SHARED_DST="${HOME}/.claude/shared"
+if [[ -d "${SHARED_SRC}" ]]; then
+    rm -rf "${SHARED_DST}"
+    cp -r "${SHARED_SRC}" "${SHARED_DST}"
+    echo "installed shared"
+fi

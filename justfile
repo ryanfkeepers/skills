@@ -4,6 +4,7 @@ install:
 usage:
     @echo "Reusable format definitions (use @-include in skills or AGENT.md files):"
     @echo ""
-    @echo "  @~/.claude/skills/plan-with-docs/CONTEXT-FORMAT.md"
-    @echo "  @~/.claude/skills/plan-with-docs/INVARIANTS-FORMAT.md"
-    @echo "  @~/.claude/skills/plan-with-docs/ADR-FORMAT.md"
+    @echo "  @~/.claude/shared/docs/plan/FORMAT.md"
+    @echo "  @~/.claude/shared/docs/context/FORMAT.md"
+    @echo "  @~/.claude/shared/docs/invariants/FORMAT.md"
+    @echo "  @~/.claude/shared/docs/adr/FORMAT.md"

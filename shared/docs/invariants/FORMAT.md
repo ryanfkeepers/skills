@@ -63,18 +63,36 @@ a scenario that would break it, it doesn't belong here.
 - **Business rules with legal or contractual weight.** "A refund cannot exceed the
   original transaction amount."
 
-## Single vs multi-scope repos
+## File placement
+
+Create files lazily — only when there is something to write. Place each file at the
+lowest directory scope where it applies. Root-level `/docs/invariants/INVARIANTS.md`
+is only appropriate when rules are truly global — enforced across every package in
+the repo. When in doubt, prefer the narrower scope.
 
 **Single scope:** One `/docs/invariants/INVARIANTS.md` at the repo root.
 
-**Multiple scopes:** A `/docs/invariants/INVARIANTS.md` at any subdirectory introduces or extends
-invariants with rules that are unique to that directory.
+**Multiple scopes:** A `/docs/invariants/INVARIANTS.md` at any subdirectory introduces
+or extends invariants with rules that are unique to that directory.
 
-The skill infers which structure applies:
+```
+/
+├── docs/
+│   └── invariants/
+│       └── INVARIANTS.md            ← system-wide rules
+├── src/
+│   ├── ordering/
+│   │   └── docs/invariants/
+│   │       └── INVARIANTS.md        ← ordering-specific rules
+│   └── billing/
+│       └── docs/invariants/
+│           └── INVARIANTS.md
+```
 
-- If an `INVARIANTS.md` exists, read it to find its contents.
-- If it does not exist, create a root `INVARIANTS.md` lazily when the first rule is
-  resolved.
+Infer which structure applies:
+
+- If an `INVARIANTS.md` exists, read it.
+- If it does not exist, create one lazily when the first rule is resolved.
 - When the discussion requires a related scope, follow markdown links in
   `## Relationships` lazily — only load what the current topic actually needs.
 
