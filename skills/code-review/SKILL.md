@@ -10,7 +10,7 @@ description: >-
 
 # Code Review
 
-@../../shared/docs/context/FORMAT.md
+@../../shared/docs/vocabulary/FORMAT.md
 @../../shared/docs/invariants/FORMAT.md
 @../../shared/docs/adr/FORMAT.md
 
@@ -62,7 +62,7 @@ spec doc)? Provide a path or URL, or say no."
 Run in parallel with Step 3, or immediately after. Search the repo
 for:
 
-- **CONTEXT.md** — `find . -name "CONTEXT.md" -path "*/docs/*"`
+- **VOCABULARY.md** — `find . -name "VOCABULARY.md" -path "*/docs/*"`
 - **INVARIANTS.md** — `find . -name "INVARIANTS.md" -path "*/docs/*"`
 - **ADRs** — `find . -path "*/adr/*.md" -path "*/docs/*"`
 - **Standards sources** — `CLAUDE.md`, `AGENTS.md`, `REVIEW.md`,
@@ -122,7 +122,7 @@ Prompt must include:
 
 - The full diff and commit messages from Step 2.
 - The list of standards-source paths from Step 4 (CLAUDE.md,
-  AGENTS.md, CONTEXT.md, INVARIANTS.md, ADRs, etc.).
+  AGENTS.md, VOCABULARY.md, INVARIANTS.md, ADRs, etc.).
 - The brief below.
 
 > Read the standards documents listed below. Then read the diff.
@@ -130,7 +130,7 @@ Prompt must include:
 > not spec alignment.
 >
 > Check: naming consistency with the project's domain vocabulary
-> (CONTEXT.md), style and formatting conventions (CLAUDE.md,
+> (VOCABULARY.md), style and formatting conventions (CLAUDE.md,
 > AGENTS.md), architectural decisions (ADRs), domain rules
 > (INVARIANTS.md), and test coverage (are tests present for new
 > behavior per project convention?).
@@ -165,7 +165,7 @@ messages, and the fetched contents or paths of all spec sources.
 
 **Without spec source:** Prompt must include the full diff, commit
 messages, and the paths of all established-doc files found in
-Step 4 (CONTEXT.md, INVARIANTS.md, ADRs).
+Step 4 (VOCABULARY.md, INVARIANTS.md, ADRs).
 
 > Read the spec [or: established project documents] listed below.
 > Then read the diff. Review for spec alignment only — not
@@ -177,7 +177,7 @@ Step 4 (CONTEXT.md, INVARIANTS.md, ADRs).
 > the implementation looks wrong.
 >
 > [Without spec source:] Check: behavior that contradicts the
-> domain vocabulary (CONTEXT.md), violates a documented invariant
+> domain vocabulary (VOCABULARY.md), violates a documented invariant
 > (INVARIANTS.md), or contradicts an architectural decision (ADRs).
 >
 > Report findings under exactly these headings — omit any that

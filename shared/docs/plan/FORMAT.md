@@ -30,10 +30,10 @@ file when the plan is shipped.
 ## Per-artifact specifics
 
 Keep each plan focused on decisions and scope, not implementation steps. When
-a plan uses domain terms, align with the vocabulary in `CONTEXT.md`. When a
+a plan uses domain terms, align with the vocabulary in `VOCABULARY.md`. When a
 plan produces a hard-to-reverse decision, record it in an ADR instead.
 
-Plans may link to other documents — ADRs, context files, invariants, or other
+Plans may link to other documents — ADRs, vocabulary files, invariants, or other
 plans. Relationships must reference other markdown documents; they cannot
 reference arbitrary code or concepts.
 

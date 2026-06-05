@@ -1,11 +1,11 @@
-# CONTEXT.md Format
+# VOCABULARY.md Format
 
 ## Structure
 
 ```md
-# {Context Name}
+# {Vocabulary Name}
 
-{One or two sentence description of what this context is and why it exists.}
+{One or two sentence description of what domain vocabulary this covers and why it exists.}
 
 ## Language
 
@@ -25,7 +25,7 @@ _Avoid_: Client, buyer, account
 
 - An **Order** produces one or more **Invoices**
 - An **Invoice** belongs to exactly one **Customer**
-- An **Order** references a [**Customer**](../../customer/docs/context/CONTEXT.md)
+- An **Order** references a [**Customer**](../../customer/docs/vocabulary/VOCABULARY.md)
 
 ## Example dialogue
 
@@ -43,9 +43,9 @@ _Avoid_: Client, buyer, account
 - **Flag conflicts explicitly.** If a term is used ambiguously, call it out in "Flagged ambiguities" with a clear resolution.
 - **Keep definitions tight.** One sentence max. Define what it IS, not what it does.
 - **Show relationships.** Use bold term names and express cardinality where obvious. For terms
-  defined in another context, link the term inline to that context's `CONTEXT.md`:
-  `An **Order** references a [**Customer**](../../customer/docs/context/CONTEXT.md)`.
-- **Only include terms specific to this project's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
+  defined in another vocabulary scope, link the term inline to that scope's `VOCABULARY.md`:
+  `An **Order** references a [**Customer**](../../customer/docs/vocabulary/VOCABULARY.md)`.
+- **Only include terms specific to this project's domain.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this domain, or a general programming concept? Only the former belongs.
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
 - **Write an example dialogue.** A conversation between a dev and a domain expert that demonstrates how the terms interact naturally and clarifies boundaries between related concepts.
 - Relationships must reference other md documents.  They cannot reference
@@ -54,34 +54,34 @@ _Avoid_: Client, buyer, account
 ## File placement
 
 Create files lazily — only when there is something to write. Place each file at the
-lowest directory scope where it applies. Root-level `/docs/context/CONTEXT.md` is only
+lowest directory scope where it applies. Root-level `/docs/vocabulary/VOCABULARY.md` is only
 appropriate when terms are truly global — shared across every package in the repo. When
 in doubt, prefer the narrower scope.
 
-**Single context:** One `/docs/context/CONTEXT.md` at the repo root.
+**Single scope:** One `/docs/vocabulary/VOCABULARY.md` at the repo root.
 
-**Multiple contexts:** A `/docs/context/CONTEXT.md` at any subdirectory introduces or
-extends contexts with details that are unique to that directory.
+**Multiple scopes:** A `/docs/vocabulary/VOCABULARY.md` at any subdirectory introduces or
+extends vocabulary with details unique to that directory.
 
 ```
 /
 ├── docs/
-│   └── context/
-│       └── CONTEXT.md            ← system-wide terms
+│   └── vocabulary/
+│       └── VOCABULARY.md            ← system-wide terms
 ├── src/
 │   ├── ordering/
-│   │   └── docs/context/
-│   │       └── CONTEXT.md        ← ordering-specific terms
+│   │   └── docs/vocabulary/
+│   │       └── VOCABULARY.md        ← ordering-specific terms
 │   └── billing/
-│       └── docs/context/
-│           └── CONTEXT.md
+│       └── docs/vocabulary/
+│           └── VOCABULARY.md
 ```
 
 Infer which structure applies:
 
-- If a `CONTEXT.md` exists, read it.
+- If a `VOCABULARY.md` exists, read it.
 - If it does not exist, create one lazily when the first term is resolved.
-- When the discussion requires a related context, follow markdown links in `## Relationships`
-  lazily — only load what the current topic actually needs.
+- When the discussion requires a related vocabulary scope, follow markdown links in
+  `## Relationships` lazily — only load what the current topic actually needs.
 
-When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.
+When multiple vocabulary files exist, infer which one the current topic relates to. If unclear, ask.

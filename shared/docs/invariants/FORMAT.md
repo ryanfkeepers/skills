@@ -58,7 +58,7 @@ a scenario that would break it, it doesn't belong here.
   "An Invoice references one or more line items."
 - **Lifecycle ordering.** "A Shipment cannot be created before its Order is
   confirmed."
-- **Cross-context integrity.** "A reference to a Customer ID must resolve to an
+- **Cross-module integrity.** "A reference to a Customer ID must resolve to an
   active Customer at the time of Order creation."
 - **Business rules with legal or contractual weight.** "A refund cannot exceed the
   original transaction amount."

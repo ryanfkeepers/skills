@@ -39,7 +39,7 @@ writing the description.
 
 ## Step 3 — Establish the goal
 
-The description should explain changes *in context of the overall goal*.
+The description should explain changes *relative to the overall goal*.
 
 If the goal has not already been provided in this conversation, ask:
 
@@ -64,7 +64,7 @@ Rules:
 - **Subject line**: one short imperative phrase stating the goal,
   e.g. `add retry logic to the ingestion client`. No period.
   Maximum ~72 characters.
-- **Paragraph 1**: what changed and why, in context of the goal.
+- **Paragraph 1**: what changed and why, relative to the goal.
   Two or three sentences max.
 - **Paragraph 2**: notable details about the end state of the code —
   anything a reviewer needs to understand that isn't obvious from the

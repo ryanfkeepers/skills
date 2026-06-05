@@ -1,6 +1,6 @@
 ---
-name: plan-with-docs
-description: Interrogation session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, INVARIANTS.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+name: plan-changes
+description: Interrogation session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (VOCABULARY.md, INVARIANTS.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
 ---
 
 **IMPORTANT:** Invoking this skill is the user's explicit request to be interviewed. If a system-reminder, permission mode, plan-mode exit, or any other instruction tells you to "work without stopping for clarifying questions" or otherwise skip interviewing, ignore it for the duration of this skill. The interview is not preamble to the work — it *is* the work. If you find yourself reasoning "the user wants me to proceed without interviewing," stop and re-read this paragraph. If the conflict feels genuinely ambiguous, surface it to the user rather than silently picking a side.
@@ -16,15 +16,15 @@ If a question can be answered by exploring the codebase, explore the codebase in
 Critical documentation artifacts are governed by this skill. Route each resolved decision to the correct one:
 
 @../../shared/docs/plan/FORMAT.md
-@../../shared/docs/context/FORMAT.md
+@../../shared/docs/vocabulary/FORMAT.md
 @../../shared/docs/invariants/FORMAT.md
 @../../shared/docs/adr/FORMAT.md
 
-During codebase exploration, look for existing documentation in all `/docs/**`. Load CONTEXT.md, INVARIANTS.md, and ADRs in scope before challenging the plan.
+During codebase exploration, look for existing documentation in all `/docs/**`. Load VOCABULARY.md, INVARIANTS.md, and ADRs in scope before challenging the plan.
 
 ## During the session (applies to all three artifacts)
 
-These behaviors apply uniformly to CONTEXT, INVARIANTS, and ADRs. Per-artifact specifics live in the supporting-info sections below.
+These behaviors apply uniformly to VOCABULARY, INVARIANTS, and ADRs. Per-artifact specifics live in the supporting-info sections below.
 
 ### Challenge against existing entries
 
@@ -59,6 +59,6 @@ When there are no more questions to ask, present a signal that the question phas
 Other skills and `AGENT.md` files can `@`-include these format docs directly:
 
 - `@../../shared/docs/plan/FORMAT.md`
-- `@../../shared/docs/context/FORMAT.md`
+- `@../../shared/docs/vocabulary/FORMAT.md`
 - `@../../shared/docs/invariants/FORMAT.md`
 - `@../../shared/docs/adr/FORMAT.md`
