@@ -6,7 +6,10 @@
   "plugins": [
     {
       "name": "keepers",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "ryanfkeepers/skills"
+      },
       "description": "Personal Claude Code skills for keepers"
     }
   ]
