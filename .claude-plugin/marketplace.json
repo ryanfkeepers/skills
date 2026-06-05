@@ -1,0 +1,13 @@
+{
+  "name": "keepers",
+  "owner": {
+    "name": "keepers"
+  },
+  "plugins": [
+    {
+      "name": "keepers",
+      "source": ".",
+      "description": "Personal Claude Code skills for keepers"
+    }
+  ]
+}

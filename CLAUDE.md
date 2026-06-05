@@ -32,11 +32,13 @@ The directory name must match the `name:` frontmatter field.
 
 ## Installation
 
-Add this repo as a marketplace and install the plugin:
+Run these as two separate commands:
 
 ```
 /plugin marketplace add ryanfkeepers/skills
-/plugin install keepers@ryanfkeepers-skills
+```
+```
+/plugin install keepers@keepers
 ```
 
 Skills are namespaced: `/keepers:skill-name`
