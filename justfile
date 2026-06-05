@@ -1,10 +1,10 @@
-install:
-    bash scripts/link-skills.sh
+test:
+    claude --plugin-dir ./
 
 usage:
-    @echo "Reusable format definitions (use @-include in skills or AGENT.md files):"
+    @echo "Shared format definitions (use @-include in skills):"
     @echo ""
-    @echo "  @~/.claude/shared/docs/plan/FORMAT.md"
-    @echo "  @~/.claude/shared/docs/context/FORMAT.md"
-    @echo "  @~/.claude/shared/docs/invariants/FORMAT.md"
-    @echo "  @~/.claude/shared/docs/adr/FORMAT.md"
+    @echo "  @../../shared/docs/plan/FORMAT.md"
+    @echo "  @../../shared/docs/context/FORMAT.md"
+    @echo "  @../../shared/docs/invariants/FORMAT.md"
+    @echo "  @../../shared/docs/adr/FORMAT.md"

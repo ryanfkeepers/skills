@@ -15,10 +15,10 @@ If a question can be answered by exploring the codebase, explore the codebase in
 
 Critical documentation artifacts are governed by this skill. Route each resolved decision to the correct one:
 
-@~/.claude/shared/docs/plan/FORMAT.md
-@~/.claude/shared/docs/context/FORMAT.md
-@~/.claude/shared/docs/invariants/FORMAT.md
-@~/.claude/shared/docs/adr/FORMAT.md
+@../../shared/docs/plan/FORMAT.md
+@../../shared/docs/context/FORMAT.md
+@../../shared/docs/invariants/FORMAT.md
+@../../shared/docs/adr/FORMAT.md
 
 During codebase exploration, look for existing documentation in all `/docs/**`. Load CONTEXT.md, INVARIANTS.md, and ADRs in scope before challenging the plan.
 
@@ -58,7 +58,7 @@ When there are no more questions to ask, present a signal that the question phas
 
 Other skills and `AGENT.md` files can `@`-include these format docs directly:
 
-- `@~/.claude/shared/docs/plan/FORMAT.md`
-- `@~/.claude/shared/docs/context/FORMAT.md`
-- `@~/.claude/shared/docs/invariants/FORMAT.md`
-- `@~/.claude/shared/docs/adr/FORMAT.md`
+- `@../../shared/docs/plan/FORMAT.md`
+- `@../../shared/docs/context/FORMAT.md`
+- `@../../shared/docs/invariants/FORMAT.md`
+- `@../../shared/docs/adr/FORMAT.md`
