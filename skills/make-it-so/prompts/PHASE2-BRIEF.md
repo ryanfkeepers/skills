@@ -1,11 +1,19 @@
 # Phase 2 Sub-Agent Brief Template
 
-Fill every `[PLACEHOLDER]` before dispatching.
+Fill every `[PLACEHOLDER]` before dispatching. Do not dispatch with unfilled placeholders.
 
 ---
 
-You are an implementation agent. Phase 1 scaffolding is complete. Your job: implement the
-underlying logic so that Phase 1's contract tests pass.
+You are an E2E smoke test author. Phase 1 scaffolding is complete. Your job: write E2E
+smoke tests for `[FEATURE]` that verify the feature is reachable and functional at a
+live deployment boundary.
+
+You CANNOT run these tests — they require `[ENVIRONMENT_REQUIREMENTS]`. Do not attempt
+to execute them. Write them so they are correct and ready for the user to run with:
+
+```
+[E2E_TEST_COMMAND]
+```
 
 ## Feature
 
@@ -15,43 +23,51 @@ underlying logic so that Phase 1's contract tests pass.
 
 [PLAN_EXCERPT]
 
-## Primary scope
+## Phase 1 scaffolding — read for API shape
 
-Work is centered in `[SCOPE_DIR]`. Expected files from Phase 1 to read and build on:
+[PHASE1_SCAFFOLD_FILES]
+<!-- List paths. The agent reads them to understand what the feature exposes. -->
 
-[EXPECTED_FILES]
-<!-- List as orientation, not a ceiling. The agent may create additional files within
-     the scope directory as the implementation requires. -->
+## E2E test framework and patterns
+
+[E2E_TEST_FRAMEWORK_AND_PATTERNS]
+<!-- Describe the framework, setup/teardown conventions, and any shared test helpers.
+     Include an example from an existing E2E test if available — most important context. -->
+
+## E2E test directory
+
+`[E2E_TEST_DIR]`
+
+Create test files here. If existing E2E test files are relevant to the feature, read
+them before writing new ones.
 
 ## Domain context
 
 [CONTEXT_MD_EXCERPT]
 
-## Invariants
-
-[INVARIANTS_MD_EXCERPT]
-
 ## What to produce
 
-1. Unexported helper functions and core logic that make Phase 1 contract tests pass
-2. Implementation-level unit tests targeting internal logic:
-   - Error paths and edge cases
-   - Internal state transitions
-   - Anything NOT already covered by the contract tests
-   These are in addition to the contract tests, not replacing them.
+E2E smoke tests covering:
+1. The fundamental happy path for each entry point the feature exposes
+2. Basic reachability — the service responds, connections succeed
+3. Do NOT write complex behavioral casework — that belongs in integration tests
+
+Each test file must include at the top:
+```
+// Run with: [E2E_TEST_COMMAND]
+// Requires: [ENVIRONMENT_REQUIREMENTS]
+```
 
 ## Constraints
 
-- Do NOT change any exported signature (Phase 1 contracts are locked)
+- Do NOT run any test commands
 - Do NOT run jj, git, or any VCS command
-- Keep changes tightly targeted — only what's necessary to implement `[FEATURE]`
-- Stay within `[SCOPE_DIR]`. If you determine you need to touch something outside it,
-  state what and why before doing so.
-- Follow error handling conventions from the invariants: `[ERROR_HANDLING_SUMMARY]`
+- Do NOT change implementation or scaffolding files
+- Keep tests minimal — smoke coverage only, not behavioral verification
+- Stay within `[E2E_TEST_DIR]`
 
 ## Done when
 
-- All Phase 1 contract tests pass: `[TEST_COMMAND]`
-- Implementation tests written and passing
-- No new failures outside scope: `[REGRESSION_CHECK_COMMAND]`
-- No unimplemented stubs or TODOs that affect correctness remain
+- E2E smoke test files written and compile cleanly
+- Run command and environment requirements documented in each file
+- Tests are scoped to reachability and fundamental happy paths only

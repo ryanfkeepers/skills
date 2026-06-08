@@ -15,6 +15,10 @@ sub-agent, verify CONTEXT.md and INVARIANTS.md together cover all five areas bel
       naming, fixture patterns, mock vs real dependencies.
 - [ ] **Module quirks** — non-obvious patterns, workarounds, external constraints a
       new implementer would not guess from the code alone.
+- [ ] **Behavioral examples** — the plan contains at least one concrete input/output
+      pair or named edge case per exported behavior. Vague descriptions ("process items")
+      do not satisfy this. Examples must be precise enough that Phase 3 and Phase 5a
+      can write assertions without inference.
 
 ## What to do when a checkbox fails
 
@@ -28,6 +32,7 @@ INVARIANTS.md (whichever fits). Do not carry answers only in conversation contex
 | Error handling | "How are errors handled here — wrapped, logged, returned raw?" |
 | Test conventions | "What test patterns does this codebase expect? Table tests? Mocks?" |
 | Quirks | "Anything non-obvious about this module that would trip up an implementer?" |
+| Behavioral examples | "For each exported behavior, give me a concrete example: input, expected output, and any named edge cases (nil input, empty list, duplicate key, etc.)." |
 
 The gate passes when all five checkboxes are satisfied from the written docs.
 

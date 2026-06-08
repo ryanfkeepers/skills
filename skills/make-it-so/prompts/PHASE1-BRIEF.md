@@ -40,15 +40,13 @@ Work is centered in `[SCOPE_DIR]`. Expected files to create or modify based on t
 
 ## What to produce
 
-1. Exported types, interfaces, and structs: `[INTERFACES]`
-2. Exported method signatures with stub bodies
-3. A contract test file — one test per exported behavior, using `testCases` table pattern:
-   ```go
-   testCases := []struct{ ... }{ ... }
-   for _, test := range testCases { ... }
-   ```
-   Tests WILL fail (no implementation yet). That is expected and correct.
-   Write tests so they pass after Phase 2 with minimal changes to the test file itself.
+1. `contract.go` — all exported interfaces and type declarations: `[INTERFACES]`
+   This file is permanent. Phase 4 will not modify it. It is the source for mock
+   generation and the reference for the adversarial unit test phase.
+2. Stub `.go` files — exported function and method signatures with `panic("not
+   implemented")` bodies. Phase 4 will replace the stub bodies with real implementations.
+
+Do NOT write any test files.
 
 ## Constraints
 
@@ -60,6 +58,6 @@ Work is centered in `[SCOPE_DIR]`. Expected files to create or modify based on t
 
 ## Done when
 
-- All exports declared; `go build ./[scope]` (or equivalent) succeeds
-- Contract test file compiles
-- Tests fail for the right reason: missing implementation, not compilation errors
+- `contract.go` exists with all exported interfaces and type declarations
+- All exported functions and methods have stub bodies; `go build ./[scope]` succeeds
+- No test files produced

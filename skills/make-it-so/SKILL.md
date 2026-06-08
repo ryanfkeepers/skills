@@ -17,27 +17,37 @@ Before anything else:
    verbal description was given, stop: tell the user to run `/plan` first, then invoke
    this skill again.
 
-2. **Context gate.** CONTEXT.md and INVARIANTS.md must exist and cover all five areas
-   in [CONTEXT-GATE.md](CONTEXT-GATE.md). If they don't, interrogate the user and update
+2. **Behavioral examples required.** The plan must include at least one concrete
+   behavioral example per exported behavior: explicit input/output pairs, named edge
+   cases with expected results, or equivalent prose that pins the behavior unambiguously.
+   Vague intent ("process items") is not sufficient. If examples are missing, stop and
+   ask the user to add them before proceeding. These examples are the ground truth for
+   Phase 3 integration tests and Phase 5a unit tests.
+
+3. **Context gate.** CONTEXT.md and INVARIANTS.md must exist and cover all areas in
+   [CONTEXT-GATE.md](CONTEXT-GATE.md). If they don't, interrogate the user and update
    the docs before Phase 1. Sub-agents cannot see this session's context — they read files.
 
-3. **Integration brief.** Ask the user upfront:
-   - What integration or E2E tests should be written for this feature?
-   - What test framework and patterns do integration tests use in this codebase?
-   - Where do integration test files live?
-   - What command runs them? (Needed so the sub-agent can document it in the test file.)
-   Record the answers. Phase 3 writes the tests; the user runs them after this skill
-   completes.
+4. **Test environment brief.** Ask the user upfront:
+   - Where do E2E smoke tests live, what framework/patterns do they use, what command
+     runs them, and what environment do they require?
+   - Where do integration tests live, what framework/patterns do they use, what command
+     runs them, and what environment do they require?
+   Record the answers. Phases 2 and 3 use this. The user runs both suites after this
+   skill completes.
 
 ## Phases
 
 | # | Phase | Who | Exit criterion |
 |---|-------|-----|----------------|
-| 1 | Scaffolding | Sub-agent | Exports declared, contract tests compile (failing OK) |
-| 2 | Implementation | Sub-agent | Contract tests pass, impl tests pass |
-| 3 | Integration tests | User-assisted | Run automatable tests; note manual ones |
-| 4 | Adversarial verification | Sub-agent | VERIFIED or fix loop complete |
-| 5 | Diagram | Parent | ASCII tree shown to user |
+| 1 | Scaffolding | Sub-agent | Exports declared, stubs preserved, `go build` passes |
+| 2 | E2E smoke tests | Sub-agent | Test files compile, run command documented |
+| 3 | Integration tests | Sub-agent | Behavioral tests compile, cover plan examples |
+| 4 | Implementation | Sub-agent | `go build` passes, mocks generated |
+| 5a | Unit tests — adversarial pass | Sub-agent | Failures surfaced to user; no auto-fix loop |
+| 5b | Unit tests — coverage pass | Sub-agent | Tests added, Pass 1 tests unmodified |
+| 6 | Adversarial verification | Sub-agent | VERIFIED or fix loop complete |
+| 7 | Diagram | Parent | ASCII tree shown to user |
 
 See [PHASES.md](PHASES.md) for detailed per-phase instructions.
 
@@ -55,8 +65,11 @@ any VCS commands. They only read and modify files.
 
 ## Fix loop
 
-When Phase 4 finds critical or moderate issues: dispatch a targeted fix sub-agent, then
-re-run Phase 4. Maximum 3 iterations. After 3 failures, surface the punch list to the
+Phase 5a failures surface directly to the user — no automated fix loop. The user decides
+whether to re-invoke Phase 4 or accept the divergence.
+
+When Phase 6 finds critical or moderate issues: dispatch a targeted fix sub-agent, then
+re-run Phase 6. Maximum 3 iterations. After 3 failures, surface the punch list to the
 user and stop.
 
 ## What this skill does NOT do
