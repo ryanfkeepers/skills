@@ -34,11 +34,11 @@ Display the result as a markdown table:
 | `yqvwlntp` | *(none)* | Fix token expiry |
 
 Ask: "Which revisions need bookmarks? Provide pairs as
-`change-id: bookmark-name`, or say 'satisfied' to continue."
+`change-id: bookmark-name`, or say 'done' to continue."
 
 Apply changes (`jj bookmark create <name> -r <change_id>` or
 `jj bookmark move <name> --to <change_id>`), re-display the
-updated table, and repeat until the user says "satisfied".
+updated table, and repeat until the user says "done".
 
 ## Step 3 — Reviewers
 
