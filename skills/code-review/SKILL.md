@@ -163,7 +163,9 @@ Prompt must include:
 > ## Nits
 > Minor, low-priority concerns.
 >
-> Lead each finding with `path/to/file:line —`. If the change is
+> Format each section as a markdown table with columns
+> `#`, `Location`, `Finding`. Number rows starting at 1 within
+> each table. Location is `path/to/file:line`. If the change is
 > clean, justify it: state which failure modes you checked and why
 > you are confident they are handled. Do not invent findings.
 
@@ -205,7 +207,9 @@ Prompt must include:
 > ## Suggestions
 > Non-blocking improvements to standards compliance.
 >
-> Lead each finding with `path/to/file:line —`. If the change is
+> Format each section as a markdown table with columns
+> `#`, `Location`, `Finding`. Number rows starting at 1 within
+> each table. Location is `path/to/file:line`. If the change is
 > compliant, justify it: state which standards you checked and why
 > you consider them satisfied. Do not invent findings.
 >
@@ -259,7 +263,9 @@ Step 4 (VOCABULARY.md, INVARIANTS.md, ADRs).
 > Scenarios not covered by the spec [or domain model] that the
 > implementation may handle incorrectly or not at all.
 >
-> Lead each finding with `path/to/file:line —` where applicable.
+> Format each section as a markdown table with columns
+> `#`, `Location`, `Finding`. Number rows starting at 1 within
+> each table. Location is `path/to/file:line` where applicable.
 > If alignment is clear, justify it: cite the requirement and the
 > line(s) that satisfy it. Do not invent findings.
 >
@@ -270,8 +276,7 @@ Step 4 (VOCABULARY.md, INVARIANTS.md, ADRs).
 ## Step 6 — Aggregate and report
 
 Present the three sub-agent reports verbatim under their axis
-headings.  All lists should be numbered. Do not merge, rerank,
-or editorialize findings across axes.
+headings. Do not merge, rerank, or editorialize findings across axes.
 
 ```
 ## Correctness
