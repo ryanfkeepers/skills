@@ -85,26 +85,45 @@ Do not proceed to Phase 2 until the user confirms.
 
 ---
 
-## Phase 2 — Detailed interrogation
+## Phase 2 — Detail sharpening
 
-Interrogate every aspect of the plan until we reach a shared understanding.
-Walk down each branch of the design tree, resolving dependencies between
-decisions one-by-one.
+Resolve the implementation-level concerns that would block a high-quality
+build. **Make decisions yourself** for anything a competent implementer
+could infer from context — naming, minor conventions, incidental
+structure. Only surface a question when the ambiguity is genuine and
+consequential.
 
 Route each resolved decision to the correct artifact (VOCABULARY, INVARIANTS,
 ADR, or plan doc).
 
+### What warrants a question
+
+Ask only when one of these is true:
+
+- **Spec conflict**: the plan contradicts an existing VOCABULARY entry,
+  INVARIANT, or ADR, and you cannot resolve it unilaterally.
+- **Architectural concern**: directory layout, interface boundaries, data
+  ownership, or dependency direction is under-specified and multiple
+  designs have meaningfully different trade-offs.
+- **Genuine ambiguity**: two reasonable interpretations lead to different
+  implementations and the code or docs don't settle it.
+- **Dangerous edge**: a failure mode, data-loss risk, or security
+  implication the plan doesn't address.
+
+Everything else — exact names, minor formatting choices, trivial
+structural details — decide yourself and state the decision. Don't ask.
+
 ### Challenge against existing entries
 
-When the user makes a claim that conflicts with an existing entry, call it
-out immediately. "Your glossary defines 'cancellation' as X, but you seem
-to mean Y — which is it?" / "Your rules say X must hold, but you're asking
-me to behave differently — do we need to update the rule?"
+When the plan conflicts with an existing entry, call it out immediately.
+"Glossary defines 'cancellation' as X, but plan seems to mean Y — which
+is it?" / "INVARIANTS say X must hold; this design breaks that —
+update the invariant or change the design?"
 
 ### Align with parent scope
 
-When a term, rule, or decision is added or changed, ensure it doesn't
-disagree with the same artifact in a parent directory. Surface conflicts
+When a term, rule, or decision is added or changed, check it doesn't
+conflict with the same artifact in a parent directory. Surface conflicts
 immediately.
 
 ### Sharpen fuzzy language
@@ -116,13 +135,15 @@ not update objects' — do you mean 'do not mutate events in this package'?"
 ### Discuss concrete scenarios
 
 Stress-test relationships and rules with specific scenarios. Invent edge
-cases that force the user to be precise about boundaries and interactions.
+cases that force precision about architectural boundaries, ambiguous
+interactions, or dangerous failure modes — not incidental implementation
+details.
 
 ### Cross-reference with code
 
-When the user states how something works or what rule applies, check whether
-the code agrees. Surface contradictions: "Your code cancels entire Orders,
-but you just said partial cancellation is possible — which is right?"
+When the plan states how something works, check whether the code agrees.
+Surface contradictions: "Code cancels entire Orders; plan implies partial
+cancellation is possible — which is right?"
 
 ### Update the relevant file inline
 
