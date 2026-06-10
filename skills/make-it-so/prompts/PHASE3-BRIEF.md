@@ -78,7 +78,8 @@ inference about implementation. Each test file must include at the top:
 ## Constraints
 
 - Do NOT run any test commands
-- Do NOT run jj, git, or any VCS command
+- Do NOT run jj, git, or any VCS command — all changes must stay in the
+  current working-copy revision; never commit, squash, or create a new change
 - Do NOT change scaffolding files from Phase 1
 - Do NOT derive assertions from stub implementations — use the behavioral examples only
 - Stay within `[INTEGRATION_TEST_DIR]`

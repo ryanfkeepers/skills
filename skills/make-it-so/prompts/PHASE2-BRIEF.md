@@ -61,7 +61,8 @@ Each test file must include at the top:
 ## Constraints
 
 - Do NOT run any test commands
-- Do NOT run jj, git, or any VCS command
+- Do NOT run jj, git, or any VCS command — all changes must stay in the
+  current working-copy revision; never commit, squash, or create a new change
 - Do NOT change implementation or scaffolding files
 - Keep tests minimal — smoke coverage only, not behavioral verification
 - Stay within `[E2E_TEST_DIR]`

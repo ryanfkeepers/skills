@@ -59,7 +59,8 @@ Then run the tests and report results.
 - Do NOT read any `.go` files other than the mock files listed above
 - Do NOT modify assertions to match implementation behavior if tests fail — report
   failures and stop
-- Do NOT run jj, git, or any VCS command
+- Do NOT run jj, git, or any VCS command — all changes must stay in the
+  current working-copy revision; never commit, squash, or create a new change
 - Stay within `[SCOPE_DIR]`
 
 ## Done when

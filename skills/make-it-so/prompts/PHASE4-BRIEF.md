@@ -56,7 +56,8 @@ Do NOT write any test files — unit tests are produced in a separate phase.
 
 - Do NOT modify `contract.go` — it is locked after Phase 1
 - Do NOT modify any test files
-- Do NOT run jj, git, or any VCS command
+- Do NOT run jj, git, or any VCS command — all changes must stay in the
+  current working-copy revision; never commit, squash, or create a new change
 - Stay within `[SCOPE_DIR]`. If you determine you need to touch something outside it,
   state what and why before doing so.
 - Follow error handling conventions from the invariants: `[ERROR_HANDLING_SUMMARY]`

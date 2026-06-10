@@ -54,7 +54,8 @@ Use the same `testCases` table pattern as Phase 5a tests.
 ## Constraints
 
 - Do NOT modify any existing Phase 5a test function or assertion — add only
-- Do NOT run jj, git, or any VCS command
+- Do NOT run jj, git, or any VCS command — all changes must stay in the
+  current working-copy revision; never commit, squash, or create a new change
 - Stay within `[SCOPE_DIR]`
 - Follow error handling conventions: `[ERROR_HANDLING_SUMMARY]`
 
