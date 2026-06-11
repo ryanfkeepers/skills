@@ -21,7 +21,7 @@ Downstream processes must check order state before initiating fulfillment.
 ## Relationships
 
 - A Fulfillment cannot exist without an Order — see
-  [Ordering Invariants](../../ordering/docs/invariants/INVARIANTS.md)
+  [Ordering Invariants](../../ordering/INVARIANTS.md)
 
 ## Flagged conflicts
 
@@ -42,51 +42,64 @@ a scenario that would break it, it doesn't belong here.
   own entry.
 - **One rule per entry.** Don't bundle related constraints — split them so each can
   be challenged and updated independently.
-- **Only domain invariants.** Performance targets, code style, and infrastructure
-  constraints don't belong. Before adding a rule, ask: would a domain expert
-  (non-engineer) care if this rule were violated? Only the former belongs.
+- **Only non-obvious domain invariants.** Performance targets, code style, and
+  infrastructure constraints don't belong. Neither do constraints that a developer
+  could derive by reading the code. Apply the litmus test below — if a rule fails
+  either gate, put it in an ADR or a code comment instead.
 - **Flag conflicts explicitly.** If two rules contradict, or a rule contradicts the
   code, call it out in "Flagged conflicts" with a clear resolution.
 - Relationships must reference other md documents.  They cannot reference
   arbitrary code or concepts.
 
+## Litmus test
+
+Before writing any rule, apply both gates:
+
+1. **Not code-obvious.** Would a developer reading only the relevant source files
+   know this constraint exists? If yes — the code already expresses it and it
+   doesn't belong here.
+2. **Requires system context.** Does knowing this constraint require understanding
+   the runtime behavior, the domain's semantic context, or a cross-cutting
+   dependency not visible in any single module? If no — it doesn't belong here.
+
+A rule belongs in INVARIANTS only if it passes both gates. Useful decisions that
+fail either gate belong in ADRs or comments, not here.
+
 ## What qualifies (not an exhaustive list)
 
-- **State machine constraints.** Valid transitions, terminal states, unreachable
-  state combinations.
-- **Ownership and cardinality rules.** "A Cart belongs to exactly one Customer."
-  "An Invoice references one or more line items."
-- **Lifecycle ordering.** "A Shipment cannot be created before its Order is
-  confirmed."
-- **Cross-module integrity.** "A reference to a Customer ID must resolve to an
-  active Customer at the time of Order creation."
-- **Business rules with legal or contractual weight.** "A refund cannot exceed the
-  original transaction amount."
+- **Non-obvious state machine constraints.** Terminal states or forbidden
+  transitions that aren't enforced by the type system — the code accepts the
+  transition but the domain forbids it.
+- **Cross-module integrity that spans trust boundaries.** "A Customer ID referenced
+  here must resolve to an active Customer at the time of creation" — no single
+  module can see both sides.
+- **Lifecycle ordering with silent failure modes.** "A Shipment cannot be created
+  before its Order is confirmed" — the construction succeeds but downstream
+  processing breaks invisibly.
+- **Business rules with external contractual weight.** "A refund cannot exceed the
+  original transaction amount" — violating this is legal/financial exposure, not
+  a code error.
 
 ## File placement
 
 Create files lazily — only when there is something to write. Place each file at the
-lowest directory scope where it applies. Root-level `/docs/invariants/INVARIANTS.md`
-is only appropriate when rules are truly global — enforced across every package in
-the repo. When in doubt, prefer the narrower scope.
+lowest directory scope where it applies. Root-level `INVARIANTS.md` is only appropriate
+when rules are truly global — enforced across every package in the repo. When in doubt,
+prefer the narrower scope.
 
-**Single scope:** One `/docs/invariants/INVARIANTS.md` at the repo root.
+**Single scope:** One `INVARIANTS.md` at the repo root.
 
-**Multiple scopes:** A `/docs/invariants/INVARIANTS.md` at any subdirectory introduces
-or extends invariants with rules that are unique to that directory.
+**Multiple scopes:** An `INVARIANTS.md` at any subdirectory root introduces or extends
+invariants with rules that are unique to that directory.
 
 ```
 /
-├── docs/
-│   └── invariants/
-│       └── INVARIANTS.md            ← system-wide rules
-├── src/
-│   ├── ordering/
-│   │   └── docs/invariants/
-│   │       └── INVARIANTS.md        ← ordering-specific rules
-│   └── billing/
-│       └── docs/invariants/
-│           └── INVARIANTS.md
+├── INVARIANTS.md                    ← system-wide rules
+└── src/
+    ├── ordering/
+    │   └── INVARIANTS.md            ← ordering-specific rules
+    └── billing/
+        └── INVARIANTS.md
 ```
 
 Infer which structure applies:

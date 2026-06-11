@@ -25,7 +25,7 @@ _Avoid_: Client, buyer, account
 
 - An **Order** produces one or more **Invoices**
 - An **Invoice** belongs to exactly one **Customer**
-- An **Order** references a [**Customer**](../../customer/docs/vocabulary/VOCABULARY.md)
+- An **Order** references a [**Customer**](../../customer/VOCABULARY.md)
 
 ## Example dialogue
 
@@ -54,27 +54,23 @@ _Avoid_: Client, buyer, account
 ## File placement
 
 Create files lazily — only when there is something to write. Place each file at the
-lowest directory scope where it applies. Root-level `/docs/vocabulary/VOCABULARY.md` is only
-appropriate when terms are truly global — shared across every package in the repo. When
-in doubt, prefer the narrower scope.
+lowest directory scope where it applies. Root-level `VOCABULARY.md` is only appropriate
+when terms are truly global — shared across every package in the repo. When in doubt,
+prefer the narrower scope.
 
-**Single scope:** One `/docs/vocabulary/VOCABULARY.md` at the repo root.
+**Single scope:** One `VOCABULARY.md` at the repo root.
 
-**Multiple scopes:** A `/docs/vocabulary/VOCABULARY.md` at any subdirectory introduces or
-extends vocabulary with details unique to that directory.
+**Multiple scopes:** A `VOCABULARY.md` at any subdirectory root introduces or extends
+vocabulary with details unique to that directory.
 
 ```
 /
-├── docs/
-│   └── vocabulary/
-│       └── VOCABULARY.md            ← system-wide terms
-├── src/
-│   ├── ordering/
-│   │   └── docs/vocabulary/
-│   │       └── VOCABULARY.md        ← ordering-specific terms
-│   └── billing/
-│       └── docs/vocabulary/
-│           └── VOCABULARY.md
+├── VOCABULARY.md                    ← system-wide terms
+└── src/
+    ├── ordering/
+    │   └── VOCABULARY.md            ← ordering-specific terms
+    └── billing/
+        └── VOCABULARY.md
 ```
 
 Infer which structure applies:

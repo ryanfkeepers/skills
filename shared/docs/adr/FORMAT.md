@@ -1,8 +1,9 @@
 # ADR Format
 
-ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+ADRs live in `/adrs/` at the repo root and use sequential numbering: `0001-slug.md`,
+`0002-slug.md`, etc. ADRs are always repo-root-scoped — never placed in subdirectories.
 
-Create the `docs/adr/` directory lazily — only when the first ADR is needed.
+Create the `/adrs/` directory lazily — only when the first ADR is needed.
 
 ## Template
 
@@ -24,7 +25,7 @@ Only include these when they add genuine value. Most ADRs won't need them.
 
 ## Numbering
 
-Scan `docs/adr/` for the highest existing number and increment by one.
+Scan `/adrs/` for the highest existing number and increment by one.
 
 ## When to offer an ADR
 

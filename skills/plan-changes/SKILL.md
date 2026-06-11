@@ -66,6 +66,19 @@ Challenge the plan at this level. Do not accept vague answers — press for
 concrete positions. If an architectural decision is resolved during Phase 1,
 record it as an ADR.
 
+### Diagrams during Phase 1
+
+Use Mermaid flowcharts and state diagrams whenever they would sharpen a
+question or resolve an ambiguity faster than prose. Render them inline in
+your response — do not defer diagrams to the end. Specifically:
+
+- If a question involves process flow, sequence of events, or branching
+  logic, draw the flowchart first and ask the question against it.
+- If a question involves object lifecycle or state transitions, draw the
+  state machine first.
+- Keep diagrams minimal — only the nodes and edges needed to make the
+  point. Expand as discussion narrows.
+
 ### Exiting Phase 1
 
 Phase 1 is complete when:
@@ -74,7 +87,19 @@ Phase 1 is complete when:
 2. You can state the plan's goal and architecture.
 3. No major architectural red flags remain unresolved.
 
-Signal completion with:
+Before signalling completion, render:
+
+**Design outcome diagram** — a Mermaid flowchart or architecture diagram
+showing the expected end state of the design: components, their
+relationships, and primary data/control flows. This is a snapshot of what
+the system will look like *after* this plan is implemented.
+
+If this plan modifies existing code, also render a **before diagram** of
+the same scope so the two can be compared side by side. Label the before
+diagram clearly: `%% BEFORE` as a comment at the top of the Mermaid block.
+Label the after diagram `%% AFTER`.
+
+Then signal completion with:
 
 > **Phase 1 complete.** [One-paragraph summary of the agreed goal and
 > approach.]

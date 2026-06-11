@@ -14,13 +14,11 @@ in-flight work.
 
 ## File structure
 
-Each plan lives in its own file under `docs/plans/`:
+Each plan lives as its own file at the repo root:
 
 ```
 /
-├── docs/
-│   └── plans/
-│       └── {plan-name}.md
+├── {plan-name}.md
 └── src/...
 ```
 
