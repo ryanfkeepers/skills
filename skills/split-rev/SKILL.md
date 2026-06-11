@@ -93,9 +93,10 @@ jj edit @-
 
 Invoke the `jjdesc` skill to write and apply the commit description.
 
-### 6c. Verify CI
+### 6c. Verify
 
-Run lint, tests, and autogeneration. Fix any failures before proceeding.
+Invoke the `verification-before-completion` skill. The split must pass lint,
+tests, and any autogeneration before proceeding. Fix all failures first.
 No split may depend on a later split to reach a green state.
 
 ### 6d. Continue
@@ -105,7 +106,7 @@ jj edit <remainder-change-id>
 ```
 
 Repeat until the final split. The last `@` is the final chunk — describe
-and verify it too.
+it and invoke `verification-before-completion` for it too.
 
 ## Recovery
 
