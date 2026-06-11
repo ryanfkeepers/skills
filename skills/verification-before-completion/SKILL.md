@@ -49,6 +49,20 @@ Skip any step = lying, not verifying
 | Agent completed | VCS diff shows changes | Agent reports "success" |
 | Requirements met | Line-by-line checklist | Tests passing |
 
+## Task Runner Preference
+
+Before choosing a lint or build command, check for a task runner:
+
+| File present | List targets | Prefer over direct tools |
+|---|---|---|
+| `Makefile` | `make help` | `make lint`, `make build` |
+| `Justfile` / `justfile` | `just --list` | `just lint`, `just build` |
+| `Taskfile.yml` / `Taskfile.yaml` | `task --list` | `task lint`, `task build` |
+
+Task-runner targets encode the project's exact configuration. If a `lint`
+or `build` target exists, use it — running the underlying tool directly may
+miss flags, file exclusions, or extra checks.
+
 ## Red Flags - STOP
 
 - Using "should", "probably", "seems to"

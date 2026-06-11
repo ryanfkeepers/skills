@@ -12,7 +12,21 @@ Detect linters, fix all errors, verify clean.
 
 ## Step 1 — Detect repo type
 
-Check root-level indicator files to determine applicable linters:
+Check root-level indicator files to determine applicable linters.
+
+### Task runners (check first)
+
+| File | Commands to try |
+|------|-----------------|
+| `Makefile` | `make lint`, `make build` |
+| `Justfile` / `justfile` | `just lint`, `just build` |
+| `Taskfile.yml` / `Taskfile.yaml` | `task lint`, `task build` |
+
+If a task runner is present, list its targets (`make help`, `just --list`,
+`task --list`) and prefer task-runner commands over direct tool invocations
+when lint/build targets exist — they encode the project's exact configuration.
+
+### Language indicators
 
 | File | Language | Linter command |
 |------|----------|----------------|
