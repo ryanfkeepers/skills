@@ -27,6 +27,8 @@ test is inadequate or incorrect. No proof, no finding.
 
 ## What to check
 
+These categories guide your investigation — they are not output sections.
+
 **Coverage gaps:**
 - New behavior (functions, branches, error paths) that has no
   corresponding test.
@@ -55,27 +57,8 @@ test is inadequate or incorrect. No proof, no finding.
 - Test scope narrowed in a way that leaves previously covered behavior
   unchecked.
 
-## Report format
-
-Report findings under exactly these headings — omit any that have no
-entries:
-
-## Coverage Gaps
-New behavior or critical paths without tests.
-
-## Ineffective Tests
-Tests that would pass even if the code under test is wrong, or that
-test implementation details rather than behavior.
-
-## Incorrect Assertions
-Assertions that are wrong, misleading, or contradict the expected behavior.
-
-## Weakened Coverage
-Assertions softened, tests deleted, or scope narrowed without explanation.
-
 ## Output Standard
 
-- Format each section as a markdown table with columns `#`,
-  `Location`, `Finding`.
-- Number rows starting at 1 within each table.
-- `Location` is `path/to/file:line`.
+Report all findings as a single markdown table with columns `#`,
+`Location`, `Finding`. Number rows starting at 1.
+`Location` is `path/to/file:line`. Omit the table if there are no findings.

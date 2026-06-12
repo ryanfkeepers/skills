@@ -44,6 +44,8 @@ Always read these:
 
 ## What to check
 
+These categories guide your investigation — they are not output sections.
+
 **Against domain model (always):**
 - Behavior that contradicts the domain vocabulary (VOCABULARY.md).
 - Violations of documented invariants (INVARIANTS.md).
@@ -55,29 +57,8 @@ Always read these:
 - Requirements that appear implemented but where the implementation is
   subtly wrong.
 
-## Report format
-
-Report findings under exactly these headings — omit any that have no
-entries:
-
-## Incorrect
-Behavior that contradicts the spec or domain model. State the
-requirement and exactly how the implementation diverges.
-
-## Missing
-Requirements or domain rules not addressed by the diff.
-
-## Confusion
-Ambiguous alignment — the diff may or may not satisfy the requirement
-or rule.
-
-## Edge Case
-Scenarios not covered by the spec or domain model that the
-implementation may handle incorrectly or not at all.
-
 ## Output Standard
 
-- Format each section as a markdown table with columns `#`,
-  `Location`, `Finding`.
-- Number rows starting at 1 within each table.
-- `Location` is `path/to/file:line` where applicable.
+Report all findings as a single markdown table with columns `#`,
+`Location`, `Finding`. Number rows starting at 1.
+`Location` is `path/to/file:line`. Omit the table if there are no findings.

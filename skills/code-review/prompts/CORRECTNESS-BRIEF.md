@@ -28,6 +28,8 @@ mode. No proof, no finding.
 
 ## What to check
 
+These categories guide your investigation — they are not output sections.
+
 **Potential bugs — check new code for:**
 - Logic: does every branch do what its name claims?
 - Error propagation: errors must not be swallowed, wrapped without
@@ -61,26 +63,8 @@ mode. No proof, no finding.
 - Cascading failure: does one bad input or failed call corrupt shared
   state or cause unbounded retries upstream?
 
-## Report format
-
-Report findings under exactly these headings — omit any that have no
-entries:
-
-## Potential Bugs
-Issues in new code that could cause incorrect or unsafe behavior. Each
-finding must name the exact failure mode and what triggers it.
-
-## Regressions
-Existing behavior that is now broken, removed, or changed without being
-stated as intentional.
-
-## Resilience
-Failure-path issues: slow dependencies, missing cancellation, unbounded
-resource use, cascading failures.
-
 ## Output Standard
 
-- Format each section as a markdown table with columns `#`,
-  `Location`, `Finding`.
-- Number rows starting at 1 within each table.
-- `Location` is `path/to/file:line`.
+Report all findings as a single markdown table with columns `#`,
+`Location`, `Finding`. Number rows starting at 1.
+`Location` is `path/to/file:line`. Omit the table if there are no findings.

@@ -27,6 +27,8 @@ of why it will cause pain. No proof, no finding.
 
 ## What to check
 
+These categories guide your investigation — they are not output sections.
+
 **Duplication:**
 - Is there code that repeats a non-trivial pattern already present
   elsewhere in the diff, where a simple helper would reduce it?
@@ -50,25 +52,8 @@ of why it will cause pain. No proof, no finding.
   (e.g., a struct that will become a bottleneck, a package that is
   already doing too many unrelated things).
 
-## Report format
-
-Report findings under exactly these headings — omit any that have no
-entries:
-
-## Duplication
-Repeated patterns that a simple helper would meaningfully reduce.
-
-## Interface Design
-Interfaces, types, or function signatures that are poorly positioned
-or expose the wrong surface.
-
-## Architecture Smells
-Coupling, leaking abstractions, or structural decisions that will cause
-pain as the code grows.
-
 ## Output Standard
 
-- Format each section as a markdown table with columns `#`,
-  `Location`, `Finding`.
-- Number rows starting at 1 within each table.
-- `Location` is `path/to/file:line`.
+Report all findings as a single markdown table with columns `#`,
+`Location`, `Finding`. Number rows starting at 1.
+`Location` is `path/to/file:line`. Omit the table if there are no findings.
