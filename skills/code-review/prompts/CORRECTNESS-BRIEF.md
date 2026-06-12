@@ -14,6 +14,10 @@ otherwise. Actively attempt to break the code: trace every failure path,
 find inputs that produce wrong output, and identify where the code
 silently does the wrong thing.
 
+Every finding requires proof: a reference to a specific line of code,
+and where the issue is not self-evident, an explanation of the failure
+mode. No proof, no finding.
+
 ## Diff
 
 [DIFF]
@@ -43,16 +47,7 @@ silently does the wrong thing.
 - Data or state that was previously preserved and is now lost or
   silently dropped.
 - Anything removed or changed without being stated as intentional in
-  the commit messages. Test changes are excluded — report them under
-  Test Concerns instead.
-
-**Test concerns — check all test changes for:**
-- Missing tests: new behavior introduced without corresponding tests.
-- Deleted tests: existing tests removed without explanation.
-- Incorrect tests: assertions that do not verify what they claim, or
-  tests that would pass even if the code under test is wrong.
-- Weakened assertions: conditions softened (e.g. `assert.NoError`
-  replaced with `_ =`) that reduce coverage.
+  the commit messages.
 
 **Resilience — check all of:**
 - Partial failure: what happens when a dependency is slow, returns an
@@ -66,12 +61,6 @@ silently does the wrong thing.
 - Cascading failure: does one bad input or failed call corrupt shared
   state or cause unbounded retries upstream?
 
-**Architecture quality — flag:**
-- Abstractions that hide complexity rather than containing it.
-- Coupling that will force unrelated changes together.
-- Structural decisions that are safe today but will fail at scale or
-  under load.
-
 ## Report format
 
 Report findings under exactly these headings — omit any that have no
@@ -83,13 +72,15 @@ finding must name the exact failure mode and what triggers it.
 
 ## Regressions
 Existing behavior that is now broken, removed, or changed without being
-stated as intentional. Exclude test changes — those go in Test Concerns.
+stated as intentional.
 
-## Test Concerns
-All test findings: missing tests, deleted tests, incorrect assertions,
-weakened coverage.
+## Resilience
+Failure-path issues: slow dependencies, missing cancellation, unbounded
+resource use, cascading failures.
 
-Format each section as a markdown table with columns `#`, `Location`,
-`Finding`. Number rows starting at 1 within each table. Location is
-`path/to/file:line`. If a section is clean, justify it: state what you
-checked and why you are confident. Do not invent findings.
+## Output Standard
+
+- Format each section as a markdown table with columns `#`,
+  `Location`, `Finding`.
+- Number rows starting at 1 within each table.
+- `Location` is `path/to/file:line`.

@@ -1,11 +1,11 @@
 ---
 name: code-review
 description: >-
-  Review code changes in the current jj repository across three axes:
-  Correctness, Standards, and Spec. Lists commits since trunk, lets
-  the user select which to include, then runs parallel sub-agent
-  reviews. Use when the user asks for a code review, CR, or review
-  of recent changes.
+  Review code changes in the current jj repository across five axes:
+  Correctness, Spec, Tests, Cleanliness, and Maintainability. Lists
+  commits since trunk, lets the user select which to include, then
+  runs parallel sub-agent reviews. Use when the user asks for a code
+  review, CR, or review of recent changes.
 ---
 
 # Code Review
@@ -87,7 +87,7 @@ for:
 - **VOCABULARY.md** — `find . -name "VOCABULARY.md" -path "*/docs/*"`
 - **INVARIANTS.md** — `find . -name "INVARIANTS.md" -path "*/docs/*"`
 - **ADRs** — `find . -path "*/adr/*.md" -path "*/docs/*"`
-- **Standards sources** — `CLAUDE.md`, `AGENTS.md`, `REVIEW.md`,
+- **Style sources** — `CLAUDE.md`, `AGENTS.md`, `REVIEW.md`,
   `CONTRIBUTING.md`, any `STYLE.md` or `STANDARDS.md` at the repo
   root or under `docs/`
 
@@ -103,8 +103,8 @@ the filled template is their complete context.
 
 ## Step 5 — Spawn sub-agents in parallel
 
-Send a single message with three Agent tool calls. Use
-`general-purpose` for all three.
+Send a single message with five Agent tool calls. Use
+`general-purpose` for all five.
 
 Do not spawn until Steps 3 and 4 are complete.
 
@@ -117,18 +117,6 @@ Use [prompts/CORRECTNESS-BRIEF.md](prompts/CORRECTNESS-BRIEF.md).
 Fill before dispatching:
 - `[DIFF]` — full diff from Step 2
 - `[COMMIT_MESSAGES]` — commit messages from Step 2
-
----
-
-### Standards sub-agent
-
-Use [prompts/STANDARDS-BRIEF.md](prompts/STANDARDS-BRIEF.md).
-
-Fill before dispatching:
-- `[DIFF]` — full diff from Step 2
-- `[COMMIT_MESSAGES]` — commit messages from Step 2
-- `[STANDARDS_SOURCES]` — discovered paths from Step 4 (CLAUDE.md,
-  AGENTS.md, VOCABULARY.md, INVARIANTS.md, ADRs, etc.)
 
 ---
 
@@ -146,27 +134,56 @@ Fill before dispatching:
 
 ---
 
+### Tests sub-agent
+
+Use [prompts/TESTS-BRIEF.md](prompts/TESTS-BRIEF.md).
+
+Fill before dispatching:
+- `[DIFF]` — full diff from Step 2
+- `[COMMIT_MESSAGES]` — commit messages from Step 2
+
+---
+
+### Cleanliness sub-agent
+
+Use [prompts/CLEANLINESS-BRIEF.md](prompts/CLEANLINESS-BRIEF.md).
+
+Fill before dispatching:
+- `[DIFF]` — full diff from Step 2
+- `[COMMIT_MESSAGES]` — commit messages from Step 2
+- `[STYLE_SOURCES]` — style/standards paths from Step 4 (CLAUDE.md,
+  AGENTS.md, REVIEW.md, CONTRIBUTING.md, STYLE.md, STANDARDS.md)
+
+---
+
+### Maintainability sub-agent
+
+Use [prompts/MAINTAINABILITY-BRIEF.md](prompts/MAINTAINABILITY-BRIEF.md).
+
+Fill before dispatching:
+- `[DIFF]` — full diff from Step 2
+- `[COMMIT_MESSAGES]` — commit messages from Step 2
+
+---
+
 ## Step 6 — Aggregate and report
 
-Present the three sub-agent reports verbatim under their axis
+Present the five sub-agent reports verbatim under their axis
 headings. Do not merge, rerank, or editorialize findings across axes.
 
 ```
 ## Correctness
 <sub-agent output>
 
-## Standards
-<sub-agent output>
-
 ## Spec
 <sub-agent output>
 
----
-<one-line summary: finding counts per axis and the single worst
-issue across all three, e.g.:
-"2 potential bugs, 1 regression, 3 test concerns (Correctness),
-2 conflicts (Standards), spec aligned —
-worst: missing nil check in handler.go:84">
-```
+## Tests
+<sub-agent output>
 
-If all three axes are clean, the summary line is the report.
+## Cleanliness
+<sub-agent output>
+
+## Maintainability
+<sub-agent output>
+```

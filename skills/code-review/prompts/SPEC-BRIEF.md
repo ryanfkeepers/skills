@@ -16,6 +16,10 @@ Assume the implementation is incomplete or subtly wrong until you have
 traced each requirement through the code. Do not assume alignment
 because the code looks plausible.
 
+Every finding requires proof: a reference to a specific line of code
+or requirement, and where the divergence is not self-evident, an
+explanation of how they conflict. No proof, no finding.
+
 ## Diff
 
 [DIFF]
@@ -71,8 +75,9 @@ or rule.
 Scenarios not covered by the spec or domain model that the
 implementation may handle incorrectly or not at all.
 
-Format each section as a markdown table with columns `#`, `Location`,
-`Finding`. Number rows starting at 1 within each table. Location is
-`path/to/file:line` where applicable. If alignment is clear, justify
-it: cite the requirement and the line(s) that satisfy it. Do not invent
-findings.
+## Output Standard
+
+- Format each section as a markdown table with columns `#`,
+  `Location`, `Finding`.
+- Number rows starting at 1 within each table.
+- `Location` is `path/to/file:line` where applicable.

@@ -71,8 +71,9 @@ Do not proceed until the user says yes.
 jj duplicate -r @
 ```
 
-Record the change ID of the duplicate. It holds an independent copy of
-the full revision and can be used to restore if something goes wrong.
+Record the change ID of the duplicate and the change ID of `@-` (the
+parent of the revision being split). Both are needed for the final
+completeness check.
 
 ## Step 6 — Execute (repeat per split in plan order)
 
@@ -107,6 +108,26 @@ jj edit <remainder-change-id>
 
 Repeat until the final split. The last `@` is the final chunk — describe
 it and invoke `verification-before-completion` for it too.
+
+## Step 7 — Completeness check
+
+After all splits are described and verified, confirm no changes were lost.
+
+Diff the full span of the new stack against the original:
+
+```
+jj diff --from <original-parent-change-id> --to @ --no-pager
+```
+
+Diff the original revision (from the safety duplicate):
+
+```
+jj diff -r <duplicate-change-id> --no-pager
+```
+
+The two diffs **must be identical**. If any file or hunk is present in
+the duplicate but absent from the stack diff, find which split it
+belongs in and restore it before declaring the split complete.
 
 ## Recovery
 
