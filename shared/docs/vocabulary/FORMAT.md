@@ -45,7 +45,19 @@ _Avoid_: Client, buyer, account
 - **Show relationships.** Use bold term names and express cardinality where obvious. For terms
   defined in another vocabulary scope, link the term inline to that scope's `VOCABULARY.md`:
   `An **Order** references a [**Customer**](../../customer/docs/vocabulary/VOCABULARY.md)`.
-- **Only include terms specific to this project's domain.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this domain, or a general programming concept? Only the former belongs.
+- **Architectural concepts only — no implementation details.** Struct names,
+  field names, function names, clients, packages, and other code-level
+  identifiers do not belong in the vocabulary. Before adding a term, ask: is
+  this a concept that could mean something different across system or team
+  boundaries? If the name is only important in the implementation itself, it doesn't
+  belong here.
+- **Top-down, not bottom-up.** Vocabulary exists to anchor shared meaning for
+  terms that travel across boundaries — between services, teams, or external
+  systems. It is not a code glossary. A term earns an entry when its
+  interpretation inside this repo or package must stay consistent despite
+  different meanings it may carry elsewhere. Defining what a struct does is
+  documentation; defining what "cancellation" means in this domain is
+  vocabulary.
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
 - **Write an example dialogue.** A conversation between a dev and a domain expert that demonstrates how the terms interact naturally and clarifies boundaries between related concepts.
 - Relationships must reference other md documents.  They cannot reference

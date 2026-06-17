@@ -85,9 +85,9 @@ If this plan modifies existing code, also render a **before diagram** of
 the same scope so the two can be compared side by side. Label each diagram
 clearly: `BEFORE:` or `AFTER:` above the ASCII block.
 
-> Note: flowcharts written into documents (ADRs, VOCABULARY.md,
-> INVARIANTS.md, plan docs) may use Mermaid. Only diagrams rendered
-> inline in chat must be ASCII.
+Always use ASCII diagrams in fenced code blocks — both inline in chat and
+when written into documents (ADRs, VOCABULARY.md, INVARIANTS.md, plan docs).
+Never use Mermaid or other rendered diagram formats.
 
 Then signal completion with:
 
@@ -108,8 +108,13 @@ could infer from context — naming, minor conventions, incidental
 structure. Only surface a question when the ambiguity is genuine and
 consequential.
 
-Route each resolved decision to the correct artifact (VOCABULARY, INVARIANTS,
-ADR, or plan doc).
+Route each resolved decision to the correct artifact. The only documentation
+files this skill creates or updates are:
+
+- `VOCABULARY.md` — domain terms and relationships
+- `INVARIANTS.md` — enforced rules and constraints
+- ADR files (e.g. `docs/adr/0001-*.md`) — architectural decisions
+- Plan docs (e.g. `{plan-name}.md` at the repo root)
 
 ### What warrants a question
 
