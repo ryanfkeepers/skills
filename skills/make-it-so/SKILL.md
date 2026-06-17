@@ -38,6 +38,9 @@ Before anything else:
 
 ## Phases
 
+When communicating with the user, always refer to phases by name, not number
+(e.g., "scaffolding phase", "E2E smoke test phase", "integration test phase").
+
 | # | Phase | Who | Exit criterion |
 |---|-------|-----|----------------|
 | 1 | Scaffolding | Sub-agent | Exports declared, stubs preserved, `go build` passes |

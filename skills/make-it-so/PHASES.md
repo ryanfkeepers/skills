@@ -30,6 +30,22 @@ Fill every placeholder:
 
 ## Phase 2: E2E Smoke Tests
 
+**Before dispatching — test infrastructure check:**
+
+Inspect the repo for existing E2E and integration test infrastructure (directories,
+build tags, test helpers, CI config). Then apply these rules:
+
+- **Both exist** → dispatch Phase 2 (E2E) and Phase 3 (integration). Default path.
+- **Only E2E exists, no integration** → dispatch Phase 2; skip Phase 3.
+- **Only integration exists, no E2E** → skip Phase 2; dispatch Phase 3. Do not
+  leave the feature without tests because one tier is missing.
+- **Neither exists** → stop and ask the user which test type to write before
+  proceeding. Do not guess or skip silently.
+- **User explicitly says to skip a phase** → skip that phase regardless of the
+  above. Do not skip the other phase unless the user also says to.
+
+Never skip both Phase 2 and Phase 3 unless the user explicitly requests it.
+
 Dispatch a Phase 2 sub-agent using [prompts/PHASE2-BRIEF.md](prompts/PHASE2-BRIEF.md).
 
 Fill every placeholder:
