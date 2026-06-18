@@ -26,13 +26,14 @@ If you haven't run the verification command in this message, you cannot claim it
 ```
 BEFORE claiming any status or expressing satisfaction:
 
-1. IDENTIFY: What command proves this claim?
-2. RUN: Execute the FULL command (fresh, complete)
-3. READ: Full output, check exit code, count failures
-4. VERIFY: Does output confirm the claim?
-   - If NO: State actual status with evidence
-   - If YES: State claim WITH evidence
-5. ONLY THEN: Make the claim
+1. IDENTIFY: What claim am I about to make?
+2. DELEGATE: Spawn a sub-agent with @verification-loop.md.
+             Pass: the claim + any context needed to verify it.
+3. RECEIVE: Wait for the evidence report (LINT / TESTS / CLAIM).
+4. EVALUATE: Does each line of the report confirm the claim?
+   - Any FAIL → state actual status with evidence. Do not proceed.
+   - All PASS → state claim WITH the evidence report attached.
+5. ONLY THEN: Make the claim.
 
 Skip any step = lying, not verifying
 ```
@@ -48,20 +49,6 @@ Skip any step = lying, not verifying
 | Regression test works | Red-green cycle verified | Test passes once |
 | Agent completed | VCS diff shows changes | Agent reports "success" |
 | Requirements met | Line-by-line checklist | Tests passing |
-
-## Task Runner Preference
-
-Before choosing a lint or build command, check for a task runner:
-
-| File present | List targets | Prefer over direct tools |
-|---|---|---|
-| `Makefile` | `make help` | `make lint`, `make build` |
-| `Justfile` / `justfile` | `just --list` | `just lint`, `just build` |
-| `Taskfile.yml` / `Taskfile.yaml` | `task --list` | `task lint`, `task build` |
-
-Task-runner targets encode the project's exact configuration. If a `lint`
-or `build` target exists, use it — running the underlying tool directly may
-miss flags, file exclusions, or extra checks.
 
 ## Red Flags - STOP
 

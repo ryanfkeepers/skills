@@ -1,14 +1,14 @@
 ---
-name: lint-fix-verify
+name: lint-fix
 description: >-
-  Detect and run all linters for the current repo, fix every error,
-  then verify results with the verify skill. Use when asked to lint,
-  fix lint errors, clean up lint warnings, or make the linter pass.
+  Detect and run all linters for the current repo, fix every error.
+  Use when asked to lint, fix lint errors, clean up lint warnings, or
+  make the linter pass.
 ---
 
-# Lint Fix Verify
+# Lint Fix
 
-Detect linters, fix all errors, verify clean.
+Detect linters, fix all errors, confirm clean.
 
 ## Step 1 — Detect repo type
 
@@ -91,8 +91,3 @@ Make the minimum required changes for correction.
 Re-run all linters from Step 2. Target: zero errors.
 
 If errors remain, fix and re-run until output is clean.
-
-## Step 5 — Invoke verify skill
-
-Once all linters pass, invoke the `verificaton-before-completion` skill to confirm the
-broader change still works correctly.
