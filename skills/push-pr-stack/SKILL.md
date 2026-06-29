@@ -75,12 +75,21 @@ dependents):
    or `main`.
 3. Create the PR:
 
+Before creating the first PR, resolve the current GitHub user:
+
+```
+gh api user --jq '.login'
+```
+
+Then create each PR:
+
 ```
 gh pr create \
   --head <bookmark-name> \
   --base <base-branch> \
   --title "<approved title>" \
   --body "<approved body>" \
+  --assignee <current-github-login> \
   [--reviewer <user1> --reviewer <user2> ...]
 ```
 
