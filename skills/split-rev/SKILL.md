@@ -39,11 +39,10 @@ Each split must:
 If the revision is already small or a single logical unit, say so and
 recommend against splitting.
 
-**Splits must be at whole-file boundaries.** If a file has changes that
-span two concerns, flag it during the interview and work with the user to
-find a plan that avoids intra-file splits (e.g. move one concern's changes
-to a different split, or accept a slightly larger split to keep the file
-whole).
+**Prefer whole-file boundaries.** If a file's changes can be cleanly
+assigned to one split, assign them whole. If a file's changes span two
+concerns, a surgical (hunk-level) split is always acceptable — note which
+files will require it in the plan so the user knows what to expect.
 
 Format each proposed split as:
 
@@ -79,9 +78,22 @@ completeness check.
 
 ### 6a. Extract
 
+For whole-file splits:
 ```
 jj split -r @ -- <files>
 ```
+
+For surgical (hunk-level) splits, there is no interactive mode available.
+Manufacture the split manually:
+1. Edit the file(s) to contain **only the first split's hunks** (relative to
+   the parent — remove the second split's changes from the file).
+2. Then use the whole-file form:
+   ```
+   jj split -r @ -- <files>
+   ```
+   `@-` will contain the file at the edited (first-split) state; `@` will
+   contain the delta from that state to the original, which is exactly the
+   second split's hunks.
 
 After the split: `@-` = extracted split, `@` = remainder. Record
 the change ID of `@` before leaving.
@@ -113,21 +125,31 @@ it and invoke `verification-before-completion` for it too.
 
 After all splits are described and verified, confirm no changes were lost.
 
-Diff the full span of the new stack against the original:
+**Never modify the safety clone.** It is the ground truth. All
+discrepancies must be resolved by editing the stack.
+
+Diff the full span of the new stack against its base:
 
 ```
 jj diff --from <original-parent-change-id> --to @ --no-pager
 ```
 
-Diff the original revision (from the safety duplicate):
+Diff the safety clone against its base:
 
 ```
 jj diff -r <duplicate-change-id> --no-pager
 ```
 
-The two diffs **must be identical**. If any file or hunk is present in
-the duplicate but absent from the stack diff, find which split it
-belongs in and restore it before declaring the split complete.
+The two diffs must be identical — every file and every hunk present in
+the clone diff must appear in the stack diff, and vice versa.
+
+If they differ:
+1. Identify which file(s) or hunk(s) are missing or wrong in the stack.
+2. `jj edit` the appropriate split and apply the missing changes there.
+3. Re-run both diffs and repeat until they match.
+4. Re-run `verification-before-completion` on any split you touched.
+
+Do not declare the split complete until the diffs match exactly.
 
 ## Recovery
 
