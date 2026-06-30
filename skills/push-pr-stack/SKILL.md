@@ -59,7 +59,8 @@ For each bookmarked revision (in stack order, oldest first):
    - **Title:** first line of the topmost commit message in
      the range.
    - **Body:** all commit messages in the range, formatted as
-     a summary list.
+     a summary list. No test plans, no checkbox lists, no
+     "## Test plan" sections — description of changes only.
 4. Present the draft and ask: "Approve this description for
    `<bookmark-name>`, or provide edits."
 
