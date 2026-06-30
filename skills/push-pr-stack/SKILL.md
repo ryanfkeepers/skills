@@ -65,7 +65,20 @@ For each bookmarked revision (in stack order, oldest first):
 
 Do not proceed to Step 5 until every description is approved.
 
-## Step 5 — Create PRs
+## Step 5 — Verify each bookmark
+
+For each bookmarked revision (oldest first), before creating any
+PR, invoke the `keepers:verification-before-completion` skill.
+
+- If verification passes, proceed to Step 6.
+- If verification fails for any bookmark, **halt immediately**.
+  Report which bookmark failed and what the failure was.
+  Do not proceed to Step 6 until the user has resolved the
+  issue and verification passes for that bookmark. Re-run
+  `keepers:verification-before-completion` after each fix
+  attempt; only continue when it passes.
+
+## Step 6 — Create PRs
 
 For each bookmarked revision (oldest first — base PRs before
 dependents):
@@ -95,7 +108,7 @@ gh pr create \
 
 Collect the URL returned by `gh pr create`.
 
-## Step 6 — Report
+## Step 7 — Report
 
 Print a table of all generated PRs:
 
