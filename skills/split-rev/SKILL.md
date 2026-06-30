@@ -39,10 +39,8 @@ Each split must:
 If the revision is already small or a single logical unit, say so and
 recommend against splitting.
 
-**Prefer whole-file boundaries.** If a file's changes can be cleanly
-assigned to one split, assign them whole. If a file's changes span two
-concerns, a surgical (hunk-level) split is always acceptable — note which
-files will require it in the plan so the user knows what to expect.
+Note which files will require hunk-level splits so the user knows what
+to expect.
 
 Format each proposed split as:
 
@@ -74,28 +72,38 @@ Record the change ID of the duplicate and the change ID of `@-` (the
 parent of the revision being split). Both are needed for the final
 completeness check.
 
+**The safety clone is permanently read-only.** It is the ground truth
+for the original diff and the source for restoring remainder changes
+during extraction. Never edit or abandon it.
+
 ## Step 6 — Execute (repeat per split in plan order)
+
+Every split is executed the same way — sculpt the working copy to
+contain exactly this split's changes, commit it, then restore the
+remainder from the safety clone. There is no shortcut tool; this is
+always a surgical, deliberate operation.
 
 ### 6a. Extract
 
-For whole-file splits:
-```
-jj split -r @ -- <files>
-```
-
-For surgical (hunk-level) splits, there is no interactive mode available.
-Manufacture the split manually:
-1. Edit the file(s) to contain **only the first split's hunks** (relative to
-   the parent — remove the second split's changes from the file).
-2. Then use the whole-file form:
+1. Confirm `@` is the revision being split: `jj show @ --no-pager`
+2. Record `@`'s change ID — this is the remainder target after extraction.
+3. Remove changes that belong to a **later** split:
+   - **Whole-file boundary:** `jj restore --from @- -- <later-files>`
+   - **Hunk-level boundary:** manually edit the file to contain only this
+     split's hunks; revert the later hunks to the parent state by hand
+4. Confirm only this split's changes remain: `jj diff --no-pager`
+5. Commit the extracted split and open an empty remainder:
    ```
-   jj split -r @ -- <files>
+   jj new
    ```
-   `@-` will contain the file at the edited (first-split) state; `@` will
-   contain the delta from that state to the original, which is exactly the
-   second split's hunks.
+   `@-` = extracted split; `@` = empty.
+6. Restore the removed changes from the safety clone:
+   ```
+   jj restore --from <duplicate-change-id> -- <all-removed-files>
+   ```
+   `@` now holds exactly the next round's changes.
 
-After the split: `@-` = extracted split, `@` = remainder. Record
+After extraction: `@-` = this split, `@` = remainder. Record
 the change ID of `@` before leaving.
 
 ### 6b. Describe
@@ -124,9 +132,7 @@ it and invoke `assert-green` for it too.
 ## Step 7 — Completeness check
 
 After all splits are described and verified, confirm no changes were lost.
-
-**Never modify the safety clone.** It is the ground truth. All
-discrepancies must be resolved by editing the stack.
+All discrepancies must be resolved by editing the stack, never the clone.
 
 Diff the full span of the new stack against its base:
 
