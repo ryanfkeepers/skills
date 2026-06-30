@@ -68,14 +68,14 @@ Do not proceed to Step 5 until every description is approved.
 ## Step 5 — Verify each bookmark
 
 For each bookmarked revision (oldest first), before creating any
-PR, invoke the `keepers:verification-before-completion` skill.
+PR, invoke the `keepers:assert-green` skill.
 
 - If verification passes, proceed to Step 6.
 - If verification fails for any bookmark, **halt immediately**.
   Report which bookmark failed and what the failure was.
   Do not proceed to Step 6 until the user has resolved the
   issue and verification passes for that bookmark. Re-run
-  `keepers:verification-before-completion` after each fix
+  `keepers:assert-green` after each fix
   attempt; only continue when it passes.
 
 ## Step 6 — Create PRs

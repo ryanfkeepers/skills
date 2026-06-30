@@ -75,5 +75,5 @@ If no conflicts, omit this section.
 
 ## Step 6 — Verify
 
-Invoke the `verification-before-completion` skill. Do not claim the work is
+Invoke the `assert-green` skill. Do not claim the work is
 done until verification passes.

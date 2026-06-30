@@ -108,7 +108,7 @@ Invoke the `jjdesc` skill to write and apply the commit description.
 
 ### 6c. Verify
 
-Invoke the `verification-before-completion` skill. The split must pass lint,
+Invoke the `assert-green` skill. The split must pass lint,
 tests, and any autogeneration before proceeding. Fix all failures first.
 No split may depend on a later split to reach a green state.
 
@@ -119,7 +119,7 @@ jj edit <remainder-change-id>
 ```
 
 Repeat until the final split. The last `@` is the final chunk — describe
-it and invoke `verification-before-completion` for it too.
+it and invoke `assert-green` for it too.
 
 ## Step 7 — Completeness check
 
@@ -147,7 +147,7 @@ If they differ:
 1. Identify which file(s) or hunk(s) are missing or wrong in the stack.
 2. `jj edit` the appropriate split and apply the missing changes there.
 3. Re-run both diffs and repeat until they match.
-4. Re-run `verification-before-completion` on any split you touched.
+4. Re-run `assert-green` on any split you touched.
 
 Do not declare the split complete until the diffs match exactly.
 

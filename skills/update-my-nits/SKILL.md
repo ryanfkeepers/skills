@@ -51,5 +51,5 @@ Follow the appropriate flow in [FLOWS.md](FLOWS.md).
 
 ## Step 4 — Verify
 
-Invoke `verification-before-completion`. Do not claim the work is done
+Invoke `assert-green`. Do not claim the work is done
 until verification passes.
