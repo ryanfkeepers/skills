@@ -84,22 +84,34 @@ and its output.**
 
 ## Phase 3 — Lint
 
-### Task runners (check first)
+**Linting is mandatory. It may never be skipped.**
 
-| File | Target to try |
-|------|---------------|
+### Step 1 — Check task runners for a lint target
+
+List available targets (`make help`, `just --list`, `task --list`). If a
+`lint` target exists, use it:
+
+| File | Command |
+|------|---------|
 | `Makefile` | `make lint` |
 | `Justfile` / `justfile` | `just lint` |
 | `Taskfile.yml` / `Taskfile.yaml` | `task lint` |
 
-### Language fallbacks
+### Step 2 — Native fallback (required if no lint target found)
+
+If no task runner lint target exists — or no task runner is present —
+run the native linter for each detected language. Do not skip.
 
 | Indicator | Command |
 |-----------|---------|
-| `go.mod` | `lint` (alias), then `go vet ./...` |
+| `go.mod` | `lint` (alias); if unavailable, `go vet ./...` |
 | `package.json` | `npx eslint . --ext .ts,.tsx,.js,.jsx` |
 | `pyproject.toml` / `setup.py` | `ruff check .` |
 | `Gemfile` | `rubocop` |
+
+If no task runner target and no language indicator matches: report that
+linting could not be determined, list what was checked, and treat this as
+a failure — do not silently pass.
 
 If lint exits non-zero: **halt. Report the lint output.**
 
