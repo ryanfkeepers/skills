@@ -13,9 +13,18 @@ description: >-
 
 ## Step 1 — Select revisions
 
-Invoke the `keepers:select-revs` skill. Do not proceed until the
-user has confirmed their selection and you have the set of change
-IDs to work with.
+First, count revisions since trunk:
+
+```
+jj log -r 'trunk()..@' --no-pager -T 'change_id.short() ++ "\n"'
+```
+
+- **If exactly one revision exists:** automatically select it.
+  Do not ask the user for confirmation — proceed directly to
+  Step 2.
+- **Otherwise:** invoke the `keepers:select-revs` skill. Do not
+  proceed until the user has confirmed their selection and you
+  have the set of change IDs to work with.
 
 ## Step 2 — Verify bookmarks
 
@@ -53,16 +62,27 @@ For each bookmarked revision (in stack order, oldest first):
 
 1. Identify the base: the nearest ancestor bookmark, or `main`
    if none.
-2. Gather commit messages: `jj log -r '<base>..<change_id>'
-   --no-pager -T 'description ++ "\n---\n"'`
-3. Draft a PR title and body:
-   - **Title:** first line of the topmost commit message in
-     the range.
-   - **Body:** all commit messages in the range, formatted as
-     a summary list. No test plans, no checkbox lists, no
-     "## Test plan" sections — description of changes only.
-4. Present the draft and ask: "Approve this description for
-   `<bookmark-name>`, or provide edits."
+2. Gather descriptions from the range:
+   ```
+   jj log -r '<base>..<change_id>' --no-pager \
+     -T 'description ++ "\n\n---\n"'
+   ```
+3. Build the PR title and body directly from those descriptions:
+   - **If the range contains one revision:** use its description
+     verbatim — the first line becomes the title, the remainder
+     becomes the body.
+   - **If the range contains multiple revisions:** concatenate
+     all descriptions in order (oldest first), separated by
+     `\n\n---\n`. The first line of the oldest description becomes
+     the title; the full concatenation becomes the body.
+   - **If any revision in the range has no description (empty
+     or placeholder text):** propose a title and body based on
+     the diff, then ask: "This revision has no description.
+     Does this work as the PR description for `<bookmark-name>`,
+     or provide edits." Do not proceed until the user approves
+     or supplies a description.
+4. Present the composed description and ask: "Approve this
+   description for `<bookmark-name>`, or provide edits."
 
 Do not proceed to Step 5 until every description is approved.
 
