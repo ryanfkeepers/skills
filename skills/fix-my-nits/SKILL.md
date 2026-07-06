@@ -32,11 +32,17 @@ doc it links to (e.g., `go/STANDARDS.md`, `ts/STANDARDS.md`).
 jj diff --no-pager
 ```
 
-Identify the languages and file types touched. For each linked domain doc
-whose domain appears in the diff, read that doc too.
+Identify the languages, file types, and repo context of the diff. Domains
+are not limited to file types — a domain may apply based on any of:
+language, file type, repository, GitHub organization, or other context.
+Always apply a domain-specific standards doc when any of these evaluations
+matches, not only when the file extension matches.
+
+For each linked domain doc whose domain applies to the diff, read that doc.
 
 Example: diff touches `.go` files → read `~/.agents/mystandards/go/STANDARDS.md`
-if STANDARDS.md links to it.
+if STANDARDS.md links to it. Example: diff is in a repo under the `acme-corp`
+GitHub org → read `~/.agents/mystandards/acme-corp/STANDARDS.md` if linked.
 
 ## Step 3 — Check for project conventions
 

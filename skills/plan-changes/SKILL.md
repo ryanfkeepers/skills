@@ -3,10 +3,9 @@ name: plan-changes
 description: >-
   Two-phase planning interrogation: first establishes architectural soundness
   and shared high-level understanding, then challenges every detail against
-  the existing domain model, sharpening terminology and updating documentation
-  (VOCABULARY.md, INVARIANTS.md, ADRs) inline as decisions crystallise.
-  Use when user wants to stress-test a plan against their project's language
-  and documented decisions.
+  the existing domain model — sharpening terminology and surfacing conflicts
+  with existing invariants and ADRs. Use when user wants to stress-test a
+  plan against their project's language and documented decisions.
 ---
 
 **IMPORTANT:** Invoking this skill is the user's explicit request to be
@@ -30,13 +29,12 @@ asking.
 Load these before Phase 1 begins. They inform both phases.
 
 @../../shared/docs/plan/FORMAT.md
-@../../shared/docs/vocabulary/FORMAT.md
 @../../shared/docs/invariants/FORMAT.md
 @../../shared/docs/adr/FORMAT.md
 
 During codebase exploration, look for existing documentation in all
-`/docs/**`. Load VOCABULARY.md, INVARIANTS.md, and ADRs in scope before
-challenging the plan.
+`/docs/**`. Load INVARIANTS.md and ADRs in scope before challenging the
+plan.
 
 ---
 
@@ -64,7 +62,7 @@ Cover all of the following before exiting Phase 1:
 
 Challenge the plan at this level. Do not accept vague answers — press for
 concrete positions. If an architectural decision is resolved during Phase 1,
-record it as an ADR.
+note it for the ADR proposal list in Phase 3.
 
 ### Exiting Phase 1
 
@@ -86,7 +84,7 @@ the same scope so the two can be compared side by side. Label each diagram
 clearly: `BEFORE:` or `AFTER:` above the ASCII block.
 
 Always use ASCII diagrams in fenced code blocks — both inline in chat and
-when written into documents (ADRs, VOCABULARY.md, INVARIANTS.md, plan docs).
+when written into documents (ADRs, INVARIANTS.md, plan docs).
 Never use Mermaid or other rendered diagram formats.
 
 Then signal completion with:
@@ -108,20 +106,16 @@ could infer from context — naming, minor conventions, incidental
 structure. Only surface a question when the ambiguity is genuine and
 consequential.
 
-Route each resolved decision to the correct artifact. The only documentation
-files this skill creates or updates are:
-
-- `VOCABULARY.md` — domain terms and relationships
-- `INVARIANTS.md` — enforced rules and constraints
-- ADR files (e.g. `docs/adr/0001-*.md`) — architectural decisions
-- Plan docs (e.g. `{plan-name}.md` at the repo root)
+**Do not create or modify INVARIANTS.md, ADR files, or any other
+documentation files during Phase 2.** Proposed additions and updates are
+collected and surfaced in Phase 3.
 
 ### What warrants a question
 
 Ask only when one of these is true:
 
-- **Spec conflict**: the plan contradicts an existing VOCABULARY entry,
-  INVARIANT, or ADR, and you cannot resolve it unilaterally.
+- **Spec conflict**: the plan contradicts an existing INVARIANT or ADR,
+  and you cannot resolve it unilaterally.
 - **Architectural concern**: directory layout, interface boundaries, data
   ownership, or dependency direction is under-specified and multiple
   designs have meaningfully different trade-offs.
@@ -135,16 +129,12 @@ structural details — decide yourself and state the decision. Don't ask.
 
 ### Challenge against existing entries
 
-When the plan conflicts with an existing entry, call it out immediately.
-"Glossary defines 'cancellation' as X, but plan seems to mean Y — which
-is it?" / "INVARIANTS say X must hold; this design breaks that —
-update the invariant or change the design?"
+When the plan conflicts with an existing INVARIANT or ADR, call it out
+immediately. "INVARIANTS say X must hold; this design breaks that —
+change the design, or flag it for update in Phase 3?" / "ADR-0012 chose
+approach A; this plan assumes approach B — is this intentional?"
 
-### Align with parent scope
-
-When a term, rule, or decision is added or changed, check it doesn't
-conflict with the same artifact in a parent directory. Surface conflicts
-immediately.
+Track invariant conflicts as you find them. They surface in Phase 3.
 
 ### Sharpen fuzzy language
 
@@ -165,21 +155,44 @@ When the plan states how something works, check whether the code agrees.
 Surface contradictions: "Code cancels entire Orders; plan implies partial
 cancellation is possible — which is right?"
 
-### Update the relevant file inline
+---
 
-When a term, rule, or decision is resolved, update the file right there.
-Don't batch — capture as it happens. Use the format in the matching FORMAT
-file.
+## Phase 3 — Documentation proposals (optional)
+
+Phase 3 runs after Phase 2 questions are exhausted. It is optional: skip
+it if nothing warrants a proposal.
+
+### ADR proposals
+
+Present a bulleted list of new ADRs the planning session surfaced. Each
+entry is at most two sentences: what the decision is and why it was made.
+Do not write the ADR files — list only. To record any of these decisions,
+tell the user to use `/add-adr`.
+
+### Invariant proposals
+
+Ask the user — with no proposal of your own — whether they want to add
+any new invariants that the planning session revealed. Do not suggest
+specific invariants. To record or update any invariants, tell the user
+to use `/update-invariants`.
+
+### Existing invariant conflicts
+
+If any existing invariant was violated, required a workaround, or needs
+revision to accommodate this plan, name the invariant and describe the
+conflict. Ask the user whether they want it updated. To update it, tell
+the user to use `/update-invariants`.
+
+Do not update INVARIANTS.md or any other file. Surface and ask only.
 
 ---
 
-## After all questions are answered
+## After Phase 3
 
-When there are no more questions to ask, present a signal that the question
-phase is complete. Then **stop and wait for the user to explicitly approve
-before writing any code**. Do not interpret the end of the interview as
-permission to proceed. The session ends when the user says so — not when
-you run out of questions.
+**Stop and wait for the user to explicitly approve before writing any
+code.** Do not interpret the end of the interview as permission to
+proceed. The session ends when the user says so — not when you run out
+of questions.
 
 ---
 
@@ -188,6 +201,5 @@ you run out of questions.
 Other skills and `AGENT.md` files can `@`-include these format docs directly:
 
 - `@../../shared/docs/plan/FORMAT.md`
-- `@../../shared/docs/vocabulary/FORMAT.md`
 - `@../../shared/docs/invariants/FORMAT.md`
 - `@../../shared/docs/adr/FORMAT.md`
