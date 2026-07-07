@@ -27,10 +27,6 @@ Before anything else:
    ask the user to add them before proceeding. These examples are the ground truth for
    Phase 3a unit tests.
 
-3. **Context gate.** CONTEXT.md and INVARIANTS.md must exist and cover all areas in
-   [CONTEXT-GATE.md](CONTEXT-GATE.md). If they don't, interrogate the user and update
-   the docs before Phase 1. Sub-agents cannot see this session's context — they read files.
-
 ## Phases
 
 | # | Phase | Who | Exit criterion |

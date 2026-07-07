@@ -11,7 +11,7 @@ Fill every placeholder:
 - `[SCOPE_DIR]` — the package or directory that bounds the work (e.g. `internal/foo/`)
 - `[EXPECTED_FILES]` — files the plan anticipates creating or modifying, as orientation
 - `[INTERFACES]` — exported types, interfaces, and method signatures to declare
-- Context and invariants excerpts from CONTEXT.md and INVARIANTS.md
+- Invariant excerpts from INVARIANTS.md
 
 **Phase 1 done when all of these are true:**
 - `contract.go` exists with all exported interfaces and type declarations
@@ -54,7 +54,6 @@ Fill every placeholder:
 - `[E2E_TEST_DIR]`, `[E2E_TEST_COMMAND]`, `[ENVIRONMENT_REQUIREMENTS]`
 - `[E2E_TEST_FRAMEWORK_AND_PATTERNS]` — framework, setup/teardown, example from
   an existing E2E test if available
-- Context excerpt from CONTEXT.md
 
 **Phase 2 done when:**
 - E2E smoke test files written and compile
@@ -83,7 +82,7 @@ Fill every placeholder:
 - `[INTEGRATION_TEST_DIR]`, `[INTEGRATION_TEST_COMMAND]`, `[ENVIRONMENT_REQUIREMENTS]`
 - `[INTEGRATION_TEST_FRAMEWORK_AND_PATTERNS]` — framework, fixture patterns, example
   from an existing integration test if available
-- Context and invariants excerpts
+- Invariants excerpts from INVARIANTS.md
 
 **Phase 3 done when:**
 - Integration test files written and compile
@@ -106,7 +105,7 @@ Fill every placeholder:
 - `[MOCK_OUTPUT_DIR]` — where to write generated mock files (e.g. `internal/foo/mocks/`)
 - `[ERROR_HANDLING_SUMMARY]` — error pattern from INVARIANTS.md
 - `[BUILD_COMMAND]`, `[REGRESSION_CHECK_COMMAND]`
-- Context and invariants excerpts
+- Invariants excerpts from INVARIANTS.md
 
 **Phase 4 done when all of these are true:**
 - All `panic("not implemented")` stubs replaced with real implementations

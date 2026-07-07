@@ -22,10 +22,6 @@ Do NOT implement unexported logic. Do NOT write real implementations — stub bo
 [EXISTING_FILE_PATHS]
 <!-- List file paths. The agent reads them directly. -->
 
-## Domain context
-
-[CONTEXT_MD_EXCERPT]
-
 ## Invariants
 
 [INVARIANTS_MD_EXCERPT]

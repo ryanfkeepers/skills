@@ -41,10 +41,6 @@ to execute them. Write them so they are correct and ready for the user to run wi
 Create test files here. If existing E2E test files are relevant to the feature, read
 them before writing new ones.
 
-## Domain context
-
-[CONTEXT_MD_EXCERPT]
-
 ## What to produce
 
 E2E smoke tests covering:

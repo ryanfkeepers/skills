@@ -24,11 +24,7 @@ Before anything else:
    ask the user to add them before proceeding. These examples are the ground truth for
    Phase 3 integration tests and Phase 5a unit tests.
 
-3. **Context gate.** CONTEXT.md and INVARIANTS.md must exist and cover all areas in
-   [CONTEXT-GATE.md](CONTEXT-GATE.md). If they don't, interrogate the user and update
-   the docs before Phase 1. Sub-agents cannot see this session's context — they read files.
-
-4. **Test environment brief.** Ask the user upfront:
+3. **Test environment brief.** Ask the user upfront:
    - Where do E2E smoke tests live, what framework/patterns do they use, what command
      runs them, and what environment do they require?
    - Where do integration tests live, what framework/patterns do they use, what command

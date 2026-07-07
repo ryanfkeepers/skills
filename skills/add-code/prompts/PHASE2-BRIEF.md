@@ -36,10 +36,6 @@ Write generated mock files to: `[MOCK_OUTPUT_DIR]`
 Use `go generate` (or equivalent) if the project has a `//go:generate` directive.
 Otherwise generate mocks directly with the project's mock tool.
 
-## Domain context
-
-[CONTEXT_MD_EXCERPT]
-
 ## Invariants
 
 [INVARIANTS_MD_EXCERPT]

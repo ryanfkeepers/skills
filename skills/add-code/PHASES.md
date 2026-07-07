@@ -11,7 +11,7 @@ Fill every placeholder:
 - `[SCOPE_DIR]` — the package or directory that bounds the work (e.g. `internal/foo/`)
 - `[EXPECTED_FILES]` — files the plan anticipates creating or modifying, as orientation
 - `[INTERFACES]` — exported types, interfaces, and method signatures to declare
-- Context and invariants excerpts from CONTEXT.md and INVARIANTS.md
+- Invariants excerpts from INVARIANTS.md
 
 **Phase 1 done when all of these are true:**
 - `contract.go` exists with all exported interfaces and type declarations
@@ -39,7 +39,7 @@ Fill every placeholder:
 - `[MOCK_OUTPUT_DIR]` — where to write generated mock files (e.g. `internal/foo/mocks/`)
 - `[ERROR_HANDLING_SUMMARY]` — error pattern from INVARIANTS.md
 - `[BUILD_COMMAND]`, `[REGRESSION_CHECK_COMMAND]`
-- Context and invariants excerpts
+- Invariants excerpts from INVARIANTS.md
 
 **Phase 2 done when all of these are true:**
 - All `panic("not implemented")` stubs replaced with real implementations

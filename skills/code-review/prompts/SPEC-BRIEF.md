@@ -33,7 +33,7 @@ explanation of how they conflict. No proof, no finding.
 Always read these:
 
 [DOMAIN_MODEL_DOCS]
-<!-- List discovered paths: VOCABULARY.md, INVARIANTS.md, ADRs -->
+<!-- List discovered paths: INVARIANTS.md, ADRs -->
 
 ## Spec references
 
@@ -47,7 +47,6 @@ Always read these:
 These categories guide your investigation — they are not output sections.
 
 **Against domain model (always):**
-- Behavior that contradicts the domain vocabulary (VOCABULARY.md).
 - Violations of documented invariants (INVARIANTS.md).
 - Decisions that contradict an ADR.
 

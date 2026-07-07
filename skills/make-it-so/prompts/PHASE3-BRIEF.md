@@ -53,10 +53,6 @@ to execute them. Write them so they are correct and ready to run with:
 Create test files here. If existing integration test files are relevant to the feature,
 read them before writing new ones.
 
-## Domain context
-
-[CONTEXT_MD_EXCERPT]
-
 ## Invariants
 
 [INVARIANTS_MD_EXCERPT]
