@@ -38,39 +38,64 @@ language, file type, repository, GitHub organization, or other context.
 Always apply a domain-specific standards doc when any of these evaluations
 matches, not only when the file extension matches.
 
-For each linked domain doc whose domain applies to the diff, read that doc.
+For each linked domain whose domain applies to the diff, walk its
+directory tree under `~/.agents/mystandards/[domain]/` and collect every
+file path. Domain files do not cross-link to other domains.
 
-Example: diff touches `.go` files → read `~/.agents/mystandards/go/STANDARDS.md`
-if STANDARDS.md links to it. Example: diff is in a repo under the `acme-corp`
-GitHub org → read `~/.agents/mystandards/acme-corp/STANDARDS.md` if linked.
+Example: diff touches `.go` files → walk `~/.agents/mystandards/go/` and
+collect all files found. Example: diff is in a repo under the `acme-corp`
+GitHub org → walk `~/.agents/mystandards/acme-corp/` and collect all
+files found.
+
+Record the full list of file paths for each applicable domain — this is
+what gets handed to the sub-agent in Step 4, not the content.
 
 ## Step 3 — Check for project conventions
 
-Read any `CLAUDE.md` files in the repo (project root and relevant
-subdirectories). These define authoritative project conventions.
+From the diff, collect the set of directories containing changed files.
+For each such directory, walk up the tree to the repo root and record
+every `CLAUDE.md` found. Deduplicate. This list is the **project
+conventions set** — pass it in full to every sub-agent in Step 4.
 
 Personal standards **never** override project conventions. When a personal
 standard conflicts with a project convention, do not apply the nit — flag
 it instead (see Step 5).
 
-## Step 4 — Apply nits
+## Step 4 — Apply nits by domain (sequentially)
 
-For each file in the diff:
+For each applicable domain standards doc, **one at a time**, spawn a
+sub-agent with this brief (fill in the bracketed values before sending):
 
-1. Read the full file.
-2. Identify lines changed in the diff.
-3. Apply every personal standard that is relevant to those changes, provided
-   no project-convention conflict exists.
-4. Skip anything outside the changed lines unless the standard requires
-   cross-cutting changes (e.g., a file-level naming convention).
+> You are a nit-fixing agent focused exclusively on **[DOMAIN]** standards.
+>
+> 1. Get the current diff: `jj diff --no-pager`
+> 2. Read all domain standards files: `[list every file path collected for this domain]`
+> 3. Read project conventions from `[path(s) to relevant CLAUDE.md files]`
+>
+> **Your task:**
+> - For each file touched in the diff, read the full file.
+> - For each change in the diff, apply every standard from the domain
+>   standards files that is relevant to that change. Use the surrounding
+>   context to understand the full construct being changed (declaration,
+>   function, block) — do not evaluate standards line by line in isolation.
+> - Skip anything outside the changed lines unless the standard requires
+>   cross-cutting changes (e.g., a file-level naming convention).
+> - Personal standards never override project conventions. When a personal
+>   standard conflicts with a project convention, do not apply it — instead
+>   report it as a skipped nit:
+>   `<file>:<line>: personal standard says X; CLAUDE.md says Y`
+> - Nits are refinements — do not refactor, restructure, or expand scope
+>   beyond what the standards explicitly require.
+> - When finished, report any skipped nits.
 
-Nits are refinements — do not refactor, restructure, or expand scope beyond
-what the standards explicitly require.
+Do **not** launch domain agents in parallel. Wait for each agent to finish
+before starting the next one.
+
+Collect each agent's skipped-nit report as it completes.
 
 ## Step 5 — Flag conflicts
 
-After applying edits, report any skipped nits due to project-convention
-conflicts:
+Aggregate all skipped nits reported by the domain agents:
 
 ```
 Skipped nits (conflict with project conventions):
