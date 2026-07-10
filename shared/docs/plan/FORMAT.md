@@ -7,10 +7,9 @@ span multiple decisions, files, or sessions.
 ## Intent
 
 Plans record what is going to be built and why — providing a shared reference
-point throughout implementation. Unlike ADRs, plans are ephemeral: once the
-changes they describe are shipped, the plan has served its purpose and should
-be removed. A plan is not a spec or design doc; it is an active guide for
-in-flight work.
+point throughout implementation. Plans are ephemeral: once the changes they
+describe are shipped, the plan has served its purpose and should be removed.
+A plan is not a spec or design doc; it is an active guide for in-flight work.
 
 ## File structure
 
@@ -28,11 +27,9 @@ file when the plan is shipped.
 ## Per-artifact specifics
 
 Keep each plan focused on decisions and scope, not implementation steps. When
-a plan uses domain terms, align with the vocabulary in `INVARIANTS.md`. When a
-plan produces a hard-to-reverse decision, record it in an ADR instead.
+a plan uses domain terms, align with the vocabulary in `INVARIANTS.md`.
 
-Plans may link to other documents — ADRs, invariant files, or other
-plans. Relationships must reference other markdown documents; they cannot
+Plans may link to other documents — invariant files, or other plans. Relationships must reference other markdown documents; they cannot
 reference arbitrary code or concepts.
 
 ## Lifecycle

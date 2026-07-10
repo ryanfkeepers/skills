@@ -33,7 +33,7 @@ explanation of how they conflict. No proof, no finding.
 Always read these:
 
 [DOMAIN_MODEL_DOCS]
-<!-- List discovered paths: INVARIANTS.md, ADRs -->
+<!-- List discovered paths: INVARIANTS.md -->
 
 ## Spec references
 
@@ -48,7 +48,6 @@ These categories guide your investigation — they are not output sections.
 
 **Against domain model (always):**
 - Violations of documented invariants (INVARIANTS.md).
-- Decisions that contradict an ADR.
 
 **Against spec references (when provided):**
 - Requirements the spec asks for that are missing or incomplete.

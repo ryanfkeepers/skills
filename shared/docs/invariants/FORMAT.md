@@ -45,7 +45,7 @@ a scenario that would break it, it doesn't belong here.
 - **Only non-obvious domain invariants.** Performance targets, code style, and
   infrastructure constraints don't belong. Neither do constraints that a developer
   could derive by reading the code. Apply the litmus test below — if a rule fails
-  either gate, put it in an ADR or a code comment instead.
+  either gate, put it in a code comment instead.
 - **Flag conflicts explicitly.** If two rules contradict, or a rule contradicts the
   code, call it out in "Flagged conflicts" with a clear resolution.
 - Relationships must reference other md documents.  They cannot reference
@@ -63,7 +63,7 @@ Before writing any rule, apply both gates:
    dependency not visible in any single module? If no — it doesn't belong here.
 
 A rule belongs in INVARIANTS only if it passes both gates. Useful decisions that
-fail either gate belong in ADRs or comments, not here.
+fail either gate belong in code comments, not here.
 
 ## What qualifies (not an exhaustive list)
 

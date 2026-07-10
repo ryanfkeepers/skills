@@ -11,7 +11,6 @@ description: >-
 # Code Review
 
 @../../shared/docs/invariants/FORMAT.md
-@../../shared/docs/adr/FORMAT.md
 
 ## Reviewer posture
 
@@ -84,7 +83,6 @@ Run in parallel with Step 3, or immediately after. Search the repo
 for:
 
 - **INVARIANTS.md** — `find . -name "INVARIANTS.md" -path "*/docs/*"`
-- **ADRs** — `find . -path "*/adr/*.md" -path "*/docs/*"`
 - **Style sources** — `CLAUDE.md`, `AGENTS.md`, `REVIEW.md`,
   `CONTRIBUTING.md`, any `STYLE.md` or `STANDARDS.md` at the repo
   root or under `docs/`
@@ -125,8 +123,7 @@ Use [prompts/SPEC-BRIEF.md](prompts/SPEC-BRIEF.md).
 Fill before dispatching:
 - `[DIFF]` — full diff from Step 2
 - `[COMMIT_MESSAGES]` — commit messages from Step 2
-- `[DOMAIN_MODEL_DOCS]` — INVARIANTS.md, and ADR paths
-  from Step 4
+- `[DOMAIN_MODEL_DOCS]` — INVARIANTS.md paths from Step 4
 - `[SPEC_REFERENCES]` — issue references, URLs, or file paths found in
   Step 3; write `(none)` if nothing was found
 

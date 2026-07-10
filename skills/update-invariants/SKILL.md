@@ -50,8 +50,8 @@ The sanity interview must resolve:
 - **Falsifiability** — can you describe a concrete scenario that breaks this
   rule? If not, it doesn't belong in INVARIANTS.
 - **Litmus test** — does the rule pass both gates: not code-obvious, and
-  requires system context? Rules that fail either gate belong in an ADR or
-  a code comment instead.
+  requires system context? Rules that fail either gate belong in a code
+  comment instead.
 - **Scope** — is the working scope right, or should the rule live higher
   (more global) or lower (more specific)?
 - **Conditionality** — does the rule use "usually", "typically", or "in most

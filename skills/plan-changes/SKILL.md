@@ -4,8 +4,8 @@ description: >-
   Two-phase planning interrogation: first establishes architectural soundness
   and shared high-level understanding, then challenges every detail against
   the existing domain model — sharpening terminology and surfacing conflicts
-  with existing invariants and ADRs. Use when user wants to stress-test a
-  plan against their project's language and documented decisions.
+  with existing invariants. Use when user wants to stress-test a plan
+  against their project's language and documented decisions.
 ---
 
 **IMPORTANT:** Invoking this skill is the user's explicit request to be
@@ -30,11 +30,9 @@ Load these before Phase 1 begins. They inform both phases.
 
 @../../shared/docs/plan/FORMAT.md
 @../../shared/docs/invariants/FORMAT.md
-@../../shared/docs/adr/FORMAT.md
 
 During codebase exploration, look for existing documentation in all
-`/docs/**`. Load INVARIANTS.md and ADRs in scope before challenging the
-plan.
+`/docs/**`. Load INVARIANTS.md in scope before challenging the plan.
 
 ---
 
@@ -57,12 +55,9 @@ Cover all of the following before exiting Phase 1:
   there failure modes the plan doesn't account for?
 - **Alternatives**: Were other approaches considered? Is the chosen
   approach the right one, or is there a simpler path?
-- **ADR alignment**: Does the approach conflict with any existing
-  architectural decisions?
 
 Challenge the plan at this level. Do not accept vague answers — press for
-concrete positions. If an architectural decision is resolved during Phase 1,
-note it for the ADR proposal list in Phase 3.
+concrete positions.
 
 ### Exiting Phase 1
 
@@ -84,7 +79,7 @@ the same scope so the two can be compared side by side. Label each diagram
 clearly: `BEFORE:` or `AFTER:` above the ASCII block.
 
 Always use ASCII diagrams in fenced code blocks — both inline in chat and
-when written into documents (ADRs, INVARIANTS.md, plan docs).
+when written into documents (INVARIANTS.md, plan docs).
 Never use Mermaid or other rendered diagram formats.
 
 Then signal completion with:
@@ -106,16 +101,16 @@ could infer from context — naming, minor conventions, incidental
 structure. Only surface a question when the ambiguity is genuine and
 consequential.
 
-**Do not create or modify INVARIANTS.md, ADR files, or any other
-documentation files during Phase 2.** Proposed additions and updates are
+**Do not create or modify INVARIANTS.md or any other documentation files
+during Phase 2.** Proposed additions and updates are
 collected and surfaced in Phase 3.
 
 ### What warrants a question
 
 Ask only when one of these is true:
 
-- **Spec conflict**: the plan contradicts an existing INVARIANT or ADR,
-  and you cannot resolve it unilaterally.
+- **Spec conflict**: the plan contradicts an existing INVARIANT, and you
+  cannot resolve it unilaterally.
 - **Architectural concern**: directory layout, interface boundaries, data
   ownership, or dependency direction is under-specified and multiple
   designs have meaningfully different trade-offs.
@@ -129,10 +124,9 @@ structural details — decide yourself and state the decision. Don't ask.
 
 ### Challenge against existing entries
 
-When the plan conflicts with an existing INVARIANT or ADR, call it out
+When the plan conflicts with an existing INVARIANT, call it out
 immediately. "INVARIANTS say X must hold; this design breaks that —
-change the design, or flag it for update in Phase 3?" / "ADR-0012 chose
-approach A; this plan assumes approach B — is this intentional?"
+change the design, or flag it for update in Phase 3?"
 
 Track invariant conflicts as you find them. They surface in Phase 3.
 
@@ -161,13 +155,6 @@ cancellation is possible — which is right?"
 
 Phase 3 runs after Phase 2 questions are exhausted. It is optional: skip
 it if nothing warrants a proposal.
-
-### ADR proposals
-
-Present a bulleted list of new ADRs the planning session surfaced. Each
-entry is at most two sentences: what the decision is and why it was made.
-Do not write the ADR files — list only. To record any of these decisions,
-tell the user to use `/add-adr`.
 
 ### Invariant proposals
 
@@ -202,4 +189,3 @@ Other skills and `AGENT.md` files can `@`-include these format docs directly:
 
 - `@../../shared/docs/plan/FORMAT.md`
 - `@../../shared/docs/invariants/FORMAT.md`
-- `@../../shared/docs/adr/FORMAT.md`
