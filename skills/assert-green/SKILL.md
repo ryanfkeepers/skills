@@ -3,15 +3,16 @@ name: assert-green
 description: >-
   Assert that the current repo is fully green: compilation, code generation
   (if present), linting, and unit tests — in that order. Fails fast on the
-  first broken phase and reports the failure. Does not fix anything. Use when
-  asked to assert green, check if the repo is clean, verify all checks pass,
-  or before committing or opening a PR.
+  first broken phase and reports the failure. Auto-fixes lint failures; does
+  not fix anything else. Use when asked to assert green, check if the repo is
+  clean, verify all checks pass, or before committing or opening a PR.
 ---
 
 # Assert Green
 
 Assert four phases pass in order. **Stop at the first failure.** Do not fix
-anything — this skill is assertion only. Report what failed and why.
+anything — this skill is assertion only — **with one exception: lint (Phase 3)
+is auto-fixed.** Report what failed and why.
 
 ---
 
@@ -113,7 +114,20 @@ If no task runner target and no language indicator matches: report that
 linting could not be determined, list what was checked, and treat this as
 a failure — do not silently pass.
 
-If lint exits non-zero: **halt. Report the lint output.**
+### Step 3 — Auto-fix on failure (do not wait for permission)
+
+If lint exits non-zero, **do not halt and do not ask the user for
+permission to fix.** Always attempt a fix automatically:
+
+1. Invoke the `lint-fix` skill (or, if unavailable, run the linter's own
+   fix mode — e.g. `golangci-lint run --fix`, `eslint --fix`,
+   `ruff check --fix`, `rubocop -A` — and hand-fix anything the tool
+   cannot).
+2. Re-run the same lint command from Step 1/2 to confirm it now exits 0.
+
+If lint passes after the fix: record it as `lint: <cmd> exit 0 (auto-fixed)`
+and continue to Phase 4. If lint still exits non-zero after the fix attempt:
+**halt. Report the remaining lint output and what the fix attempt changed.**
 
 ---
 
@@ -142,9 +156,13 @@ If tests exit non-zero: **halt. Report the failing tests and output.**
 
 ## Reporting
 
-**On any failure:** State which phase failed, quote the relevant output
-(compiler error, lint violation, test failure), and stop. Do not proceed to
-the next phase. Do not suggest fixes unless the user asks.
+**On a lint failure:** Auto-fix per Phase 3, Step 3 — do not stop or wait for
+permission. Only if the fix fails to make lint green, report the remaining
+violations and stop.
+
+**On any other failure:** State which phase failed, quote the relevant output
+(compiler error, test failure), and stop. Do not proceed to the next phase.
+Do not suggest fixes unless the user asks.
 
 **On full pass:** State that all four phases passed (or three, if codegen was
 skipped). List the commands that ran and their exit codes.
