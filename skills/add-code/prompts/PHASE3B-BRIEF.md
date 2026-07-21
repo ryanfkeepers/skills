@@ -44,7 +44,10 @@ already covered by Phase 3a.
 
 ## What to produce
 
-New test functions appended to (or added alongside) the Phase 3a test file, covering:
+New test functions appended directly to the Phase 3a test file for each source file
+under test — never create a separate coverage-only test file. Every source file
+(e.g. `foo.go`) has exactly one paired test file (e.g. `foo_test.go`) containing both
+the Phase 3a and Phase 3b test functions. Covering:
 1. Internal helper logic not exercised by the exported contract tests
 2. Error paths — every `return err` branch in the implementation
 3. Edge cases visible from the implementation that the behavioral examples don't cover
@@ -53,6 +56,7 @@ Use the same `testCases` table pattern as Phase 3a tests.
 
 ## Constraints
 
+- Do NOT create a new test file separate from the Phase 3a test file — append to it
 - Do NOT modify any existing Phase 3a test function or assertion — add only
 - Do NOT run jj, git, or any VCS command — all changes must stay in the
   current working-copy revision; never commit, squash, or create a new change

@@ -95,7 +95,10 @@ Dispatch a Phase 3b sub-agent using
 
 This agent reads Phase 3a test files, implementation files, and mocks. Its job: add new
 test functions for coverage gaps — internal logic, error paths, edge cases not in
-Phase 3a. It must NEVER modify existing Phase 3a test cases.
+Phase 3a. It must NEVER modify existing Phase 3a test cases, and must append them into
+the same test file as Phase 3a — one test file per source file (`foo.go` ↔ `foo_test.go`).
+Never split coverage and adversarial cases across separate files (e.g. no
+`foo_coverage_test.go`).
 
 Fill every placeholder:
 - `[FEATURE]`, `[PLAN_EXCERPT]`
@@ -111,6 +114,9 @@ Fill every placeholder:
 **Parent action after Phase 3b returns:**
 - Diff Phase 3a test file against current state. If any existing Phase 3a test
   case was modified, reject Phase 3b output, surface the violations to the user, and stop.
+- Verify no new test file was created alongside the Phase 3a test file (e.g. a
+  `_coverage_test.go` or `_adversarial_test.go` split). Each source file must have exactly
+  one paired test file. If a split file was created, reject Phase 3b output and re-dispatch.
 - Run the test command yourself. Verify all tests pass before proceeding.
 
 ---
