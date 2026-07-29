@@ -1,6 +1,7 @@
 ---
 name: add-code
 description: Orchestrate plan-driven code implementation via sub-agents, with unit tests but no integration/E2E tests. Parent coordinates and adversarially verifies; sub-agents implement. Default skill for adding code to a project unless /make-it-so is explicitly invoked.
+model: sonnet
 ---
 
 # add-code
