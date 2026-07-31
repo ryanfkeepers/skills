@@ -3,8 +3,8 @@ name: push-pr-stack
 description: >-
   Push a stack of jj changes to GitHub and open pull requests for
   each bookmarked revision. Walks through: selecting revisions,
-  verifying bookmarks, collecting reviewers, drafting and approving
-  PR descriptions, creating PRs, and returning URLs. Use when the
+  auto-generating bookmark names and PR descriptions, collecting
+  reviewers, creating PRs, and returning URLs. Use when the
   user wants to push changes and open PRs, push a stacked PR series,
   or ship work to GitHub.
 ---
@@ -26,7 +26,7 @@ jj log -r 'trunk()..@' --no-pager -T 'change_id.short() ++ "\n"'
   proceed until the user has confirmed their selection and you
   have the set of change IDs to work with.
 
-## Step 2 — Verify bookmarks
+## Step 2 — Assign bookmarks
 
 Run:
 
@@ -35,28 +35,41 @@ jj log -r '<earliest>::<latest>' --no-pager \
   -T 'change_id.short() ++ "\t" ++ bookmarks.join(", ") ++ "\t" ++ description.first_line() ++ "\n"'
 ```
 
-Display the result as a markdown table:
+For each revision in the range that lacks a bookmark, the agent
+decides the bookmark name itself — do not ask the user for a name.
 
-| Change ID | Bookmark | Description |
-|-----------|----------|-------------|
-| `rkxmmksm` | `feature/auth` | Add login handler |
-| `yqvwlntp` | *(none)* | Fix token expiry |
+1. **Ticket ID.** If a ticket ID has not already been established
+   this session, ask once: "What ticket ID should be used for this
+   stack's branch names? (e.g. `DP-1234`)." Reuse that same ticket
+   ID for every revision in the stack; do not ask again per
+   revision.
+2. **Description.** If the revision has no description (or only a
+   placeholder), invoke the `keepers:jjdesc` skill to generate one
+   before continuing — do not ask the user to write it.
+3. **Short name.** Slugify the first line of the revision's
+   description: lowercase, replace runs of non-alphanumeric
+   characters with a single hyphen, strip leading/trailing hyphens,
+   cap at ~50 characters.
+4. **Bookmark name.** Combine as `<ticket>/<short-name>` (ticket
+   lowercased), e.g. `dp-1234/update-foo-parameters`.
+5. Create the bookmark: `jj bookmark create <name> -r <change_id>`.
 
-Ask: "Which revisions need bookmarks? Provide pairs as
-`change-id: bookmark-name`, or say 'done' to continue."
-
-Apply changes (`jj bookmark create <name> -r <change_id>` or
-`jj bookmark move <name> --to <change_id>`), re-display the
-updated table, and repeat until the user says "done".
+Re-display the updated table (change ID, bookmark, description) so
+the user can see what was created, then continue to Step 3 — this
+is informational, not a confirmation gate.
 
 ## Step 3 — Reviewers
 
-Ask: "Who should review these PRs? Provide GitHub usernames
-(comma-separated), or leave blank to rely on CODEOWNERS."
+Assume CODEOWNERS are the only reviewers — do not pass
+`--reviewer` and do not ask the user to name reviewers. Only add
+explicit reviewers if the user has already named them (in this
+conversation or elsewhere) without being asked.
 
-Store the list (may be empty).
+## Step 4 — Build PR descriptions
 
-## Step 4 — Draft PR descriptions
+The agent decides the PR title and body itself, re-using the jj
+revision description(s) directly — do not ask the user to draft or
+approve them.
 
 For each bookmarked revision (in stack order, oldest first):
 
@@ -75,16 +88,9 @@ For each bookmarked revision (in stack order, oldest first):
      all descriptions in order (oldest first), separated by
      `\n\n---\n`. The first line of the oldest description becomes
      the title; the full concatenation becomes the body.
-   - **If any revision in the range has no description (empty
-     or placeholder text):** propose a title and body based on
-     the diff, then ask: "This revision has no description.
-     Does this work as the PR description for `<bookmark-name>`,
-     or provide edits." Do not proceed until the user approves
-     or supplies a description.
-4. Present the composed description and ask: "Approve this
-   description for `<bookmark-name>`, or provide edits."
-
-Do not proceed to Step 5 until every description is approved.
+   - **If any revision in the range has no description (empty or
+     placeholder text):** invoke the `keepers:jjdesc` skill to
+     generate one, then use it as above.
 
 ## Step 5 — Verify each bookmark
 
@@ -121,8 +127,8 @@ Then create each PR:
 gh pr create \
   --head <bookmark-name> \
   --base <base-branch> \
-  --title "<approved title>" \
-  --body "<approved body>" \
+  --title "<title>" \
+  --body "<body>" \
   --assignee <current-github-login> \
   [--reviewer <user1> --reviewer <user2> ...]
 ```
@@ -135,5 +141,5 @@ Print a table of all generated PRs:
 
 | Bookmark | PR URL |
 |----------|--------|
-| `feature/auth` | https://github.com/org/repo/pull/42 |
-| `feature/auth-tests` | https://github.com/org/repo/pull/43 |
+| `dp-1234/add-auth-handler` | https://github.com/org/repo/pull/42 |
+| `dp-1234/add-auth-tests` | https://github.com/org/repo/pull/43 |
