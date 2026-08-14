@@ -53,10 +53,6 @@ to execute them. Write them so they are correct and ready to run with:
 Create test files here. If existing integration test files are relevant to the feature,
 read them before writing new ones.
 
-## Invariants
-
-[INVARIANTS_MD_EXCERPT]
-
 ## What to produce
 
 Integration tests covering:

@@ -3,9 +3,9 @@ name: plan-changes
 description: >-
   Two-phase planning interrogation: first establishes architectural soundness
   and shared high-level understanding, then challenges every detail against
-  the existing domain model — sharpening terminology and surfacing conflicts
-  with existing invariants. Use when user wants to stress-test a plan
-  against their project's language and documented decisions.
+  the existing domain model and codebase — sharpening terminology and
+  surfacing conflicts. Use when user wants to stress-test a plan against
+  their project's language and documented decisions.
 ---
 
 **IMPORTANT:** Invoking this skill is the user's explicit request to be
@@ -29,10 +29,9 @@ asking.
 Load these before Phase 1 begins. They inform both phases.
 
 @../../shared/docs/plan/FORMAT.md
-@../../shared/docs/invariants/FORMAT.md
 
 During codebase exploration, look for existing documentation in all
-`/docs/**`. Load INVARIANTS.md in scope before challenging the plan.
+`/docs/**` before challenging the plan.
 
 ---
 
@@ -79,8 +78,8 @@ the same scope so the two can be compared side by side. Label each diagram
 clearly: `BEFORE:` or `AFTER:` above the ASCII block.
 
 Always use ASCII diagrams in fenced code blocks — both inline in chat and
-when written into documents (INVARIANTS.md, plan docs).
-Never use Mermaid or other rendered diagram formats.
+when written into plan docs. Never use Mermaid or other rendered diagram
+formats.
 
 Then signal completion with:
 
@@ -101,16 +100,12 @@ could infer from context — naming, minor conventions, incidental
 structure. Only surface a question when the ambiguity is genuine and
 consequential.
 
-**Do not create or modify INVARIANTS.md or any other documentation files
-during Phase 2.** Proposed additions and updates are
-collected and surfaced in Phase 3.
+**Do not create or modify any documentation files during Phase 2.**
 
 ### What warrants a question
 
 Ask only when one of these is true:
 
-- **Spec conflict**: the plan contradicts an existing INVARIANT, and you
-  cannot resolve it unilaterally.
 - **Architectural concern**: directory layout, interface boundaries, data
   ownership, or dependency direction is under-specified and multiple
   designs have meaningfully different trade-offs.
@@ -121,14 +116,6 @@ Ask only when one of these is true:
 
 Everything else — exact names, minor formatting choices, trivial
 structural details — decide yourself and state the decision. Don't ask.
-
-### Challenge against existing entries
-
-When the plan conflicts with an existing INVARIANT, call it out
-immediately. "INVARIANTS say X must hold; this design breaks that —
-change the design, or flag it for update in Phase 3?"
-
-Track invariant conflicts as you find them. They surface in Phase 3.
 
 ### Sharpen fuzzy language
 
@@ -151,30 +138,7 @@ cancellation is possible — which is right?"
 
 ---
 
-## Phase 3 — Documentation proposals (optional)
-
-Phase 3 runs after Phase 2 questions are exhausted. It is optional: skip
-it if nothing warrants a proposal.
-
-### Invariant proposals
-
-Ask the user — with no proposal of your own — whether they want to add
-any new invariants that the planning session revealed. Do not suggest
-specific invariants. To record or update any invariants, tell the user
-to use `/update-invariants`.
-
-### Existing invariant conflicts
-
-If any existing invariant was violated, required a workaround, or needs
-revision to accommodate this plan, name the invariant and describe the
-conflict. Ask the user whether they want it updated. To update it, tell
-the user to use `/update-invariants`.
-
-Do not update INVARIANTS.md or any other file. Surface and ask only.
-
----
-
-## After Phase 3
+## After Phase 2
 
 **Stop and wait for the user to explicitly approve before writing any
 code.** Do not interpret the end of the interview as permission to
@@ -185,7 +149,6 @@ of questions.
 
 ## Reusing format definitions
 
-Other skills and `AGENT.md` files can `@`-include these format docs directly:
+Other skills and `AGENT.md` files can `@`-include this format doc directly:
 
 - `@../../shared/docs/plan/FORMAT.md`
-- `@../../shared/docs/invariants/FORMAT.md`

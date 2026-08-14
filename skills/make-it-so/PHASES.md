@@ -11,7 +11,6 @@ Fill every placeholder:
 - `[SCOPE_DIR]` — the package or directory that bounds the work (e.g. `internal/foo/`)
 - `[EXPECTED_FILES]` — files the plan anticipates creating or modifying, as orientation
 - `[INTERFACES]` — exported types, interfaces, and method signatures to declare
-- Invariant excerpts from INVARIANTS.md
 
 **Phase 1 done when all of these are true:**
 - `contract.go` exists with all exported interfaces and type declarations
@@ -82,7 +81,6 @@ Fill every placeholder:
 - `[INTEGRATION_TEST_DIR]`, `[INTEGRATION_TEST_COMMAND]`, `[ENVIRONMENT_REQUIREMENTS]`
 - `[INTEGRATION_TEST_FRAMEWORK_AND_PATTERNS]` — framework, fixture patterns, example
   from an existing integration test if available
-- Invariants excerpts from INVARIANTS.md
 
 **Phase 3 done when:**
 - Integration test files written and compile
@@ -103,9 +101,8 @@ Fill every placeholder:
 - `[SCOPE_DIR]`, `[PHASE1_FILES]` — Phase 1 scaffold files to build on
 - `[MOCK_INTERFACES]` — interfaces in `contract.go` to generate mocks for
 - `[MOCK_OUTPUT_DIR]` — where to write generated mock files (e.g. `internal/foo/mocks/`)
-- `[ERROR_HANDLING_SUMMARY]` — error pattern from INVARIANTS.md
+- `[ERROR_HANDLING_SUMMARY]` — the codebase's existing error handling conventions
 - `[BUILD_COMMAND]`, `[REGRESSION_CHECK_COMMAND]`
-- Invariants excerpts from INVARIANTS.md
 
 **Phase 4 done when all of these are true:**
 - All `panic("not implemented")` stubs replaced with real implementations
@@ -189,7 +186,7 @@ Provide:
 - Integration test results: "not run; pending user execution" unless the user ran
   them manually and provided output
 
-The verifier reads INVARIANTS.md and runs `jj diff --no-pager` itself.
+The verifier runs `jj diff --no-pager` itself.
 
 **Verifier checks:**
 1. Spec compliance — every requirement in the plan implemented? List any gap.

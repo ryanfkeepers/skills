@@ -36,10 +36,6 @@ Write generated mock files to: `[MOCK_OUTPUT_DIR]`
 Use `go generate` (or equivalent) if the project has a `//go:generate` directive.
 Otherwise generate mocks directly with the project's mock tool.
 
-## Invariants
-
-[INVARIANTS_MD_EXCERPT]
-
 ## What to produce
 
 1. Implementations replacing all `panic("not implemented")` stubs
@@ -56,7 +52,7 @@ Do NOT write any test files — unit tests are produced in a separate phase.
   current working-copy revision; never commit, squash, or create a new change
 - Stay within `[SCOPE_DIR]`. If you determine you need to touch something outside it,
   state what and why before doing so.
-- Follow error handling conventions from the invariants: `[ERROR_HANDLING_SUMMARY]`
+- Follow the codebase's existing error handling conventions: `[ERROR_HANDLING_SUMMARY]`
 
 ## Done when
 

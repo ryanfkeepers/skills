@@ -44,7 +44,7 @@ See [PHASES.md](PHASES.md) for detailed per-phase instructions.
 ## Sub-agent briefing rule
 
 Every sub-agent brief must be fully self-contained: file excerpts, plan section, context,
-invariants, scope boundaries, and done-criteria — all included. Use the templates in
+scope boundaries, and done-criteria — all included. Use the templates in
 [prompts/](prompts/) and fill every `[PLACEHOLDER]` before dispatching. Never dispatch
 with unfilled placeholders.
 

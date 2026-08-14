@@ -38,10 +38,6 @@ already covered by Phase 5a.
 
 [MOCK_FILES]
 
-## Domain context and invariants
-
-[INVARIANTS_MD_EXCERPT]
-
 ## What to produce
 
 New test functions appended to (or added alongside) the Phase 5a test file, covering:

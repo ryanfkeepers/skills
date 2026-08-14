@@ -38,10 +38,6 @@ already covered by Phase 3a.
 
 [MOCK_FILES]
 
-## Domain context and invariants
-
-[INVARIANTS_MD_EXCERPT]
-
 ## What to produce
 
 New test functions appended directly to the Phase 3a test file for each source file

@@ -1,6 +1,6 @@
 ---
 name: make-it-so
-description: Orchestrate plan-driven code implementation via sub-agents. Parent coordinates and adversarially verifies; sub-agents implement. Use when executing a plan to implement code, building a feature, or implementing a spec.
+description: Orchestrate plan-driven code implementation via sub-agents, including E2E and integration test phases. Parent coordinates and adversarially verifies; sub-agents implement. Use when executing a plan to implement code, building a feature, or implementing a spec. For the lighter default without integration/E2E tests, use `add-code` instead.
 ---
 
 # make-it-so
@@ -8,6 +8,9 @@ description: Orchestrate plan-driven code implementation via sub-agents. Parent 
 Coordinate code implementation through isolated sub-agents. Parent is coordinator and
 adversarial verifier. Sub-agents do the work. Everything lands in a single jj working-copy
 revision — no commits, no admin tasks.
+
+For work that doesn't need integration/E2E test phases, use `add-code` instead — it's
+the lighter default.
 
 ## Pre-flight checks
 
@@ -53,7 +56,7 @@ See [PHASES.md](PHASES.md) for detailed per-phase instructions.
 ## Sub-agent briefing rule
 
 Every sub-agent brief must be fully self-contained: file excerpts, plan section, context,
-invariants, scope boundaries, and done-criteria — all included. Use the templates in
+scope boundaries, and done-criteria — all included. Use the templates in
 [prompts/](prompts/) and fill every `[PLACEHOLDER]` before dispatching. Never dispatch
 with unfilled placeholders.
 

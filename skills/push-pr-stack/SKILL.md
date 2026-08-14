@@ -107,6 +107,12 @@ PR, invoke the `keepers:assert-green` skill.
 
 ## Step 6 — Create PRs
 
+Resolve the current GitHub user once, before creating any PRs:
+
+```
+gh api user --jq '.login'
+```
+
 For each bookmarked revision (oldest first — base PRs before
 dependents):
 
@@ -114,14 +120,6 @@ dependents):
 2. Determine the base branch: nearest ancestor bookmark name,
    or `main`.
 3. Create the PR:
-
-Before creating the first PR, resolve the current GitHub user:
-
-```
-gh api user --jq '.login'
-```
-
-Then create each PR:
 
 ```
 gh pr create \

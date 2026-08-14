@@ -25,10 +25,6 @@ they pass without output.
 
 [PLAN]
 
-## Invariants
-
-Read `INVARIANTS.md` directly.
-
 ## Diff
 
 Run `jj diff --no-pager` yourself. Do not rely on a summary.

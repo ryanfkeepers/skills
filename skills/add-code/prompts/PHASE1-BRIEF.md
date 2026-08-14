@@ -22,10 +22,6 @@ Do NOT implement unexported logic. Do NOT write real implementations — stub bo
 [EXISTING_FILE_PATHS]
 <!-- List file paths. The agent reads them directly. -->
 
-## Invariants
-
-[INVARIANTS_MD_EXCERPT]
-
 ## Primary scope
 
 Work is centered in `[SCOPE_DIR]`. Expected files to create or modify based on the plan:

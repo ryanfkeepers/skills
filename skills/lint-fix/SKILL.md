@@ -30,7 +30,7 @@ when lint/build targets exist — they encode the project's exact configuration.
 
 | File | Language | Linter command |
 |------|----------|----------------|
-| `go.mod` | Go | `lint` (alias), `go vet ./...` |
+| `go.mod` | Go | `golangci-lint run`, `go vet ./...` |
 | `package.json` | Node / TS | `npx eslint .`, `npx prettier --check .` |
 | `pyproject.toml` or `setup.py` | Python | `ruff check .`, `ruff format --check .` |
 | `Gemfile` | Ruby | `rubocop` |
@@ -44,9 +44,7 @@ This establishes scope.
 
 **Go** (`go.mod` present):
 ```bash
-
 golangci-lint run
-lint
 go vet ./...
 ```
 

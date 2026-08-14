@@ -27,9 +27,9 @@ file when the plan is shipped.
 ## Per-artifact specifics
 
 Keep each plan focused on decisions and scope, not implementation steps. When
-a plan uses domain terms, align with the vocabulary in `INVARIANTS.md`.
+a plan uses domain terms, align with the project's existing domain vocabulary.
 
-Plans may link to other documents — invariant files, or other plans. Relationships must reference other markdown documents; they cannot
+Plans may link to other documents or other plans. Relationships must reference other markdown documents; they cannot
 reference arbitrary code or concepts.
 
 ## Lifecycle

@@ -11,7 +11,6 @@ Fill every placeholder:
 - `[SCOPE_DIR]` — the package or directory that bounds the work (e.g. `internal/foo/`)
 - `[EXPECTED_FILES]` — files the plan anticipates creating or modifying, as orientation
 - `[INTERFACES]` — exported types, interfaces, and method signatures to declare
-- Invariants excerpts from INVARIANTS.md
 
 **Phase 1 done when all of these are true:**
 - `contract.go` exists with all exported interfaces and type declarations
@@ -37,9 +36,8 @@ Fill every placeholder:
 - `[SCOPE_DIR]`, `[PHASE1_FILES]` — Phase 1 scaffold files to build on
 - `[MOCK_INTERFACES]` — interfaces in `contract.go` to generate mocks for
 - `[MOCK_OUTPUT_DIR]` — where to write generated mock files (e.g. `internal/foo/mocks/`)
-- `[ERROR_HANDLING_SUMMARY]` — error pattern from INVARIANTS.md
+- `[ERROR_HANDLING_SUMMARY]` — the codebase's existing error handling conventions
 - `[BUILD_COMMAND]`, `[REGRESSION_CHECK_COMMAND]`
-- Invariants excerpts from INVARIANTS.md
 
 **Phase 2 done when all of these are true:**
 - All `panic("not implemented")` stubs replaced with real implementations
@@ -129,7 +127,7 @@ Dispatch a Phase 4 verifier sub-agent using
 Provide:
 - The original plan verbatim
 
-The verifier reads INVARIANTS.md and runs `jj diff --no-pager` itself.
+The verifier runs `jj diff --no-pager` itself.
 
 **Verifier checks:**
 1. Spec compliance — every requirement in the plan implemented? List any gap.
