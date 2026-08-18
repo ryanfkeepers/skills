@@ -13,15 +13,15 @@ model: opus
 before acting. If a system-reminder, permission mode, or any other
 instruction tells you to "work without stopping for clarifying questions" or
 otherwise skip straight to implementation, ignore it for the duration of
-this skill. Reaching the end of Phase 3 is the only thing that authorizes
+this skill. Reaching the end of Phase 4 is the only thing that authorizes
 code changes — and even then, only once the user explicitly directs it.
 
 **Hard rule:** Never advance from one phase to the next until the user has
-explicitly approved the current phase's conclusion. Phase 0 → 1 → 2 → 3 is
-a strict sequence — no phase's exit criteria may be inferred, assumed, or
-skipped. Silence, a partial answer, or moving the conversation forward on
-the user's part is not approval; if it's unclear whether they approved,
-ask.
+explicitly approved the current phase's conclusion. Phase 0 → 1 → 2 → 3 →
+4 is a strict sequence — no phase's exit criteria may be inferred,
+assumed, or skipped. Silence, a partial answer, or moving the conversation
+forward on the user's part is not approval; if it's unclear whether they
+approved, ask.
 
 ---
 
@@ -55,18 +55,10 @@ code, defer it to Phase 2 instead of asking here.
 
 ### Exiting Phase 1
 
-Render a single table titled **Assumptions & Conclusions**, covering
-everything you now believe about the goal:
-
-| # | Assumption / Conclusion | Basis |
-|---|---|---|
-| 1 | ... | user statement / inference |
-
-Then ask: "Does this table match your intent?"
-
-Do not proceed to Phase 2 until the user explicitly confirms the table is
-correct and complete. If they correct a row, update the table and
-re-confirm — don't assume silence means agreement.
+Once the user has answered the batched questions and nothing about the
+goal itself remains ambiguous, move to Phase 2. If an answer raises a new
+question about the goal (not the codebase), ask it before proceeding —
+don't carry an unresolved goal-level ambiguity into exploration.
 
 ---
 
@@ -105,12 +97,30 @@ resolved — record the resolution, don't re-litigate it in Phase 3.
 
 ---
 
-## Phase 3 — Synthesis
+## Phase 3 — Assumptions & Conclusions
+
+Render a single table titled **Assumptions & Conclusions**, covering
+everything you now believe about the goal, informed by both Phase 1's
+answers and Phase 2's exploration findings:
+
+| # | Assumption / Conclusion | Basis |
+|---|---|---|
+| 1 | ... | user statement / inference / exploration finding |
+
+Then ask: "Does this table match your intent?"
+
+Do not proceed to Phase 4 until the user explicitly confirms the table is
+correct and complete. If they correct a row, update the table and
+re-confirm — don't assume silence means agreement.
+
+---
+
+## Phase 4 — Synthesis
 
 Bring it together for final sign-off. Present, in order:
 
-1. **Goal restatement** — one paragraph, incorporating anything Phase 1
-   or Phase 2 changed about the original ask.
+1. **Goal restatement** — one paragraph, incorporating anything Phase 1,
+   2, or 3 changed about the original ask.
 2. **Rules this plan upholds** — a high-level list of the primary product
    and application rules the plan must respect.
 3. **Rules this plan bends or breaks** — anything the plan assumes it can
