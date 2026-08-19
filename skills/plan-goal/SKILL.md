@@ -18,7 +18,7 @@ code changes — and even then, only once the user explicitly directs it.
 
 **Hard rule:** Never advance from one phase to the next until the user has
 explicitly approved the current phase's conclusion. Phase 0 → 1 → 2 → 3 →
-4 is a strict sequence — no phase's exit criteria may be inferred,
+4 → 5 is a strict sequence — no phase's exit criteria may be inferred,
 assumed, or skipped. Silence, a partial answer, or moving the conversation
 forward on the user's part is not approval; if it's unclear whether they
 approved, ask.
@@ -62,46 +62,28 @@ don't carry an unresolved goal-level ambiguity into exploration.
 
 ---
 
-## Phase 2 — Exploration
+## Phase 2 — Exploration: Leverage
 
-Explore the codebase with the *end goal* in mind. Fan out with parallel
+Explore the codebase with the *end goal* in mind, looking for existing
+patterns, packages, or helpers that would make achieving this goal easier
+and should be reused rather than rebuilt. Fan out with parallel
 sub-agents (`Explore` or `fork`) when the lookups are independent of each
-other — e.g. checking for conflicting invariants in one area while
-surveying reusable helpers in another.
+other.
 
-Investigate exactly three things:
+Present the findings plainly, with file/line evidence for every claim. If
+there's nothing to report, say so explicitly ("No reusable patterns found
+in the areas this touches") — don't skip it silently.
 
-1. **Conflicts** — does the goal conflict with any existing pattern,
-   invariant, or documented rule?
-2. **Leverage** — are there existing patterns, packages, or helpers that
-   would make achieving this goal easier, and should be reused rather than
-   rebuilt?
-3. **Gaps** — is there anything the goal doesn't yet address that it will
-   need to, once it meets the real code (missing edge cases, undecided
-   behavior, ambiguous ownership)?
-
-### Walking the user through findings
-
-Present the three sets one at a time, in this fixed order: **Conflicts**
-first (most critical), then **Leverage**, then **Gaps**. For each set:
-
-- State the findings plainly, with file/line evidence for every claim.
-- If a set has nothing to report, say so explicitly ("No conflicts
-  found in the areas this touches") — don't skip it silently.
-- Wait for the user to resolve or approve that set before presenting the
-  next one.
-
-Phase 2 concludes only once all three sets have been resolved or approved
-by the user. A "conflict" that the user waves off still counts as
-resolved — record the resolution, don't re-litigate it in Phase 3.
+Phase 2 concludes only once the user has resolved or approved the
+leverage findings.
 
 ---
 
 ## Phase 3 — Assumptions & Conclusions
 
 Render a single table titled **Assumptions & Conclusions**, covering
-everything you now believe about the goal, informed by both Phase 1's
-answers and Phase 2's exploration findings:
+everything you now believe about the goal, informed by Phase 1's answers
+and Phase 2's leverage findings:
 
 | # | Assumption / Conclusion | Basis |
 |---|---|---|
@@ -115,12 +97,51 @@ re-confirm — don't assume silence means agreement.
 
 ---
 
-## Phase 4 — Synthesis
+## Phase 4 — Exploration: Conflicts & Gaps
+
+Check the confirmed Assumptions & Conclusions table against the real
+codebase. Fan out with parallel sub-agents (`Explore` or `fork`) when the
+lookups are independent of each other.
+
+Investigate exactly two things:
+
+1. **Conflicts** — does the goal, or any row in the assumptions table,
+   conflict with an existing pattern, invariant, or documented rule?
+2. **Gaps** — is there anything the goal or the assumptions table doesn't
+   yet address that it will need to, once it meets the real code (missing
+   edge cases, undecided behavior, ambiguous ownership)?
+
+### Walking the user through findings
+
+Present the two sets one at a time, in this fixed order: **Conflicts**
+first (most critical), then **Gaps**. For each set:
+
+- State the findings plainly, with file/line evidence for every claim.
+- If a set has nothing to report, say so explicitly ("No conflicts
+  found in the areas this touches") — don't skip it silently.
+- Wait for the user to resolve or approve that set before presenting the
+  next one.
+
+Phase 4 concludes only once both sets have been resolved or approved by
+the user. A "conflict" that the user waves off still counts as resolved —
+record the resolution, don't re-litigate it in Phase 5.
+
+### Re-confirming assumptions
+
+If any resolved conflict or gap changes, adds, or invalidates a row in
+the Phase 3 table, update the table and re-present it with: "Does this
+table still match your intent?" Do not proceed to Phase 5 until the user
+explicitly re-confirms. If nothing in Phase 4 touched the table, say so
+and move on without re-presenting it.
+
+---
+
+## Phase 5 — Synthesis
 
 Bring it together for final sign-off. Present, in order:
 
 1. **Goal restatement** — one paragraph, incorporating anything Phase 1,
-   2, or 3 changed about the original ask.
+   2, 3, or 4 changed about the original ask.
 2. **Rules this plan upholds** — a high-level list of the primary product
    and application rules the plan must respect.
 3. **Rules this plan bends or breaks** — anything the plan assumes it can
