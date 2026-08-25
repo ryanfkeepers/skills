@@ -70,12 +70,20 @@ and should be reused rather than rebuilt. Fan out with parallel
 sub-agents (`Explore` or `fork`) when the lookups are independent of each
 other.
 
-Present the findings plainly, with file/line evidence for every claim. If
-there's nothing to report, say so explicitly ("No reusable patterns found
-in the areas this touches") — don't skip it silently.
+Sort each finding, with file/line evidence, into one of two lists:
 
-Phase 2 concludes only once the user has resolved or approved the
-leverage findings.
+- **Leverage assumptions** — findings settled enough to fold straight
+  into Phase 3's table (a clear pattern to reuse, no ambiguity).
+- **Leverage in need of resolution** — findings that raise an open
+  question for the user (e.g. two competing patterns, a helper that
+  only partially fits, an unclear ownership boundary).
+
+If the second list is empty, do not present anything or stop for
+approval — fold the assumptions list straight into Phase 3 and move on.
+Only surface Phase 2 to the user when there is at least one item in
+"Leverage in need of resolution." When you do surface it, show
+**Leverage assumptions** first, then **Leverage in need of resolution**,
+and wait for the user to resolve the second list before proceeding.
 
 ---
 
@@ -111,20 +119,32 @@ Investigate exactly two things:
    yet address that it will need to, once it meets the real code (missing
    edge cases, undecided behavior, ambiguous ownership)?
 
+For each of Conflicts and Gaps, sort findings into two lists:
+
+- **`<Conflicts|Gaps>` assumptions** — findings settled enough to fold
+  straight into the Phase 3 table (a conflict the codebase clearly
+  resolves one way, a gap with an obvious answer).
+- **`<Conflicts|Gaps>` in need of resolution** — findings that raise an
+  open question only the user can settle.
+
 ### Walking the user through findings
 
-Present the two sets one at a time, in this fixed order: **Conflicts**
-first (most critical), then **Gaps**. For each set:
+Only surface a set (Conflicts or Gaps) to the user if it has at least
+one item "in need of resolution." Skip a set entirely — no message, no
+pause — if everything in it was resolvable as an assumption.
 
-- State the findings plainly, with file/line evidence for every claim.
-- If a set has nothing to report, say so explicitly ("No conflicts
-  found in the areas this touches") — don't skip it silently.
-- Wait for the user to resolve or approve that set before presenting the
-  next one.
+When a set does need surfacing, present it in this fixed order:
+**Conflicts** first (most critical), then **Gaps**. For each set shown:
 
-Phase 4 concludes only once both sets have been resolved or approved by
-the user. A "conflict" that the user waves off still counts as resolved —
-record the resolution, don't re-litigate it in Phase 5.
+- Show `<foo> assumptions` first, then `<foo> in need of resolution`,
+  each with file/line evidence for every claim.
+- Wait for the user to resolve the "in need of resolution" items before
+  presenting the next set.
+
+Phase 4 concludes once every set that needed resolution has been
+resolved or approved by the user (sets with nothing to resolve need no
+such approval). A "conflict" that the user waves off still counts as
+resolved — record the resolution, don't re-litigate it in Phase 5.
 
 ### Re-confirming assumptions
 

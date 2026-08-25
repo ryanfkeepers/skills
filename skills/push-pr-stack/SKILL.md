@@ -92,20 +92,48 @@ For each bookmarked revision (in stack order, oldest first):
      placeholder text):** invoke the `keepers:jjdesc` skill to
      generate one, then use it as above.
 
-## Step 5 — Verify each bookmark
+## Step 5 — Remove shipped plan docs
+
+Plan docs (see `shared/docs/plan/FORMAT.md`) live as standalone
+`{plan-name}.md` files at the repo root and are meant to be deleted
+once the work they describe ships. Before creating any PR, check
+each bookmarked revision for a plan doc it introduced and still
+carries:
+
+1. For each bookmarked revision, list files it added:
+   ```
+   jj diff -r <change_id> --summary --no-pager
+   ```
+2. A file is a plan doc if it is `A` (added) directly at the repo
+   root, has a `.md` extension, and is not a standard project file
+   (`README.md`, `CHANGELOG.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
+   `LICENSE.md`, etc.).
+3. If such a file still exists on disk, delete it and fold the
+   deletion into the same revision:
+   ```
+   rm <plan-name>.md
+   jj squash --into <change_id>
+   ```
+   (If `<change_id>` is `@`, a plain `jj squash` targets the parent
+   automatically — use `jj squash --into <change_id>` for any
+   non-working-copy revision in the stack.)
+4. If the plan doc was already deleted by a later revision in the
+   stack, no action is needed — it won't exist on disk.
+
+## Step 6 — Verify each bookmark
 
 For each bookmarked revision (oldest first), before creating any
 PR, invoke the `keepers:assert-green` skill.
 
-- If verification passes, proceed to Step 6.
+- If verification passes, proceed to Step 7.
 - If verification fails for any bookmark, **halt immediately**.
   Report which bookmark failed and what the failure was.
-  Do not proceed to Step 6 until the user has resolved the
+  Do not proceed to Step 7 until the user has resolved the
   issue and verification passes for that bookmark. Re-run
   `keepers:assert-green` after each fix
   attempt; only continue when it passes.
 
-## Step 6 — Create PRs
+## Step 7 — Create PRs
 
 Resolve the current GitHub user once, before creating any PRs:
 
@@ -133,7 +161,7 @@ gh pr create \
 
 Collect the URL returned by `gh pr create`.
 
-## Step 7 — Report
+## Step 8 — Report
 
 Print a table of all generated PRs:
 
