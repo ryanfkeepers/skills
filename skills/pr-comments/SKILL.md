@@ -126,19 +126,41 @@ threads.
 
 ### Manual mode (default)
 
-For each thread, in order:
+Before walking threads, scan the sorted list for duplicates: threads
+that raise the *exact same* request in different locations (e.g. the
+same reviewer asking for the same rename, the same missing check, the
+same nit — reworded or not — applied to multiple files/lines). Group
+only on functional identity — same fix, same reasoning. A shared
+*theme* or *pattern* across otherwise-distinct comments (different
+fixes that happen to relate) does not qualify; treat those as
+separate threads with their own fix/skip/investigate decision.
+
+For each duplicate group, batch it: list every occurrence
+(`file:line` + quoted body for each), ask the fix/skip/investigate
+question once for the group, and apply the chosen action to every
+occurrence in it. For everything else, walk threads individually, in
+order:
 
 1. Show the comment (author, `file:line`, quoted body) and your
-   investigation (root cause, proposed fix) — label it `Comment i/N`.
+   investigation (root cause, proposed fix) — label it `Comment i/N`
+   (a batched group counts as one `i` for numbering purposes).
 2. Ask the user to choose:
-   - **Fix it** — apply the fixup, show the diff.
+   - **Fix it** — apply the fixup(s), show the diff(s).
    - **Skip it** — leave as-is, note it as skipped.
    - **Investigate further** — open-ended conversation. Keep
      discussing (and fix inline if the user asks you to mid-conversation)
      until the user says the investigation is resolved and you should
-     move on. Then continue to the next thread.
+     move on. Then continue to the next thread (or group).
 
-Voice example (correct):
+Voice example (batched group):
+> Comment 3/4 — 3 occurrences of the same request from `@reviewer`:
+> "use `errors.Is` instead of `==`" at `retry.go:42`, `retry.go:88`,
+> and `backoff.go:17`.
+>
+> Investigation: confirmed at all three — direct `==` comparisons on
+> wrapped errors. Fix: swap each to `errors.Is`.
+
+Voice example (correct, single comment):
 > Comment 2/4 — `retry.go:42`, from `@reviewer`:
 > "This increments on the wrong branch — should count failed attempts,
 > not successful ones."
