@@ -7,6 +7,7 @@ description: >-
   to the stack since trunk — and applies nit-level edits to @ only. Use when
   asked to fix nits, apply personal standards, or clean up a revision to
   personal preferences. Invoke as /fix-my-nits.
+argument-hint: "[current (default)|bookmark|stack]"
 ---
 
 # Fix My Nits
@@ -103,11 +104,37 @@ sub-agent with this brief (fill in the bracketed values before sending):
 >   not run `jj edit` or otherwise switch the working copy — even
 >   though the diff may span multiple revisions, every fix must land
 >   on `@`.
+>
+> **Report back**, as your final output, every individual standard/rule
+> from the domain standards files you evaluated against the diff — not
+> just the ones that applied. For each, state the rule name (or a short
+> identifying label if it has no name) and whether it produced an edit
+> (`true`/`false`). Do not include rules from the domain docs that were
+> irrelevant to every file in the diff — only rules you actually
+> weighed against changed content belong in this list.
 
 Do **not** launch domain agents in parallel. Wait for each agent to finish
 before starting the next one.
+
+Record each sub-agent's rule-by-rule report — this is the source for the
+summary table in Step 5.
 
 ## Step 4 — Verify
 
 Invoke the `assert-green` skill. Do not claim the work is
 done until verification passes.
+
+## Step 5 — Summary table
+
+After verification passes, render a single Markdown table summarizing
+every domain and rule evaluated across all sub-agents in Step 3:
+
+| Domain | Rule | Updated |
+|---|---|---|
+| [domain] | [rule name/label] | ✅ or ❌ |
+
+- One row per rule reported back in Step 3, grouped by domain.
+- ✅ if that rule produced an edit, ❌ if it was evaluated but did not.
+- Do not include a domain that had no rules evaluated (i.e. it never
+  applied to the diff in Step 2).
+- No counts, no diff stats — the flag alone.

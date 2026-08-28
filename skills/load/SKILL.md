@@ -5,6 +5,7 @@ description: >-
   file or directory, a URL, a ticket, or a topic in the repo. Read-only
   exploration only. Use when the user invokes /load, or says "load X into
   context", "pull up X", "get familiar with X" before other work.
+argument-hint: "<target>"
 ---
 
 # Load

@@ -9,6 +9,7 @@ description: >-
   comments or resolves threads on the PR. Use when the user pastes a PR
   review URL and asks to address, resolve, or fix up review comments, or
   invokes /pr-comments.
+argument-hint: "<review-url> [auto|manual (default)]"
 ---
 
 # PR Comments
