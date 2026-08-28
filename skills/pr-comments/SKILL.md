@@ -57,8 +57,29 @@ report the mismatch — do not guess which bookmark was intended.
 
 ## Step 2 — Load the review
 
-Invoke `keepers:load` on the review URL for orientation (diff, touched
-files, surrounding context).
+Before pulling review comments, load the full PR change context — not
+just the top-of-tree diff. Review comments point at lines that may
+have been introduced several commits back in the stack, so you need
+every revision in this PR, not just `@-`.
+
+```
+jj log -r 'closest_bookmark(@-)..@-' --no-pager
+jj diff --from 'closest_bookmark(@-)' --to '@-' --no-pager
+```
+
+`@-` is the bookmarked PR tip captured in Step 1. `closest_bookmark(@-)`
+resolves to the *parent* branch point here, not this PR's own bookmark
+— Step 1 already advanced that bookmark onto `@`, so it no longer sits
+on `@-`, and the lookup walks up to whatever bookmark this PR is
+actually stacked on (trunk, if it isn't stacked on anything). Using
+that instead of `trunk()` keeps the range scoped to this PR's own
+commits when it sits on top of another bookmarked PR. The `log` call
+shows every commit in the PR; the `diff` call shows their combined
+effect, so a comment on a line touched two commits ago still resolves
+against the right context.
+
+Then invoke `keepers:load` on the review URL for orientation (PR
+description, touched files, surrounding discussion).
 
 The PR page itself won't reliably expose individual review comments to
 a plain page fetch, so pull the structured, unresolved threads directly:
