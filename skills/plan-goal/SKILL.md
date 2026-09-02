@@ -89,19 +89,27 @@ and wait for the user to resolve the second list before proceeding.
 
 ## Phase 3 — Assumptions & Conclusions
 
-Render a single table titled **Assumptions & Conclusions**, covering
-everything you now believe about the goal, informed by Phase 1's answers
-and Phase 2's leverage findings:
+Render everything you now believe about the goal, informed by Phase 1's
+answers and Phase 2's leverage findings, split into two tables:
+
+1. **Confirmed** — rows the user has already explicitly agreed to (on
+   the first pass, this table is empty or omitted — nothing has been
+   confirmed yet).
+2. **Pending confirmation** — rows you are holding but the user has not
+   yet verified: new rows, or rows changed since the last confirmation.
 
 | # | Assumption / Conclusion | Basis |
 |---|---|---|
 | 1 | ... | user statement / inference / exploration finding |
 
-Then ask: "Does this table match your intent?"
+Omit the Confirmed table entirely if it has no rows. Then ask: "Does the
+Pending confirmation table match your intent?"
 
-Do not proceed to Phase 4 until the user explicitly confirms the table is
-correct and complete. If they correct a row, update the table and
-re-confirm — don't assume silence means agreement.
+Do not proceed to Phase 4 until the user explicitly confirms every row in
+Pending confirmation. On confirmation, move those rows into Confirmed. If
+they correct a row, update it, keep it in Pending confirmation, and
+re-confirm — don't assume silence means agreement. Never re-ask about
+rows already sitting in Confirmed unless a later phase changes them.
 
 ---
 
@@ -149,10 +157,13 @@ resolved — record the resolution, don't re-litigate it in Phase 5.
 ### Re-confirming assumptions
 
 If any resolved conflict or gap changes, adds, or invalidates a row in
-the Phase 3 table, update the table and re-present it with: "Does this
-table still match your intent?" Do not proceed to Phase 5 until the user
-explicitly re-confirms. If nothing in Phase 4 touched the table, say so
-and move on without re-presenting it.
+the Phase 3 tables, move the affected row(s) into Pending confirmation
+(leaving unaffected rows in Confirmed) and re-present both tables with:
+"Does the Pending confirmation table still match your intent?" Do not
+proceed to Phase 5 until the user explicitly re-confirms every row in
+Pending confirmation, at which point it moves into Confirmed. If nothing
+in Phase 4 touched the tables, say so and move on without re-presenting
+them.
 
 ---
 
