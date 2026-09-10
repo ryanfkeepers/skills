@@ -18,6 +18,14 @@ argument-hint: "<review-url> [auto|manual (default)]"
 no thread resolutions, no reviews. The only GitHub mutation it performs
 is pushing commits (Step 5). All PR review API calls are read-only.
 
+**IMPORTANT:** Step 3 (resolving comments) is code-edit only. Whatever
+agent executes it must not describe, create, or push a revision, and
+must not run any `jj` command that modifies revision state directly
+(`jj describe`, `jj new`, `jj squash`, `jj git push`, etc.). Its only
+allowance is editing files to address the PR comments. Revision
+lifecycle stays with Steps 1 (create), 4 (verify), and 5 (describe,
+push) — never with Step 3.
+
 ## Inputs
 
 - **Review URL** (required) — a GitHub PR or PR-review URL, e.g.
@@ -114,6 +122,10 @@ If there are zero unresolved threads, report that and stop — skip
 Steps 3-5.
 
 ## Step 3 — Resolve each comment
+
+**IMPORTANT:** This step only edits files. Never describe, create, or
+push a revision, and never run `jj` commands that modify revision
+state directly — that belongs to Steps 1, 4, and 5.
 
 For each thread, **investigate before acting**: read the file around
 `path:line`, understand what the comment is pointing at, and form a
