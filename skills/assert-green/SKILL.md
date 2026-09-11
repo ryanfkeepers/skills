@@ -11,7 +11,7 @@ description: >-
 # Assert Green
 
 Assert four phases pass in order. **Stop at the first failure.** Do not fix
-anything — this skill is assertion only — **with one exception: lint (Phase 3)
+anything — this skill is assertion only — **with one exception: lint (Phase 4)
 is auto-fixed.** Report what failed and why.
 
 ---
@@ -83,7 +83,30 @@ and its output.**
 
 ---
 
-## Phase 3 — Lint
+## Phase 3 — Unit Tests
+
+### Task runners (check first)
+
+| File | Target to try |
+|------|---------------|
+| `Makefile` | `make test` |
+| `Justfile` / `justfile` | `just test` |
+| `Taskfile.yml` / `Taskfile.yaml` | `task test` |
+
+### Language fallbacks
+
+| Indicator | Command |
+|-----------|---------|
+| `go.mod` | `gt` (alias), then `go test ./...` |
+| `package.json` | `npx jest`, `npx vitest run`, or `npm test` |
+| `pyproject.toml` / `setup.py` | `pytest` |
+| `Gemfile` | `bundle exec rspec` |
+
+If tests exit non-zero: **halt. Report the failing tests and output.**
+
+---
+
+## Phase 4 — Lint
 
 **Linting is mandatory. It may never be skipped.**
 
@@ -129,34 +152,12 @@ If lint passes after the fix: record it as `lint: <cmd> exit 0 (auto-fixed)`
 and continue to Phase 4. If lint still exits non-zero after the fix attempt:
 **halt. Report the remaining lint output and what the fix attempt changed.**
 
----
-
-## Phase 4 — Unit Tests
-
-### Task runners (check first)
-
-| File | Target to try |
-|------|---------------|
-| `Makefile` | `make test` |
-| `Justfile` / `justfile` | `just test` |
-| `Taskfile.yml` / `Taskfile.yaml` | `task test` |
-
-### Language fallbacks
-
-| Indicator | Command |
-|-----------|---------|
-| `go.mod` | `gt` (alias), then `go test ./...` |
-| `package.json` | `npx jest`, `npx vitest run`, or `npm test` |
-| `pyproject.toml` / `setup.py` | `pytest` |
-| `Gemfile` | `bundle exec rspec` |
-
-If tests exit non-zero: **halt. Report the failing tests and output.**
-
----
 
 ## Reporting
 
-**On a lint failure:** Auto-fix per Phase 3, Step 3 — do not stop or wait for
+---
+
+**On a lint failure:** Auto-fix per Phase 4, Step 3 — do not stop or wait for
 permission. Only if the fix fails to make lint green, report the remaining
 violations and stop.
 
@@ -172,17 +173,18 @@ Example (pass):
 All phases green.
   compile:  go build ./...           exit 0
   codegen:  (skipped — no signals found)
-  lint:     lint                     exit 0
   tests:    gt                       exit 0
+  lint:     golangci-lint            exit 0
 ```
 
 Example (fail):
 ```
-Phase 3 (lint) failed. Halting.
+FAIL - Lint. Halting.
 
   compile:  go build ./...           exit 0
   codegen:  make generate            exit 0
-  lint:     lint                     exit 1
+  tests:    gt                       exit 0
+  lint:     golangci-lint            exit 1
 
 Output:
   pkg/store/cache.go:42: declared and not used: mu
