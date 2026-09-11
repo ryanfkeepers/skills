@@ -2,7 +2,7 @@
 name: fix-comments
 description: >-
   Apply comment-content standards (no ticket/plan/caller references, no code
-  examples, purpose-driven and generally under two lines) to the current
+  examples, purpose-driven, 1-2 lines goal / 3 lines max) to the current
   working-copy change (@). Reads the diff — scoped to just @, to the stack
   since the last bookmark, or to the stack since trunk — and edits only
   comments on @. A targeted fix-my-nits variant with no standards file to
@@ -42,10 +42,10 @@ own — not to restate what the code already shows.
   the comment.
 - If a comment ponders or narrates implementation at large without a
   specific constraint, omit it.
-- Comments should fit within two lines. Longer is allowed only when
-  the comment is *specific and purpose-driven* — meaning if a caller
-  ignores what the comment says, the runtime breaks. This is rare;
-  most cases are already obvious from the code.
+- 1-2 lines per comment is the goal. 3 lines is the maximum — no
+  exceptions. If a comment needs more than 3 lines to state its
+  constraint, compress it (use terse, caveman-style phrasing if
+  necessary) rather than let it run long.
 - Comments must not:
   - reference tickets.
   - reference plans or other documentation.
