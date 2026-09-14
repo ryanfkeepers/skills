@@ -8,7 +8,7 @@ description: >-
   comments on @. A targeted fix-my-nits variant with no standards file to
   read; the rule is fixed. Use when asked to fix comments, clean up comment
   noise, or trim over-explained comments. Invoke as /fix-comments.
-argument-hint: "[current (default)|bookmark|stack]"
+argument-hint: "[current|bookmark (default)|stack]"
 ---
 
 # Fix Comments
@@ -20,7 +20,7 @@ no standards file to load; the rule below is the whole standard.
 ## Inputs
 
 - **Scope** (optional) — `current` | `bookmark` | `stack`. Default
-  `current`.
+  `bookmark`.
   - `current` — read only `@`'s own diff.
   - `bookmark` — read every revision since the last bookmark
     (`closest_bookmark(@)..@`).
@@ -53,6 +53,16 @@ own — not to restate what the code already shows.
   - reference prior conversations or memories outside the code.
   - contain code examples.
 
+### Unit tests
+
+Unit test files and code hold to a stricter version of the same rule.
+A test's name and body already show what it covers — a comment
+restating that is never useful, so omit it. Only keep a comment when
+the test's outcome depends on a runtime condition the code cannot
+express on its own (a race, a platform quirk, an external service's
+behavior, a flaky timing window) — and even then, state the
+condition, not what the test does.
+
 Example:
 ```
 // Retry wraps fn with exponential backoff up to maxAttempts.
@@ -60,14 +70,14 @@ Example:
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 ```
 
-Counter-example (restates the obvious, references callers):
+Avoid (restates the obvious, references callers):
 ```
 // Retry retries the function.
 // Retry is called by worker.Run and job.Execute.
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 ```
 
-Counter-example (yapping — broad narration, no constraint):
+Avoid (yapping — broad narration, no constraint):
 ```
 // ParseConfig loads and validates the service config from path.
 // It returns an error if required fields are missing.
@@ -79,9 +89,21 @@ Counter-example (yapping — broad narration, no constraint):
 func ParseConfig(path string) (*Config, error) {
 ```
 
+Unit test example (kept — outcome depends on a runtime condition):
+```
+// Assumes global config uses default settings; skip if TestMain overrides it.
+func TestRetry_GivesUpOnPersistentError(t *testing.T) {
+```
+
+Avoid (unit test — restates coverage, no runtime condition):
+```
+// Tests that Retry gives up after maxAttempts and returns the last error.
+func TestRetry_GivesUpAfterMaxAttempts(t *testing.T) {
+```
+
 ## Step 1 — Get the diff
 
-Run the command matching the requested scope (default `current`):
+Run the command matching the requested scope (default `bookmark`):
 
 ```bash
 # current
