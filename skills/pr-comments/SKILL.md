@@ -1,14 +1,15 @@
 ---
 name: pr-comments
 description: >-
-  Address outstanding review comments on a GitHub PR. Given a PR review
-  URL and a mode (auto | manual, default manual), stages a new jj
-  revision on top of the bookmarked PR tip, loads the review, then
-  either fixes every unresolved comment automatically or walks the user
-  through each one for a fix/skip/investigate decision. Never posts
-  comments or resolves threads on the PR. Use when the user pastes a PR
-  review URL and asks to address, resolve, or fix up review comments, or
-  invokes /pr-comments.
+  Address outstanding review comments — both inline review-thread
+  comments and top-level PR conversation comments — on a GitHub PR.
+  Given a PR review URL and a mode (auto | manual, default manual),
+  stages a new jj revision on top of the bookmarked PR tip, loads the
+  review, then either fixes every unresolved comment automatically or
+  walks the user through each one for a fix/skip/investigate decision.
+  Never posts comments or resolves threads on the PR. Use when the user
+  pastes a PR review URL and asks to address, resolve, or fix up review
+  comments, or invokes /pr-comments.
 argument-hint: "<review-url> [auto|manual (default)]"
 ---
 
@@ -91,7 +92,10 @@ Then invoke `keepers:load` on the review URL for orientation (PR
 description, touched files, surrounding discussion).
 
 The PR page itself won't reliably expose individual review comments to
-a plain page fetch, so pull the structured, unresolved threads directly:
+a plain page fetch, so pull the structured review threads *and* the
+top-level (issue) comments directly — a reviewer's "please also check
+X" left on the PR conversation, not attached to a line, is easy to
+miss if you only read `reviewThreads`:
 
 ```
 gh api graphql -f query='
@@ -107,19 +111,29 @@ gh api graphql -f query='
             comments(first:50) { nodes { body author { login } url } }
           }
         }
+        comments(first:100) {
+          nodes { id body author { login } url createdAt }
+        }
       }
     }
   }' -f owner=<owner> -f repo=<repo> -F number=<number>
 ```
 
-Keep only `isResolved == false` threads. A URL fragment naming a
-specific review (`#pullrequestreview-<id>`) does not narrow this set —
-address every outstanding thread on the PR, since a review is just one
-batch of comments among possibly several. Sort the kept threads by
-`(path, line)` so the walk order is stable across runs.
+From `reviewThreads`, keep only `isResolved == false` threads. A URL
+fragment naming a specific review (`#pullrequestreview-<id>`) does not
+narrow this set — address every outstanding thread on the PR, since a
+review is just one batch of comments among possibly several.
 
-If there are zero unresolved threads, report that and stop — skip
-Steps 3-5.
+Top-level `comments` carry no `isResolved` field — GitHub tracks
+resolution only for review threads — so keep all of them every run.
+Treat each as its own pseudo-thread with `path = null`, `line = null`.
+Sort the merged list by `(path, line)`, with null-path (top-level)
+entries first, ordered among themselves by `createdAt`; this keeps the
+walk order stable across runs. When presenting a top-level entry (Step
+3), label it `(top-level)` in place of `file:line`.
+
+If there are zero outstanding threads and zero top-level comments,
+report that and stop — skip Steps 3-5.
 
 ## Step 3 — Resolve each comment
 
@@ -128,14 +142,16 @@ push a revision, and never run `jj` commands that modify revision
 state directly — that belongs to Steps 1, 4, and 5.
 
 For each thread, **investigate before acting**: read the file around
-`path:line`, understand what the comment is pointing at, and form a
-view on the right fix (or on why no fix is needed).
+`path:line` (for a top-level comment, read whatever part of the diff
+or codebase it references — there's no line to anchor on), understand
+what the comment is pointing at, and form a view on the right fix (or
+on why no fix is needed).
 
 ### Auto mode
 
 For each thread, apply the fixup directly, then report one line:
-comment summary → what changed (`file:line`). No confirmation between
-threads.
+comment summary → what changed (`file:line`, or `(top-level)` when
+there's no line to cite). No confirmation between threads.
 
 ### Manual mode (default)
 
@@ -154,9 +170,10 @@ question once for the group, and apply the chosen action to every
 occurrence in it. For everything else, walk threads individually, in
 order:
 
-1. Show the comment (author, `file:line`, quoted body) and your
-   investigation (root cause, proposed fix) — label it `Comment i/N`
-   (a batched group counts as one `i` for numbering purposes).
+1. Show the comment (author, `file:line` or `(top-level)`, quoted
+   body) and your investigation (root cause, proposed fix) — label it
+   `Comment i/N` (a batched group counts as one `i` for numbering
+   purposes).
 2. Ask the user to choose:
    - **Fix it** — apply the fixup(s), show the diff(s).
    - **Skip it** — leave as-is, note it as skipped.
