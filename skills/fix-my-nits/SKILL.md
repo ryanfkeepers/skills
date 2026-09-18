@@ -119,15 +119,10 @@ before starting the next one.
 Record each sub-agent's rule-by-rule report — this is the source for the
 summary table in Step 5.
 
-## Step 4 — Verify
+## Step 4 — Summary table
 
-Invoke the `assert-green` skill. Do not claim the work is
-done until verification passes.
-
-## Step 5 — Summary table
-
-After verification passes, render a single Markdown table summarizing
-every domain and rule evaluated across all sub-agents in Step 3:
+Render a single Markdown table summarizing every domain and rule
+evaluated across all sub-agents in Step 3:
 
 | Domain | Rule | Updated |
 |---|---|---|

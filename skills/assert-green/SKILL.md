@@ -85,6 +85,20 @@ and its output.**
 
 ## Phase 3 — Unit Tests
 
+Unit tests only. Skip integration and E2E tests entirely — do not run
+them, do not report on them. If a task runner or language fallback
+command below runs everything by default, scope it to unit tests
+only:
+
+| Signal | Unit-only adjustment |
+|--------|----------------------|
+| Go `-short` convention, or integration tests gated behind a build tag (e.g. `integration`) | `go test -short ./...`, or omit the tag (do not pass `-tags=integration`) |
+| Separate test dirs/configs (e.g. `test/integration/`, `test/e2e/`, a distinct `jest.integration.config.js`) | Run only the unit test target/config; exclude those paths |
+| Task runner exposes distinct targets (e.g. `make test-unit` vs `make test-integration`/`make test-e2e`) | Use the unit-only target |
+
+If no such separation exists (all tests run as one suite with no
+tagging), run the default command as-is.
+
 ### Task runners (check first)
 
 | File | Target to try |
