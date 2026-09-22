@@ -34,7 +34,8 @@ otherwise.
    components, no single place answers it -- stop following the tree in this
    short pass. Tell the user in one line that the question is broader than
    expected, then widen the search (parallel `Explore` sub-agents, one per lead)
-   rather than depth-first grinding.
+   rather than depth-first grinding. Always force those sub-agents onto the
+   `haiku` model -- pass `model: haiku` on every spawn, with no exceptions.
 4. **Draft** the answer using the four-part format below.
 5. **Validate.** Send the draft to the `adversarial-validator` sub-agent as one
    claim per sentence of the answer that asserts a fact. Per claim, give it the

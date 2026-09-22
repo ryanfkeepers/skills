@@ -53,7 +53,9 @@ codebase).
 
 Investigate enough to answer accurately:
 - For codebase questions: search the repo (Grep/Glob/Explore agent) for
-  the relevant files, symbols, or docs.
+  the relevant files, symbols, or docs. Always force the `Explore` agent
+  onto the `haiku` model -- pass `model: haiku` on every spawn, with no
+  exceptions.
 - For product/internal questions: check available MCP tools, wikis, or
   docs the user has access to.
 - For universal/external concepts: rely on established knowledge; use

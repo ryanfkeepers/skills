@@ -70,6 +70,10 @@ and should be reused rather than rebuilt. Fan out with parallel
 sub-agents (`Explore` or `fork`) when the lookups are independent of each
 other.
 
+Always force exploration sub-agents onto the `haiku` model — pass
+`model: haiku` on every `Explore` (or `fork`) spawn in this phase, with no
+exceptions.
+
 Sort each finding, with file/line evidence, into one of two lists:
 
 - **Leverage assumptions** — findings settled enough to fold straight
@@ -117,7 +121,9 @@ rows already sitting in Confirmed unless a later phase changes them.
 
 Check the confirmed Assumptions & Conclusions table against the real
 codebase. Fan out with parallel sub-agents (`Explore` or `fork`) when the
-lookups are independent of each other.
+lookups are independent of each other. Always force exploration
+sub-agents onto the `haiku` model — pass `model: haiku` on every `Explore`
+(or `fork`) spawn in this phase, with no exceptions.
 
 Investigate exactly two things:
 

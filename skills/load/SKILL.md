@@ -28,7 +28,9 @@ The one exception: when the target's surface area is too large to read
 in this context -- a whole subsystem, a repo you have never opened, a
 sprawling package with an unknown layout -- delegate the *locating* pass
 to the `Explore` agent to get back the file list and entry points, then
-Read those files yourself. Delegate the map, never the territory.
+Read those files yourself. Delegate the map, never the territory. Always
+force the `Explore` agent onto the `haiku` model -- pass `model: haiku` on
+every spawn, with no exceptions.
 
 **IMPORTANT:** Never ask a clarifying question. If the target is
 ambiguous, pick the most probable interpretation given the current
@@ -73,8 +75,9 @@ hunks so the change has surrounding context, not just the diff.
 **Code:** Glob and Grep to locate the target when the layout is unknown,
 then Read the files yourself. If the target spans many files or a
 subsystem you have never opened, use the `Explore` agent for the
-locating pass only -- ask it for the relevant paths and entry points,
-not for an explanation -- then Read those paths directly. Follow the call graph one hop out from the
+locating pass only, forced onto the `haiku` model (`model: haiku`) -- ask
+it for the relevant paths and entry points, not for an explanation -- then
+Read those paths directly. Follow the call graph one hop out from the
 target -- callers and callees -- so the target is situated, not
 isolated.
 
