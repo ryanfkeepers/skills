@@ -2,7 +2,7 @@
 name: assert-green
 description: >-
   Assert that the current repo is fully green: compilation, code generation
-  (if present), linting, and unit tests — in that order. Fails fast on the
+  (if present), unit tests, and linting — in that order. Fails fast on the
   first broken phase and reports the failure. Auto-fixes lint failures; does
   not fix anything else. Use when asked to assert green, check if the repo is
   clean, verify all checks pass, or before committing or opening a PR.
@@ -162,7 +162,7 @@ Always attempt a fix automatically:
 2. Re-run same lint command from Step 1/2, confirm it now exits 0.
 
 If lint passes after fix: record as `lint: <cmd> exit 0 (auto-fixed)`,
-continue to Phase 4. If still non-zero after fix attempt: **halt.
+continue to Reporting. If still non-zero after fix attempt: **halt.
 Report remaining lint output and what the fix attempt changed.**
 
 
@@ -202,4 +202,3 @@ FAIL - Lint. Halting.
 Output:
   pkg/store/cache.go:42: declared and not used: mu
 ```
-</content>

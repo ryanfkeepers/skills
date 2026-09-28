@@ -40,7 +40,10 @@ cases not already covered by Phase 5a.
 
 ## What to produce
 
-New test functions appended to (or added alongside) Phase 5a test file, covering:
+New test functions appended directly to the Phase 5a test file for each source
+file under test — never create a separate coverage-only test file. Every source
+file (e.g. `foo.go`) has exactly one paired test file (e.g. `foo_test.go`),
+containing both Phase 5a and Phase 5b test functions. Covering:
 1. Internal helper logic not exercised by exported contract tests
 2. Error paths — every `return err` branch in implementation
 3. Edge cases visible from implementation that behavioral examples don't cover
@@ -49,6 +52,7 @@ Use same `testCases` table pattern as Phase 5a tests.
 
 ## Constraints
 
+- Do NOT create a new test file separate from the Phase 5a test file — append to it
 - Do NOT modify any existing Phase 5a test function or assertion — add only
 - Do NOT run jj, git, or any VCS command — all changes stay in current
   working-copy revision; never commit, squash, or create new change

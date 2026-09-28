@@ -166,4 +166,3 @@ After verification passes, render a single Markdown table:
 - One row per comment reported back in Step 2.
 - Don't include a row for a comment never evaluated.
 - No counts, no diff stats — the table alone.
-</content>

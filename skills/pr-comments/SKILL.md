@@ -55,7 +55,7 @@ at the old `@` (now `@-`) — you need that name for Steps 2 and 5.
 defaults — `--to @`, from `heads(::@ & bookmarks())` — do exactly
 this).
 
-Verify the tugged bookmark is actually the PR from the URL, not some
+Verify the advanced bookmark is the PR from the URL, not some
 other revision in the stack:
 
 ```

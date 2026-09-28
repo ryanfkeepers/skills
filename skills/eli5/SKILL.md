@@ -62,8 +62,8 @@ for a correct, concrete answer.
 
 ## Step 3 -- Answer
 
-Give short, direct, technically accurate explanation first --
-2-6 sentences or a tight bulleted list. Lead with the answer, not
+Give short, direct, technically accurate explanation first -- a
+short paragraph or a tight bulleted list. Lead with the answer, not
 preamble.
 
 Voice example:
@@ -109,4 +109,3 @@ Counter-example (avoid -- unnecessary diagram):
 Don't propose next steps, offer to implement anything, or continue
 into broader exploration unless user asks. The answer, references,
 and (if used) diagram are the whole response.
-</content>

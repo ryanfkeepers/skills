@@ -96,13 +96,13 @@ each lives. Don't exhaustively read everything reachable.
 
 ## Step 3 -- Report the orientation summary
 
-Report what's now in context, tersely, with references. Aim under 20
-lines. Structure:
+Report what's now in context, tersely, with references — scannable in
+one read. Structure:
 
 - **What it is** -- one or two sentences.
 - **Parts** -- the components, files, or sections, each with a
   `path/to/file.go:42` reference or URL.
-- **Notable** -- at most three lines: anything surprising, broken, or
+- **Notable** -- only the few items that stand out: anything surprising, broken, or
   in tension with the surrounding code. State it; don't act on it.
 
 Never fabricate a path, line number, or URL. Cite only what you read.

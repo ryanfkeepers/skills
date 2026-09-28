@@ -51,4 +51,5 @@ Follow the appropriate flow in [FLOWS.md](FLOWS.md).
 
 ## Step 4 — Verify
 
-Invoke `assert-green`. Don't claim work done until verification passes.
+Re-read the edited doc. Confirm the entry matches the Standard format above
+and, for a new domain, that `STANDARDS.md` links to it.

@@ -47,7 +47,7 @@ When communicating with user, always refer to phases by name, not number
 | 3 | Integration tests | Sub-agent | Behavioral tests compile, cover plan examples |
 | 4 | Implementation | Sub-agent | `go build` passes, mocks generated |
 | 5a | Unit tests — adversarial pass | Sub-agent | Failures surfaced to user; no auto-fix loop |
-| 5b | Unit tests — coverage pass | Sub-agent | Tests added, Pass 1 tests unmodified |
+| 5b | Unit tests — coverage pass | Sub-agent | Tests added, Phase 5a tests unmodified |
 | 6 | Adversarial verification | Sub-agent | VERIFIED or fix loop complete |
 | 7 | Diagram | Parent | ASCII tree shown to user |
 

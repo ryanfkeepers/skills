@@ -34,7 +34,7 @@ Before anything else:
 | 1 | Scaffolding | Sub-agent | Exports declared, stubs preserved, `go build` passes |
 | 2 | Implementation | Sub-agent | `go build` passes, mocks generated |
 | 3a | Unit tests — adversarial pass | Sub-agent | Failures surfaced to user; no auto-fix loop |
-| 3b | Unit tests — coverage pass | Sub-agent | Tests added, Pass 1 tests unmodified |
+| 3b | Unit tests — coverage pass | Sub-agent | Tests added, Phase 3a tests unmodified |
 | 4 | Adversarial verification | Sub-agent | VERIFIED or fix loop complete |
 | 5 | Diagram | Parent | ASCII tree shown to user |
 

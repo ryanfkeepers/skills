@@ -54,7 +54,8 @@ jj diff --from <other_commit_id> --to <keep_commit_id> --no-pager
 ```
 
 **If the diff is empty:** versions identical — no resolution needed
-for this pair, skip to Step 5.
+for this pair; move to the next pair. Identical versions still go
+through Step 4's approval before anything is abandoned.
 
 **If the diff is non-empty:** surface it to the user and ask:
 
@@ -106,4 +107,3 @@ jj log -r 'divergent()' --no-pager
 If divergent changes remain, return to Step 2.
 
 Otherwise report: "No divergent changes remain."
-</content>

@@ -121,4 +121,3 @@ verification passes.
 
 One row per revision fixed in Step 2. If Step 2's first pass found no
 conflicts, skip the table and report "No conflicts found in scope."
-</content>

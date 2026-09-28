@@ -96,7 +96,7 @@ from one file. Do not manufacture an escalation the question does not need.
 
 ## Validator loop details
 
-Invoke via the `Agent` tool with `subagent_type: adversarial-validator`. Don't
+Invoke via the `Agent` tool with `subagent_type: keepers:adversarial-validator`. Don't
 pass a `model` override -- the agent is pinned to Haiku in its own frontmatter
 and must always run on it. Give it, per claim:
 

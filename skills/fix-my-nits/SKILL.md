@@ -79,7 +79,7 @@ and collect all files found. Example: diff is in a repo under the
 collect all files found.
 
 Record the full list of file paths for each applicable domain — this
-is what gets handed to the sub-agent in Step 4, not the content.
+is what gets handed to the sub-agent in Step 3, not the content.
 
 ## Step 3 — Apply nits by domain (sequentially)
 
@@ -118,7 +118,7 @@ Don't launch domain agents in parallel. Wait for each agent to finish
 before starting the next one.
 
 Record each sub-agent's rule-by-rule report — source for the summary
-table in Step 5.
+table in Step 4.
 
 ## Step 4 — Summary table
 
@@ -134,4 +134,3 @@ evaluated across all sub-agents in Step 3:
 - Don't include a domain that had no rules evaluated (i.e. it never
   applied to the diff in Step 2).
 - No counts, no diff stats — the flag alone.
-</content>

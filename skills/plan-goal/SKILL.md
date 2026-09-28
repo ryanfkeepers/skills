@@ -66,11 +66,10 @@ don't carry an unresolved goal-level ambiguity into exploration.
 Explore the codebase with the *end goal* in mind, looking for existing
 patterns, packages, or helpers that would make achieving this goal easier
 and should be reused rather than rebuilt. Fan out with parallel sub-agents
-(`Explore` or `fork`) when the lookups are independent of each other.
+(`Explore`) when the lookups are independent of each other.
 
-Always force exploration sub-agents onto the `haiku` model — pass
-`model: haiku` on every `Explore` (or `fork`) spawn in this phase, no
-exceptions.
+Pass `model: haiku` on every `Explore` spawn. Don't use `fork` here — a
+fork ignores the model override and inherits this session's model.
 
 Sort each finding, with file/line evidence, into one of two lists:
 
@@ -117,7 +116,7 @@ already sitting in Confirmed unless a later phase changes them.
 ## Phase 4 — Exploration: Conflicts & Gaps
 
 Check the confirmed Assumptions & Conclusions table against the real
-codebase. Fan out with parallel sub-agents (`Explore` or `fork`) when the
+codebase. Fan out with parallel `Explore` sub-agents when the
 lookups are independent of each other — same haiku-only sub-agent rule as
 Phase 2.
 

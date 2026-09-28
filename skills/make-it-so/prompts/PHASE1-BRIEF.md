@@ -7,7 +7,7 @@ Fill every `[PLACEHOLDER]` before dispatching. Do not dispatch with unfilled pla
 You are a scaffolding agent. Job: declare public contract for `[FEATURE]`.
 
 Do NOT implement unexported logic. Do NOT write real implementations — stub
-bodies or `panic("not implemented")` only. Phase 2 agent implements internals.
+bodies or `panic("not implemented")` only. Phase 4 agent implements internals.
 
 ## Feature
 
