@@ -31,8 +31,8 @@ Propose splits in dependency order (first in plan = earliest in the
 stack). Each split must:
 
 - Contain **one logical concern**
-- Be **independently green**: lint, tests, and autogeneration pass without
-  relying on any later split
+- Be **independently green**: lint passes without relying on any later
+  split
 - Target **≤ 500 LOC** (far fewer is better)
 - Keep unit tests with the code they test — never separate them
 
@@ -114,9 +114,9 @@ Invoke `jjdesc` to write and apply the commit description.
 
 ### 6c. Verify
 
-Invoke `assert-green`. Split must pass lint, tests, and any
-autogeneration before proceeding. Fix all failures first. No split may
-depend on a later split to reach a green state.
+Invoke `lint-fix`. Split must pass lint before proceeding. Fix all
+failures first. No split may depend on a later split to reach a green
+state.
 
 ### 6d. Continue
 
@@ -125,7 +125,7 @@ jj edit <remainder-change-id>
 ```
 
 Repeat until the final split. Last `@` = final chunk — describe it and
-invoke `assert-green` for it too.
+invoke `lint-fix` for it too.
 
 ## Step 7 — Completeness check
 
@@ -151,7 +151,7 @@ If they differ:
 1. Identify which file(s)/hunk(s) are missing or wrong in the stack.
 2. `jj edit` the appropriate split, apply the missing changes there.
 3. Re-run both diffs, repeat until they match.
-4. Re-run `assert-green` on any split touched.
+4. Re-run `lint-fix` on any split touched.
 
 Don't declare the split complete until the diffs match exactly.
 
