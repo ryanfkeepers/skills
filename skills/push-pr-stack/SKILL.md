@@ -11,6 +11,12 @@ description: >-
 
 # Push PR Changes
 
+When the user invoked `/push-pr-stack`, that invocation is prior
+approval to describe, bookmark, push, and open PRs for the selected
+revisions — don't ask for separate approval before those actions. If
+you invoked this skill on your own initiative, confirm with the user
+before Step 2.
+
 ## Step 1 — Select revisions
 
 Count revisions since trunk:

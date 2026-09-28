@@ -97,8 +97,13 @@ Counter-example (avoid):
 
 ## Step 5 — Apply
 
-Run immediately:
+When the user invoked `/jjdesc`, or invoked a skill that calls it
+(`pr-comments`, `push-pr-stack`, `split-rev`), that invocation is
+prior approval to describe the revision. Run immediately:
 
 ```
 jj describe -m "<description>"
 ```
+
+If you invoked this skill on your own initiative, show the description
+and wait for the user's approval before running `jj describe`.
