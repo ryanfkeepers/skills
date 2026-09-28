@@ -12,7 +12,7 @@ argument-hint: "[current (default)|bookmark|stack]"
 
 # Fix My Nits
 
-Apply personal standards as final refinements to the current change (`@`).
+Apply personal standards as final refinements to current change (`@`).
 
 ## Inputs
 
@@ -23,19 +23,19 @@ Apply personal standards as final refinements to the current change (`@`).
     (`closest_bookmark(@)..@`).
   - `stack` — read every revision since trunk (`trunk()..@`).
 
-Widening scope only widens what gets *read* — it exists so a standard
+Widening scope only widens what gets *read* — exists so a standard
 that only makes sense in light of context from earlier revisions in
 the stack (e.g. a naming convention established two commits back)
 still gets applied correctly. Every fix still lands on `@` only —
-editing a file always changes whatever is checked out, which `@` is,
-regardless of scope. Never use `jj edit` or otherwise switch the
-working copy to another revision in this skill.
+editing a file always changes whatever is checked out, which is `@`,
+regardless of scope. Never use `jj edit` or otherwise switch working
+copy to another revision in this skill.
 
 ## Step 1 — Load personal standards
 
 Read `~/.agents/mystandards/STANDARDS.md`.
 
-If the file does not exist, stop immediately:
+If the file doesn't exist, stop immediately:
 
 > **Error:** `~/.agents/mystandards/STANDARDS.md` not found. Create this
 > file with your personal standards before running fix-my-nits.
@@ -45,7 +45,7 @@ doc it links to (e.g., `go/STANDARDS.md`, `ts/STANDARDS.md`).
 
 ## Step 2 — Get the diff
 
-Run the command matching the requested scope (default `current`):
+Run the command matching requested scope (default `current`):
 
 ```bash
 # current
@@ -59,26 +59,27 @@ jj diff --from 'trunk()' --to '@' --no-pager
 ```
 
 `closest_bookmark(@)` resolves to whatever bookmark this stack sits on
-(trunk, if it isn't stacked on anything) — same revset `pr-comments`
-uses to scope a PR's own commits.
+(trunk, if not stacked on anything) — same revset `pr-comments` uses
+to scope a PR's own commits.
 
-Identify the languages, file types, and repo context of the diff. Domains
-are not limited to file types — a domain may apply based on any of:
-language, file type, repository, GitHub organization, or other context.
-Always apply a domain-specific standards doc when any of these evaluations
-matches, not only when the file extension matches.
+Identify the languages, file types, and repo context of the diff.
+Domains aren't limited to file types — a domain may apply based on
+any of: language, file type, repository, GitHub organization, or
+other context. Always apply a domain-specific standards doc when any
+of these evaluations matches, not only when the file extension
+matches.
 
 For each linked domain whose domain applies to the diff, walk its
-directory tree under `~/.agents/mystandards/[domain]/` and collect every
-file path. Domain files do not cross-link to other domains.
+directory tree under `~/.agents/mystandards/[domain]/` and collect
+every file path. Domain files don't cross-link to other domains.
 
-Example: diff touches `.go` files → walk `~/.agents/mystandards/go/` and
-collect all files found. Example: diff is in a repo under the `acme-corp`
-GitHub org → walk `~/.agents/mystandards/acme-corp/` and collect all
-files found.
+Example: diff touches `.go` files → walk `~/.agents/mystandards/go/`
+and collect all files found. Example: diff is in a repo under the
+`acme-corp` GitHub org → walk `~/.agents/mystandards/acme-corp/` and
+collect all files found.
 
-Record the full list of file paths for each applicable domain — this is
-what gets handed to the sub-agent in Step 4, not the content.
+Record the full list of file paths for each applicable domain — this
+is what gets handed to the sub-agent in Step 4, not the content.
 
 ## Step 3 — Apply nits by domain (sequentially)
 
@@ -113,11 +114,11 @@ sub-agent with this brief (fill in the bracketed values before sending):
 > irrelevant to every file in the diff — only rules you actually
 > weighed against changed content belong in this list.
 
-Do **not** launch domain agents in parallel. Wait for each agent to finish
+Don't launch domain agents in parallel. Wait for each agent to finish
 before starting the next one.
 
-Record each sub-agent's rule-by-rule report — this is the source for the
-summary table in Step 5.
+Record each sub-agent's rule-by-rule report — source for the summary
+table in Step 5.
 
 ## Step 4 — Summary table
 
@@ -129,7 +130,8 @@ evaluated across all sub-agents in Step 3:
 | [domain] | [rule name/label] | ✅ or ❌ |
 
 - One row per rule reported back in Step 3, grouped by domain.
-- ✅ if that rule produced an edit, ❌ if it was evaluated but did not.
-- Do not include a domain that had no rules evaluated (i.e. it never
+- ✅ if that rule produced an edit, ❌ if evaluated but didn't.
+- Don't include a domain that had no rules evaluated (i.e. it never
   applied to the diff in Step 2).
 - No counts, no diff stats — the flag alone.
+</content>

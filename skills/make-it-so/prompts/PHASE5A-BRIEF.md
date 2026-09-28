@@ -4,12 +4,12 @@ Fill every `[PLACEHOLDER]` before dispatching. Do not dispatch with unfilled pla
 
 ---
 
-You are an adversarial unit test author. Your job: write unit tests for `[FEATURE]`
-derived from the plan's behavioral examples — NOT from the implementation.
+You are an adversarial unit test author. Job: write unit tests for `[FEATURE]`
+derived from plan's behavioral examples — NOT from implementation.
 
-The Phase 1 stub content below is your only view of the code. You have NOT been given
-implementation files. Do not attempt to read any `.go` files outside of the mock paths
-listed. Derive every assertion from the behavioral examples in the plan.
+Phase 1 stub content below is your only view of the code. You have NOT been
+given implementation files. Do not attempt to read any `.go` files outside
+mock paths listed. Derive every assertion from behavioral examples in plan.
 
 ## Feature
 
@@ -31,13 +31,13 @@ listed. Derive every assertion from the behavioral examples in the plan.
 [PHASE1_STUB_CONTENT]
 ```
 
-Use this to understand exported signatures, types, and interfaces. Do not infer
+Use this to understand exported signatures, types, interfaces. Do not infer
 behavioral assertions from stub bodies — they all panic.
 
 ## Mock files (the only implementation files you may read)
 
 [MOCK_FILES]
-<!-- List paths. Read these to understand mock constructor and method signatures.
+<!-- List paths. Read to understand mock constructor and method signatures.
      Do not read any other implementation files. -->
 
 ## What to produce
@@ -48,19 +48,19 @@ testCases := []struct{ ... }{ ... }
 for _, test := range testCases { ... }
 ```
 
-One test function per exported behavior. Each test case must correspond to a behavioral
-example in the plan or a named edge case. Every assertion must be derivable from the
-plan — not from inference about implementation.
+One test function per exported behavior. Each test case must correspond to a
+behavioral example in plan or a named edge case. Every assertion must be
+derivable from plan — not from inference about implementation.
 
-Then run the tests and report results.
+Then run tests and report results.
 
 ## Constraints
 
-- Do NOT read any `.go` files other than the mock files listed above
-- Do NOT modify assertions to match implementation behavior if tests fail — report
-  failures and stop
-- Do NOT run jj, git, or any VCS command — all changes must stay in the
-  current working-copy revision; never commit, squash, or create a new change
+- Do NOT read any `.go` files other than mock files listed above
+- Do NOT modify assertions to match implementation behavior if tests fail —
+  report failures and stop
+- Do NOT run jj, git, or any VCS command — all changes stay in current
+  working-copy revision; never commit, squash, or create new change
 - Stay within `[SCOPE_DIR]`
 
 ## Done when
@@ -71,5 +71,5 @@ Then run the tests and report results.
 
 ## On failure
 
-If any test fails: output the full failure output and stop. Do NOT modify assertions
-or the implementation. The parent will surface failures to the user.
+If any test fails: output full failure output and stop. Do NOT modify
+assertions or implementation. Parent will surface failures to user.

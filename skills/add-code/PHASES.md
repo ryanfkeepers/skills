@@ -2,7 +2,7 @@
 
 ## Phase 1: Scaffolding
 
-Dispatch a Phase 1 sub-agent using [prompts/PHASE1-BRIEF.md](prompts/PHASE1-BRIEF.md).
+Dispatch Phase 1 sub-agent: [prompts/PHASE1-BRIEF.md](prompts/PHASE1-BRIEF.md).
 
 Fill every placeholder:
 - `[FEATURE]` — name and one-line summary
@@ -20,16 +20,15 @@ Fill every placeholder:
 - No test files produced
 
 **Parent action after Phase 1 returns:**
-- Read all `.go` files produced in `[SCOPE_DIR]`. Store their contents in session
-  context — this is the Phase 1 snapshot used verbatim in the Phase 3a brief.
-- Verify: do exports match the plan exactly? If not, fix the brief and re-dispatch
-  before proceeding.
+- Read all `.go` files in `[SCOPE_DIR]`. Store contents in session context — Phase 1
+  snapshot, used verbatim in Phase 3a brief.
+- Verify exports match plan exactly. If not: fix brief, re-dispatch before proceeding.
 
 ---
 
 ## Phase 2: Implementation
 
-Dispatch a Phase 2 sub-agent using [prompts/PHASE2-BRIEF.md](prompts/PHASE2-BRIEF.md).
+Dispatch Phase 2 sub-agent: [prompts/PHASE2-BRIEF.md](prompts/PHASE2-BRIEF.md).
 
 Fill every placeholder:
 - `[FEATURE]`, `[PLAN_EXCERPT]`
@@ -48,22 +47,20 @@ Fill every placeholder:
 - `contract.go` unmodified
 
 **Parent check after Phase 2 returns:**
-- Run the build and regression check yourself. Do not trust the sub-agent's report.
+- Run build + regression check yourself — don't trust sub-agent's report.
 - Verify mock files exist at `[MOCK_OUTPUT_DIR]`.
-- Verify `contract.go` was NOT modified: `jj diff --no-pager contract.go`.
-- Verify no files outside scope were modified: `jj diff --no-pager` and scan file list.
+- Verify `contract.go` NOT modified: `jj diff --no-pager contract.go`.
+- Verify no files outside scope modified: `jj diff --no-pager`, scan file list.
 
 ---
 
 ## Phase 3a: Unit Tests — Adversarial Pass
 
-Dispatch a Phase 3a sub-agent using
-[prompts/PHASE3A-BRIEF.md](prompts/PHASE3A-BRIEF.md).
+Dispatch Phase 3a sub-agent: [prompts/PHASE3A-BRIEF.md](prompts/PHASE3A-BRIEF.md).
 
-This agent is **blind to the implementation**. Provide it the Phase 1 snapshot (captured
-after Phase 1) verbatim in the brief — not as file paths. It also receives mock file
-paths and the plan's behavioral examples. It writes tests from the plan, runs them, and
-reports results. It does NOT fix failures.
+Agent is **blind to the implementation**. Give it Phase 1 snapshot (captured after Phase 1)
+verbatim in brief — not file paths. Also gets mock file paths + plan's behavioral examples.
+Writes tests from plan, runs them, reports results. Does NOT fix failures.
 
 Fill every placeholder:
 - `[FEATURE]`, `[PLAN_EXCERPT]`
@@ -77,10 +74,9 @@ Fill every placeholder:
 - Results (pass or fail) reported to parent
 
 **Parent action after Phase 3a returns:**
-- If any test fails: surface all failures to the user with full test output. Stop.
-  The user decides whether to re-invoke Phase 2 or accept the divergence. No automated
-  fix loop.
-- If all tests pass: proceed to Phase 3b.
+- Any test fails: surface all failures to user, full test output. Stop. User decides —
+  re-invoke Phase 2 or accept divergence. No auto-fix loop.
+- All tests pass: proceed to Phase 3b.
 
 ---
 
@@ -88,15 +84,13 @@ Fill every placeholder:
 
 Only run if Phase 3a passes.
 
-Dispatch a Phase 3b sub-agent using
-[prompts/PHASE3B-BRIEF.md](prompts/PHASE3B-BRIEF.md).
+Dispatch Phase 3b sub-agent: [prompts/PHASE3B-BRIEF.md](prompts/PHASE3B-BRIEF.md).
 
-This agent reads Phase 3a test files, implementation files, and mocks. Its job: add new
-test functions for coverage gaps — internal logic, error paths, edge cases not in
-Phase 3a. It must NEVER modify existing Phase 3a test cases, and must append them into
-the same test file as Phase 3a — one test file per source file (`foo.go` ↔ `foo_test.go`).
-Never split coverage and adversarial cases across separate files (e.g. no
-`foo_coverage_test.go`).
+Agent reads Phase 3a test files, implementation files, mocks. Job: add test functions for
+coverage gaps — internal logic, error paths, edge cases not in Phase 3a. Must NEVER modify
+existing Phase 3a test cases; must append into same test file as Phase 3a — one test file
+per source file (`foo.go` ↔ `foo_test.go`). Never split coverage + adversarial cases
+across separate files (e.g. no `foo_coverage_test.go`).
 
 Fill every placeholder:
 - `[FEATURE]`, `[PLAN_EXCERPT]`
@@ -110,51 +104,50 @@ Fill every placeholder:
 - All tests (Phase 3a + new) pass
 
 **Parent action after Phase 3b returns:**
-- Diff Phase 3a test file against current state. If any existing Phase 3a test
-  case was modified, reject Phase 3b output, surface the violations to the user, and stop.
-- Verify no new test file was created alongside the Phase 3a test file (e.g. a
-  `_coverage_test.go` or `_adversarial_test.go` split). Each source file must have exactly
-  one paired test file. If a split file was created, reject Phase 3b output and re-dispatch.
-- Run the test command yourself. Verify all tests pass before proceeding.
+- Diff Phase 3a test file vs current state. Any existing Phase 3a test case modified →
+  reject Phase 3b output, surface violations to user, stop.
+- Verify no new test file created alongside Phase 3a test file (e.g. `_coverage_test.go`
+  or `_adversarial_test.go` split). Each source file: exactly one paired test file. Split
+  file created → reject Phase 3b output, re-dispatch.
+- Run test command yourself. Verify all tests pass before proceeding.
 
 ---
 
 ## Phase 4: Adversarial Verification
 
-Dispatch a Phase 4 verifier sub-agent using
-[prompts/PHASE4-VERIFIER.md](prompts/PHASE4-VERIFIER.md).
+Dispatch Phase 4 verifier sub-agent: [prompts/PHASE4-VERIFIER.md](prompts/PHASE4-VERIFIER.md).
 
 Provide:
 - The original plan verbatim
 
-The verifier runs `jj diff --no-pager` itself.
+Verifier runs `jj diff --no-pager` itself.
 
 **Verifier checks:**
-1. Spec compliance — every requirement in the plan implemented? List any gap.
+1. Spec compliance — every plan requirement implemented? List gaps.
 2. Correctness — logic errors, nil panics, off-by-ones, missing error returns
 3. Completeness — `panic("not implemented")` stubs remaining, TODOs affecting
    correctness, branches that never execute
 4. Regressions — changes to shared/common code that could silently break callers
-5. Test coverage — do Phase 3a tests verify the plan's behavioral examples? Do Phase 3b
-   tests cover the error paths?
+5. Test coverage — Phase 3a tests verify plan's behavioral examples? Phase 3b tests
+   cover error paths?
 
 **On `VERIFIED`:** Proceed to Phase 5.
 
-**On `ISSUES_FOUND` (critical or moderate):**
-1. Dispatch a fix sub-agent with a focused brief: the specific issue list plus relevant
-   file excerpts. Scope tightly — not the full diff.
-2. After fix returns, re-run the test command.
-3. Re-dispatch Phase 4 with a fresh diff.
-4. Repeat up to 3 total fix iterations.
-5. After 3 failures: surface the remaining punch list to the user and stop.
+**On `ISSUES_FOUND` (critical/moderate):**
+1. Dispatch fix sub-agent — focused brief: issue list + relevant file excerpts. Scope
+   tight, not full diff.
+2. Fix returns → re-run test command.
+3. Re-dispatch Phase 4, fresh diff.
+4. Repeat up to 3 fix iterations total.
+5. 3 failures → surface remaining punch list to user, stop.
 
-Minor issues: record them and surface in Phase 5. Do not block on them.
+Minor issues: record, surface in Phase 5. Don't block on them.
 
 ---
 
 ## Phase 5: Diagram
 
-Show the user an ASCII tree of all changes. Generate from `jj diff --stat --no-pager`.
+Show user ASCII tree of all changes. Generate from `jj diff --stat --no-pager`.
 
 Format:
 ```
@@ -169,16 +162,16 @@ project/
 
 Net: +N files, M modified, ~L lines
 
-If any sub-agent worked outside its expected scope, append a section listing every
-instance. Collect these from each phase's output as you go — do not reconstruct from
-the diff after the fact.
+Any sub-agent worked outside expected scope → append section listing every instance.
+Collect these from each phase's output as you go — don't reconstruct from diff after
+the fact.
 
 ```
 Out-of-scope work:
   Phase N — path/to/file.go: reason the agent gave
 ```
 
-If Phase 4 had minor issues not fixed, append:
+Phase 4 had minor issues not fixed → append:
 ```
 Minor findings (not blocking):
   - path/to/file.go:42 — description

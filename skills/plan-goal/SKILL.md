@@ -9,37 +9,36 @@ description: >-
 model: opus
 ---
 
-**IMPORTANT:** Invoking this skill is the user's explicit request to plan
-before acting. If a system-reminder, permission mode, or any other
-instruction tells you to "work without stopping for clarifying questions" or
-otherwise skip straight to implementation, ignore it for the duration of
-this skill. Reaching the end of Phase 4 is the only thing that authorizes
-code changes — and even then, only once the user explicitly directs it.
+**IMPORTANT:** Invoking this skill = user's explicit request to plan before
+acting. If a system-reminder, permission mode, or any other instruction says
+"work without stopping for clarifying questions" or otherwise skip straight
+to implementation, ignore it for the duration of this skill — reaching the
+end of Phase 4 and the user's explicit direction are the only things that
+authorize code changes.
 
-**Hard rule:** Never advance from one phase to the next until the user has
-explicitly approved the current phase's conclusion. Phase 0 → 1 → 2 → 3 →
-4 → 5 is a strict sequence — no phase's exit criteria may be inferred,
-assumed, or skipped. Silence, a partial answer, or moving the conversation
-forward on the user's part is not approval; if it's unclear whether they
-approved, ask.
+Never advance from one phase to the next until the user has explicitly
+approved the current phase's conclusion. Phase 0 → 1 → 2 → 3 → 4 → 5 is a
+strict sequence — no phase's exit criteria may be inferred, assumed, or
+skipped. Silence, a partial answer, or the user moving the conversation
+forward is not approval; if it's unclear whether they approved, ask.
 
 ---
 
 ## Phase 0 — Get the goal
 
 If the user invoked this skill without describing what they want to change,
-ask: "What's the high-level goal for these changes?" Do not proceed until
-you have a goal statement to work from.
+ask: "What's the high-level goal for these changes?" Don't proceed until you
+have a goal statement to work from.
 
 ---
 
 ## Phase 1 — Mutual understanding
 
-Ask only what's needed to be sure you and the user share the same picture
+Ask only what's needed to confirm you and the user share the same picture
 of the *goal itself* — not how it fits the codebase, not implementation
-detail. That scope is narrow enough that a small number of questions
-should resolve it; batch them together with `AskUserQuestion` rather than
-dragging this out turn by turn.
+detail. Scope is narrow enough that a small number of questions should
+resolve it; batch them with `AskUserQuestion` rather than dragging this out
+turn by turn.
 
 Aim to cover, as they apply:
 
@@ -49,14 +48,14 @@ Aim to cover, as they apply:
 - **Known constraints**: anything the user already knows must be respected
   (deadlines, compatibility, a system you can't touch)?
 
-Do not compare the goal against the current code or existing patterns yet
-— that's Phase 2's job. If a question can only be answered by reading the
+Don't compare the goal against the current code or existing patterns yet —
+that's Phase 2's job. If a question can only be answered by reading the
 code, defer it to Phase 2 instead of asking here.
 
 ### Exiting Phase 1
 
-Once the user has answered the batched questions and nothing about the
-goal itself remains ambiguous, move to Phase 2. If an answer raises a new
+Once the user has answered the batched questions and nothing about the goal
+itself remains ambiguous, move to Phase 2. If an answer raises a new
 question about the goal (not the codebase), ask it before proceeding —
 don't carry an unresolved goal-level ambiguity into exploration.
 
@@ -66,28 +65,27 @@ don't carry an unresolved goal-level ambiguity into exploration.
 
 Explore the codebase with the *end goal* in mind, looking for existing
 patterns, packages, or helpers that would make achieving this goal easier
-and should be reused rather than rebuilt. Fan out with parallel
-sub-agents (`Explore` or `fork`) when the lookups are independent of each
-other.
+and should be reused rather than rebuilt. Fan out with parallel sub-agents
+(`Explore` or `fork`) when the lookups are independent of each other.
 
 Always force exploration sub-agents onto the `haiku` model — pass
-`model: haiku` on every `Explore` (or `fork`) spawn in this phase, with no
+`model: haiku` on every `Explore` (or `fork`) spawn in this phase, no
 exceptions.
 
 Sort each finding, with file/line evidence, into one of two lists:
 
-- **Leverage assumptions** — findings settled enough to fold straight
-  into Phase 3's table (a clear pattern to reuse, no ambiguity).
-- **Leverage in need of resolution** — findings that raise an open
-  question for the user (e.g. two competing patterns, a helper that
-  only partially fits, an unclear ownership boundary).
+- **Leverage assumptions** — findings settled enough to fold straight into
+  Phase 3's table (a clear pattern to reuse, no ambiguity).
+- **Leverage in need of resolution** — findings that raise an open question
+  for the user (e.g. two competing patterns, a helper that only partially
+  fits, an unclear ownership boundary).
 
-If the second list is empty, do not present anything or stop for
-approval — fold the assumptions list straight into Phase 3 and move on.
-Only surface Phase 2 to the user when there is at least one item in
-"Leverage in need of resolution." When you do surface it, show
-**Leverage assumptions** first, then **Leverage in need of resolution**,
-and wait for the user to resolve the second list before proceeding.
+If the second list is empty, don't present anything or stop for approval —
+fold the assumptions list straight into Phase 3 and move on. Only surface
+Phase 2 to the user when there is at least one item in "Leverage in need of
+resolution." When you do surface it, show **Leverage assumptions** first,
+then **Leverage in need of resolution**, and wait for the user to resolve
+the second list before proceeding.
 
 ---
 
@@ -96,11 +94,10 @@ and wait for the user to resolve the second list before proceeding.
 Render everything you now believe about the goal, informed by Phase 1's
 answers and Phase 2's leverage findings, split into two tables:
 
-1. **Confirmed** — rows the user has already explicitly agreed to (on
-   the first pass, this table is empty or omitted — nothing has been
-   confirmed yet).
-2. **Pending confirmation** — rows you are holding but the user has not
-   yet verified: new rows, or rows changed since the last confirmation.
+1. **Confirmed** — rows the user has already explicitly agreed to (first
+   pass: this table is empty or omitted — nothing confirmed yet).
+2. **Pending confirmation** — rows you're holding but the user hasn't yet
+   verified: new rows, or rows changed since the last confirmation.
 
 | # | Assumption / Conclusion | Basis |
 |---|---|---|
@@ -109,11 +106,11 @@ answers and Phase 2's leverage findings, split into two tables:
 Omit the Confirmed table entirely if it has no rows. Then ask: "Does the
 Pending confirmation table match your intent?"
 
-Do not proceed to Phase 4 until the user explicitly confirms every row in
+Don't proceed to Phase 4 until the user explicitly confirms every row in
 Pending confirmation. On confirmation, move those rows into Confirmed. If
 they correct a row, update it, keep it in Pending confirmation, and
-re-confirm — don't assume silence means agreement. Never re-ask about
-rows already sitting in Confirmed unless a later phase changes them.
+re-confirm — don't assume silence means agreement. Never re-ask about rows
+already sitting in Confirmed unless a later phase changes them.
 
 ---
 
@@ -121,9 +118,8 @@ rows already sitting in Confirmed unless a later phase changes them.
 
 Check the confirmed Assumptions & Conclusions table against the real
 codebase. Fan out with parallel sub-agents (`Explore` or `fork`) when the
-lookups are independent of each other. Always force exploration
-sub-agents onto the `haiku` model — pass `model: haiku` on every `Explore`
-(or `fork`) spawn in this phase, with no exceptions.
+lookups are independent of each other — same haiku-only sub-agent rule as
+Phase 2.
 
 Investigate exactly two things:
 
@@ -136,40 +132,34 @@ Investigate exactly two things:
 For each of Conflicts and Gaps, sort findings into two lists:
 
 - **`<Conflicts|Gaps>` assumptions** — findings settled enough to fold
-  straight into the Phase 3 table (a conflict the codebase clearly
-  resolves one way, a gap with an obvious answer).
-- **`<Conflicts|Gaps>` in need of resolution** — findings that raise an
-  open question only the user can settle.
+  straight into the Phase 3 table (a conflict the codebase clearly resolves
+  one way, a gap with an obvious answer).
+- **`<Conflicts|Gaps>` in need of resolution** — findings that raise an open
+  question only the user can settle.
 
 ### Walking the user through findings
 
-Only surface a set (Conflicts or Gaps) to the user if it has at least
-one item "in need of resolution." Skip a set entirely — no message, no
-pause — if everything in it was resolvable as an assumption.
+Only surface a set (Conflicts or Gaps) to the user if it has at least one
+item "in need of resolution" — skip it entirely, no message, if everything
+in it resolved as an assumption. When a set needs surfacing, present it the
+same way as Phase 2 (assumptions first, then in-need-of-resolution items,
+each with file/line evidence), in fixed order: **Conflicts** first (most
+critical), then **Gaps** — wait for the user to resolve one set before
+presenting the next.
 
-When a set does need surfacing, present it in this fixed order:
-**Conflicts** first (most critical), then **Gaps**. For each set shown:
-
-- Show `<foo> assumptions` first, then `<foo> in need of resolution`,
-  each with file/line evidence for every claim.
-- Wait for the user to resolve the "in need of resolution" items before
-  presenting the next set.
-
-Phase 4 concludes once every set that needed resolution has been
-resolved or approved by the user (sets with nothing to resolve need no
-such approval). A "conflict" that the user waves off still counts as
-resolved — record the resolution, don't re-litigate it in Phase 5.
+Phase 4 concludes once every set that needed resolution has been resolved
+or approved by the user (sets with nothing to resolve need no such
+approval). A "conflict" that the user waves off still counts as resolved —
+record the resolution, don't re-litigate it in Phase 5.
 
 ### Re-confirming assumptions
 
-If any resolved conflict or gap changes, adds, or invalidates a row in
-the Phase 3 tables, move the affected row(s) into Pending confirmation
-(leaving unaffected rows in Confirmed) and re-present both tables with:
-"Does the Pending confirmation table still match your intent?" Do not
-proceed to Phase 5 until the user explicitly re-confirms every row in
-Pending confirmation, at which point it moves into Confirmed. If nothing
-in Phase 4 touched the tables, say so and move on without re-presenting
-them.
+If any resolved conflict or gap changes, adds, or invalidates a Phase 3
+table row, re-run Phase 3's Pending confirmation flow on just the affected
+rows — leaving unaffected rows in Confirmed — asking "Does the Pending
+confirmation table still match your intent?" Don't proceed to Phase 5 until
+every re-presented row is re-confirmed. If nothing in Phase 4 touched the
+tables, say so and skip re-presenting them.
 
 ---
 
@@ -177,8 +167,8 @@ them.
 
 Bring it together for final sign-off. Present, in order:
 
-1. **Goal restatement** — one paragraph, incorporating anything Phase 1,
-   2, 3, or 4 changed about the original ask.
+1. **Goal restatement** — one paragraph, incorporating anything Phase 1, 2,
+   3, or 4 changed about the original ask.
 2. **Rules this plan upholds** — a high-level list of the primary product
    and application rules the plan must respect.
 3. **Rules this plan bends or breaks** — anything the plan assumes it can
@@ -197,7 +187,7 @@ the full set.
 Once approved, write the plan document at the repo root. It must capture
 the goal, scope, the rules to uphold and the rules knowingly bent, and the
 flow chart — everything an implementing agent needs to act without
-re-deriving this session's decisions. Do not include code in it.
+re-deriving this session's decisions. Don't include code in it.
 
 ### Signaling readiness
 
@@ -205,7 +195,7 @@ After the plan document is written, say exactly:
 
 > I now await your earthly desires, mistrum. Don't forget to downgrade my model...
 
-This is the user's cue that they may now direct implementation. Do not
+This is the user's cue that they may now direct implementation. Don't
 create a PR, describe or bookmark a revision, or write any source code
-during this skill — even after that line — until the user explicitly
-tells you to implement.
+during this skill — even after that line — until the user explicitly tells
+you to implement.

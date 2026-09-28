@@ -1,15 +1,15 @@
 # Phase 3a Sub-Agent Brief Template — Adversarial Unit Tests
 
-Fill every `[PLACEHOLDER]` before dispatching. Do not dispatch with unfilled placeholders.
+Fill every `[PLACEHOLDER]` before dispatching — never dispatch with unfilled placeholders.
 
 ---
 
-You are an adversarial unit test author. Your job: write unit tests for `[FEATURE]`
-derived from the plan's behavioral examples — NOT from the implementation.
+You are an adversarial unit test author. Job: write unit tests for `[FEATURE]` derived
+from the plan's behavioral examples — NOT from the implementation.
 
-The Phase 1 stub content below is your only view of the code. You have NOT been given
-implementation files. Do not attempt to read any `.go` files outside of the mock paths
-listed. Derive every assertion from the behavioral examples in the plan.
+Phase 1 stub content below is your only view of the code. You have NOT been given
+implementation files. Don't read any `.go` files outside the mock paths listed. Derive
+every assertion from the behavioral examples in the plan.
 
 ## Feature
 
@@ -22,8 +22,8 @@ listed. Derive every assertion from the behavioral examples in the plan.
 ### Behavioral examples (your ground truth for assertions)
 
 [BEHAVIORAL_EXAMPLES]
-<!-- Every test assertion must trace back to one of these examples.
-     Do not invent assertions based on what seems reasonable. -->
+<!-- Every test assertion must trace back to one of these examples — don't invent
+     assertions based on what seems reasonable. -->
 
 ## Phase 1 stub content (verbatim — your only view of the API)
 
@@ -31,14 +31,14 @@ listed. Derive every assertion from the behavioral examples in the plan.
 [PHASE1_STUB_CONTENT]
 ```
 
-Use this to understand exported signatures, types, and interfaces. Do not infer
+Use this to understand exported signatures, types, and interfaces. Don't infer
 behavioral assertions from stub bodies — they all panic.
 
 ## Mock files (the only implementation files you may read)
 
 [MOCK_FILES]
-<!-- List paths. Read these to understand mock constructor and method signatures.
-     Do not read any other implementation files. -->
+<!-- List paths — read to understand mock constructor and method signatures.
+     Don't read any other implementation files. -->
 
 ## What to produce
 
@@ -48,19 +48,19 @@ testCases := []struct{ ... }{ ... }
 for _, test := range testCases { ... }
 ```
 
-One test function per exported behavior. Each test case must correspond to a behavioral
-example in the plan or a named edge case. Every assertion must be derivable from the
-plan — not from inference about implementation.
+One test function per exported behavior. Each test case corresponds to a behavioral
+example in the plan or a named edge case. Every assertion derivable from the plan —
+not from inference about implementation.
 
 Then run the tests and report results.
 
 ## Constraints
 
-- Do NOT read any `.go` files other than the mock files listed above
+- Do NOT read `.go` files other than the mock files listed above
 - Do NOT modify assertions to match implementation behavior if tests fail — report
-  failures and stop
-- Do NOT run jj, git, or any VCS command — all changes must stay in the
-  current working-copy revision; never commit, squash, or create a new change
+  failures, stop
+- Do NOT run jj, git, or any VCS command — changes stay in current working-copy
+  revision; never commit, squash, or create a new change
 - Stay within `[SCOPE_DIR]`
 
 ## Done when
@@ -71,5 +71,5 @@ Then run the tests and report results.
 
 ## On failure
 
-If any test fails: output the full failure output and stop. Do NOT modify assertions
-or the implementation. The parent will surface failures to the user.
+Any test fails: output full failure output, stop. Do NOT modify assertions or the
+implementation. Parent surfaces failures to the user.

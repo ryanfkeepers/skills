@@ -10,23 +10,22 @@ Coordinate code implementation through isolated sub-agents. Parent is coordinato
 adversarial verifier. Sub-agents do the work. Everything lands in a single jj working-copy
 revision — no commits, no admin tasks.
 
-This is the default skill for adding code. Use `/make-it-so` instead when integration
-and E2E tests must be written as part of the implementation cycle.
+Default skill for adding code. Use `/make-it-so` instead when integration and E2E tests
+must be written as part of the implementation cycle.
 
 ## Pre-flight checks
 
 Before anything else:
 
-1. **Plan required.** A written plan must exist (from `/plan` or equivalent). If only a
-   verbal description was given, stop: tell the user to run `/plan` first, then invoke
-   this skill again.
+1. **Plan required.** A written plan must exist (from `/plan` or equivalent). Only a
+   verbal description given → stop: tell user to run `/plan` first, then invoke this
+   skill again.
 
-2. **Behavioral examples required.** The plan must include at least one concrete
-   behavioral example per exported behavior: explicit input/output pairs, named edge
-   cases with expected results, or equivalent prose that pins the behavior unambiguously.
-   Vague intent ("process items") is not sufficient. If examples are missing, stop and
-   ask the user to add them before proceeding. These examples are the ground truth for
-   Phase 3a unit tests.
+2. **Behavioral examples required.** Plan must include at least one concrete behavioral
+   example per exported behavior: explicit input/output pairs, named edge cases with
+   expected results, or equivalent prose pinning the behavior unambiguously. Vague
+   intent ("process items") isn't sufficient. Examples missing → stop, ask user to add
+   them before proceeding. These are the ground truth for Phase 3a unit tests.
 
 ## Phases
 
@@ -44,23 +43,21 @@ See [PHASES.md](PHASES.md) for detailed per-phase instructions.
 ## Sub-agent briefing rule
 
 Every sub-agent brief must be fully self-contained: file excerpts, plan section, context,
-scope boundaries, and done-criteria — all included. Use the templates in
-[prompts/](prompts/) and fill every `[PLACEHOLDER]` before dispatching. Never dispatch
-with unfilled placeholders.
+scope boundaries, done-criteria — all included. Use templates in [prompts/](prompts/),
+fill every `[PLACEHOLDER]` before dispatching. Never dispatch with unfilled placeholders.
 
 ## Single-revision constraint
 
 All changes land in the current jj working copy. Sub-agents must NOT run `jj`, `git`, or
-any VCS commands. They only read and modify files.
+any VCS commands — read and modify files only.
 
 ## Fix loop
 
-Phase 3a failures surface directly to the user — no automated fix loop. The user decides
-whether to re-invoke Phase 2 or accept the divergence.
+Phase 3a failures surface directly to user — no automated fix loop. User decides whether
+to re-invoke Phase 2 or accept the divergence.
 
-When Phase 4 finds critical or moderate issues: dispatch a targeted fix sub-agent, then
-re-run Phase 4. Maximum 3 iterations. After 3 failures, surface the punch list to the
-user and stop.
+Phase 4 finds critical or moderate issues → dispatch targeted fix sub-agent, re-run
+Phase 4. Max 3 iterations. After 3 failures, surface punch list to user, stop.
 
 ## What this skill does NOT do
 
@@ -68,4 +65,4 @@ user and stop.
 - Split the revision into multiple commits
 - Create PRs or bookmarks
 
-The user handles those with other skills after this one completes.
+User handles those with other skills after this one completes.

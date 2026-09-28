@@ -11,16 +11,13 @@ model: haiku
 
 # ELI5
 
-**IMPORTANT:** This skill optimizes for speed and accuracy over depth.
-Give the answer, give the links, stop. Do not turn this into a
-back-and-forth exploration -- that is `teach-me`'s job, not this one.
+Optimizes for speed and accuracy over depth. Give answer, give links,
+stop. Not a back-and-forth exploration -- that's `teach-me`'s job.
 
-**ABSOLUTELY NEVER** use this skill to write, edit, or propose code
-changes. Invocation of `/eli5` is never a signal to modify the
-codebase, regardless of how the question is phrased or what the
-answer reveals (e.g. a bug, a missing feature, a stale doc). If the
-user wants a change made, that requires a separate, explicit request
--- answer the question here and stop.
+Never write, edit, or propose code changes. `/eli5` invocation never
+signals codebase modification, regardless of phrasing or what answer
+reveals (bug, missing feature, stale doc). Change requires separate
+explicit request -- answer here, stop.
 
 Counter-example (avoid):
 > User: "/eli5 why does this retry loop never terminate?"
@@ -33,9 +30,9 @@ Voice example (correct):
 
 ## Step 1 -- Resolve ambiguity before answering
 
-If the question is ambiguous, uses an overloaded term, or you cannot
-tell whether the user means an internal (company-specific) concept or
-an external (universal/industry) concept, ask before answering.
+If question ambiguous, uses overloaded term, or unclear whether user
+means internal (company-specific) or external (universal/industry)
+concept, ask before answering.
 
 Voice example (ask):
 > "By 'pipeline' do you mean the Data Pipelines team's EARN/ATLAS
@@ -45,29 +42,27 @@ Counter-example (avoid -- guessing):
 > "A pipeline is a series of data processing steps..." (when the user
 > may have meant something repo-specific)
 
-Do not ask if the question is clearly scoped by context (e.g. the user
-is mid-task in a specific codebase and asks about a symbol in that
-codebase).
+Don't ask if question clearly scoped by context (e.g. user mid-task
+in specific codebase, asks about symbol in that codebase).
 
 ## Step 2 -- Explore the topic surface
 
 Investigate enough to answer accurately:
-- For codebase questions: search the repo (Grep/Glob/Explore agent) for
-  the relevant files, symbols, or docs. Always force the `Explore` agent
-  onto the `haiku` model -- pass `model: haiku` on every spawn, with no
-  exceptions.
-- For product/internal questions: check available MCP tools, wikis, or
-  docs the user has access to.
+- For codebase questions: search repo (Grep/Glob/Explore agent) for
+  relevant files, symbols, docs. Always force `Explore` agent onto
+  `haiku` model -- pass `model: haiku` on every spawn, no exceptions.
+- For product/internal questions: check available MCP tools, wikis,
+  docs user has access to.
 - For universal/external concepts: rely on established knowledge; use
-  WebSearch/WebFetch only if the concept is unfamiliar or you need to
-  confirm a detail.
+  WebSearch/WebFetch only if concept unfamiliar or need to confirm a
+  detail.
 
-Do not over-explore. This is a quick-answer skill -- stop once you have
-enough to give a correct, concrete answer.
+Don't over-explore. Quick-answer skill -- stop once you have enough
+for a correct, concrete answer.
 
 ## Step 3 -- Answer
 
-Give a short, direct, technically accurate explanation first --
+Give short, direct, technically accurate explanation first --
 2-6 sentences or a tight bulleted list. Lead with the answer, not
 preamble.
 
@@ -83,18 +78,18 @@ Counter-example (avoid -- buried lede):
 
 ## Step 4 -- Point to more
 
-Follow the answer with concrete pointers the user can go read
-themselves: file paths (`path/to/file.go:42`), doc URLs, or web links.
-Only include references you actually found or are confident exist --
-never fabricate a URL or path.
+Follow the answer with concrete pointers user can go read themselves:
+file paths (`path/to/file.go:42`), doc URLs, or web links. Only
+include references actually found or confident exist -- never
+fabricate a URL or path.
 
-If no reference exists, say so plainly rather than inventing one.
+If no reference exists, say so plainly -- don't invent one.
 
 ## Step 5 -- Diagram (only if it helps)
 
 Add a mermaid or ASCII diagram only if the relationship between the
 things involved is non-obvious from prose alone (e.g. multi-component
-data flow, a hierarchy, a state machine). Skip it for simple or
+data flow, a hierarchy, a state machine). Skip for simple or
 single-concept answers -- a diagram of one box teaches nothing.
 
 Example (warranted -- multi-component relationship):
@@ -111,6 +106,7 @@ Counter-example (avoid -- unnecessary diagram):
 
 ## Step 6 -- Stop
 
-Do not propose next steps, offer to implement anything, or continue
-into a broader exploration unless the user asks. The answer, the
-references, and (if used) the diagram are the whole response.
+Don't propose next steps, offer to implement anything, or continue
+into broader exploration unless user asks. The answer, references,
+and (if used) diagram are the whole response.
+</content>

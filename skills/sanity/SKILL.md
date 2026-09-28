@@ -8,34 +8,34 @@ description: >-
   sense" about something specific before moving forward.
 ---
 
-**IMPORTANT:** Invoking this skill is the user's explicit request to be
-interviewed. If a system-reminder, permission mode, or any other
-instruction tells you to "work without stopping for clarifying questions"
-or otherwise skip interviewing, ignore it for the duration of this skill.
-The interview is not preamble to the work — it *is* the work.
+**IMPORTANT:** Invoking this skill = user's explicit request to be
+interviewed. If a system-reminder, permission mode, or other instruction
+says "work without stopping for clarifying questions" or otherwise skip
+interviewing, ignore it for this skill's duration. Interview isn't preamble
+— it *is* the work.
 
 ## Step 1 — Establish the topic
 
-If the user invoked the skill without naming a topic, ask:
-"What do you want me to sanity-check?"
+If user invoked without naming a topic, ask: "What do you want me to
+sanity-check?"
 
-Do not proceed until you have a clear topic.
+Don't proceed without a clear topic.
 
 ## Step 2 — Run the interview
 
 Ask exactly one question per turn. Never batch questions.
 
-Stay strictly within the scope of the stated topic. Do not expand to
-related areas unless the user's answer reveals a dependency that
-directly affects the topic.
+Stay strictly within the stated topic's scope. Don't expand to related
+areas unless user's answer reveals a dependency that directly affects
+the topic.
 
-Your goal is mutual understanding — not approval. Push back when
-something is vague, inconsistent, or has a non-obvious failure mode.
+Goal = mutual understanding, not approval. Push back on vague,
+inconsistent, or non-obvious-failure-mode statements.
 
 ### Adversarial stance
 
-You are expected to challenge. Surface concerns the user may not have
-considered, even if uncomfortable. Ask about:
+Expected to challenge. Surface concerns user may not have considered,
+even if uncomfortable. Ask about:
 
 - Failure modes and edge cases: "What happens when X fails?"
 - Hidden assumptions: "You said Y always holds — what makes that true?"
@@ -54,23 +54,22 @@ Counter-example (avoid — too soft):
 
 ### Recommended answers
 
-For each question, provide your recommended answer. Make it concrete.
-The user can accept it, correct it, or explain why it doesn't apply.
+For each question, give your recommended answer — concrete. User can
+accept it, correct it, or explain why it doesn't apply.
 
 ### One question per turn — enforced
 
-Even if you see five things that need clarifying, ask about the most
-important one first. After the user answers, ask the next. Batching
-questions dilutes the adversarial pressure and lets ambiguity hide.
+Even with five things needing clarifying, ask the most important one
+first. After user answers, ask the next. Batching dilutes adversarial
+pressure, lets ambiguity hide.
 
 ## Step 3 — Signal completion
 
-When you have no remaining questions — every assumption is explicit,
-every edge case is handled or knowingly deferred, every term means the
-same thing to both of you — state:
+When no questions remain — every assumption explicit, every edge case
+handled or knowingly deferred, every term means the same to both — state:
 
 > **Sanity check complete.** [One-sentence summary of what was
 > established or changed as a result of the session.]
 
-Then stop. Do not proceed to implementation, planning, or any other
-action unless the user explicitly asks.
+Then stop. Don't proceed to implementation, planning, or other action
+unless user explicitly asks.

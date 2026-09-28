@@ -10,15 +10,15 @@ description: >-
 
 # Assert Green
 
-Assert four phases pass in order. **Stop at the first failure.** Do not fix
-anything — this skill is assertion only — **with one exception: lint (Phase 4)
-is auto-fixed.** Report what failed and why.
+Assert 4 phases pass in order. **Stop at first failure.** No fixes —
+assertion only — **exception: lint (Phase 4) auto-fixed.** Report what
+failed and why.
 
 ---
 
 ## Phase 1 — Compile
 
-Verify the code compiles.
+Verify code compiles.
 
 ### Task runners (check first)
 
@@ -28,8 +28,8 @@ Verify the code compiles.
 | `Justfile` / `justfile` | `just build` |
 | `Taskfile.yml` / `Taskfile.yaml` | `task build` |
 
-List targets first (`make help`, `just --list`, `task --list`). If a `build`
-target exists, use it — it encodes the project's exact configuration.
+List targets first (`make help`, `just --list`, `task --list`). If `build`
+target exists, use it — encodes project's exact config.
 
 ### Language fallbacks (if no task runner build target)
 
@@ -39,14 +39,13 @@ target exists, use it — it encodes the project's exact configuration.
 | `package.json` with `tsc` | `npx tsc --noEmit` |
 | `pyproject.toml` / `setup.py` | `python -m py_compile $(find . -name '*.py')` |
 
-If compile exits non-zero: **halt. Report the compiler output.**
+If compile exits non-zero: **halt. Report compiler output.**
 
 ---
 
 ## Phase 2 — Code Generation (conditional)
 
-Run only if the repo has a generate phase. Skip entirely if no signal is
-found.
+Run only if repo has generate phase. Skip entirely if no signal found.
 
 ### Detection signals (check all; run each one found)
 
@@ -59,7 +58,7 @@ found.
 | `Justfile` / `justfile` | `just generate` / etc. |
 | `Taskfile.yml` / `Taskfile.yaml` | `task generate` / etc. |
 
-**Go generate** — if `go.mod` is present and any `.go` file contains a
+**Go generate** — if `go.mod` present and any `.go` file contains a
 `//go:generate` directive:
 ```
 go generate ./...
@@ -75,8 +74,8 @@ buf generate
 bash scripts/generate.sh
 ```
 
-A codegen phase **passes** if every detected command exits 0. Working tree
-changes produced by generation are expected and do not count as failure.
+Codegen phase **passes** if every detected command exits 0. Working tree
+changes from generation are expected, not failure.
 
 If any codegen command exits non-zero: **halt. Report which command failed
 and its output.**
@@ -85,8 +84,8 @@ and its output.**
 
 ## Phase 3 — Unit Tests
 
-Unit tests only. Skip integration and E2E tests entirely — do not run
-them, do not report on them. If a task runner or language fallback
+Unit tests only. Skip integration and E2E tests entirely — don't run
+them, don't report on them. If a task runner or language fallback
 command below runs everything by default, scope it to unit tests
 only:
 
@@ -96,8 +95,8 @@ only:
 | Separate test dirs/configs (e.g. `test/integration/`, `test/e2e/`, a distinct `jest.integration.config.js`) | Run only the unit test target/config; exclude those paths |
 | Task runner exposes distinct targets (e.g. `make test-unit` vs `make test-integration`/`make test-e2e`) | Use the unit-only target |
 
-If no such separation exists (all tests run as one suite with no
-tagging), run the default command as-is.
+If no such separation exists (all tests run as one suite, no
+tagging), run default command as-is.
 
 ### Task runners (check first)
 
@@ -116,13 +115,13 @@ tagging), run the default command as-is.
 | `pyproject.toml` / `setup.py` | `pytest` |
 | `Gemfile` | `bundle exec rspec` |
 
-If tests exit non-zero: **halt. Report the failing tests and output.**
+If tests exit non-zero: **halt. Report failing tests and output.**
 
 ---
 
 ## Phase 4 — Lint
 
-**Linting is mandatory. It may never be skipped.**
+**Linting mandatory. Never skip.**
 
 ### Step 1 — Check task runners for a lint target
 
@@ -137,8 +136,8 @@ List available targets (`make help`, `just --list`, `task --list`). If a
 
 ### Step 2 — Native fallback (required if no lint target found)
 
-If no task runner lint target exists — or no task runner is present —
-run the native linter for each detected language. Do not skip.
+If no task runner lint target exists — or no task runner present —
+run the native linter for each detected language. Don't skip.
 
 | Indicator | Command |
 |-----------|---------|
@@ -149,38 +148,38 @@ run the native linter for each detected language. Do not skip.
 
 If no task runner target and no language indicator matches: report that
 linting could not be determined, list what was checked, and treat this as
-a failure — do not silently pass.
+a failure — don't silently pass.
 
 ### Step 3 — Auto-fix on failure (do not wait for permission)
 
-If lint exits non-zero, **do not halt and do not ask the user for
-permission to fix.** Always attempt a fix automatically:
+If lint exits non-zero, **don't halt, don't ask permission to fix.**
+Always attempt a fix automatically:
 
-1. Invoke the `lint-fix` skill (or, if unavailable, run the linter's own
-   fix mode — e.g. `golangci-lint run --fix`, `eslint --fix`,
-   `ruff check --fix`, `rubocop -A` — and hand-fix anything the tool
-   cannot).
-2. Re-run the same lint command from Step 1/2 to confirm it now exits 0.
+1. Invoke `lint-fix` skill (or, if unavailable, run linter's own fix
+   mode — e.g. `golangci-lint run --fix`, `eslint --fix`,
+   `ruff check --fix`, `rubocop -A` — hand-fix anything the tool
+   can't).
+2. Re-run same lint command from Step 1/2, confirm it now exits 0.
 
-If lint passes after the fix: record it as `lint: <cmd> exit 0 (auto-fixed)`
-and continue to Phase 4. If lint still exits non-zero after the fix attempt:
-**halt. Report the remaining lint output and what the fix attempt changed.**
+If lint passes after fix: record as `lint: <cmd> exit 0 (auto-fixed)`,
+continue to Phase 4. If still non-zero after fix attempt: **halt.
+Report remaining lint output and what the fix attempt changed.**
 
 
 ## Reporting
 
 ---
 
-**On a lint failure:** Auto-fix per Phase 4, Step 3 — do not stop or wait for
-permission. Only if the fix fails to make lint green, report the remaining
-violations and stop.
+**On a lint failure:** Auto-fix per Phase 4, Step 3 — don't stop or wait
+for permission. Only if the fix fails to make lint green, report
+remaining violations and stop.
 
-**On any other failure:** State which phase failed, quote the relevant output
-(compiler error, test failure), and stop. Do not proceed to the next phase.
-Do not suggest fixes unless the user asks.
+**On any other failure:** State which phase failed, quote relevant
+output (compiler error, test failure), stop. Don't proceed to next
+phase. Don't suggest fixes unless user asks.
 
-**On full pass:** State that all four phases passed (or three, if codegen was
-skipped). List the commands that ran and their exit codes.
+**On full pass:** State all four phases passed (or three, if codegen
+skipped). List commands run and exit codes.
 
 Example (pass):
 ```
@@ -203,3 +202,4 @@ FAIL - Lint. Halting.
 Output:
   pkg/store/cache.go:42: declared and not used: mu
 ```
+</content>

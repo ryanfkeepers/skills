@@ -11,10 +11,9 @@ description: >-
 # fix-divergent
 
 Resolve a divergent jj change: compare all versions, surface
-differences, then abandon all but `@`.
+differences, abandon all but `@`.
 
-**Hard rule:** Do not abandon anything until the user has explicitly
-approved.
+**Hard rule:** Don't abandon anything until user explicitly approves.
 
 ## Step 1 — Find divergent changes
 
@@ -22,20 +21,20 @@ approved.
 jj log -r 'divergent()' --no-pager
 ```
 
-If output is empty, report no divergent changes and stop.
+If output empty, report no divergent changes, stop.
 
 ## Step 2 — Collect all versions
 
-Get the change ID and commit ID for `@`, and for every other
-commit that shares its change ID. Run:
+Get change ID and commit ID for `@`, and every other commit sharing
+its change ID. Run:
 
 ```
 jj log --no-pager \
   -T 'commit_id.short() ++ " " ++ change_id.short() ++ " " ++ description.first_line() ++ "\n"'
 ```
 
-Group rows by change ID. Any group with more than one row is
-a divergent set. Identify which commit is `@`:
+Group rows by change ID. Group with more than one row = divergent
+set. Identify which commit is `@`:
 
 ```
 jj log -r @ --no-pager \
@@ -43,8 +42,8 @@ jj log -r @ --no-pager \
 ```
 
 Record:
-- `KEEP` — the commit ID that `@` points to
-- `ABANDON` — all other commit IDs in the same divergent group(s)
+- `KEEP` — commit ID `@` points to
+- `ABANDON` — all other commit IDs in same divergent group(s)
 
 ## Step 3 — Compare versions
 
@@ -54,8 +53,8 @@ For each divergent set, diff every non-`@` commit against `@`:
 jj diff --from <other_commit_id> --to <keep_commit_id> --no-pager
 ```
 
-**If the diff is empty:** the versions are identical — no
-resolution needed for this pair, skip to Step 5.
+**If the diff is empty:** versions identical — no resolution needed
+for this pair, skip to Step 5.
 
 **If the diff is non-empty:** surface it to the user and ask:
 
@@ -65,7 +64,7 @@ resolution needed for this pair, skip to Step 5.
 > Keep **(A)** what you're editing, **(B)** replace with Version B,
 > or **(M)** resolve manually?
 
-Wait for the user's answer.
+Wait for user's answer.
 
 **If B:** `jj restore --from <other_commit_id>`, then confirm with
 `jj diff -r @ --no-pager`.
@@ -74,7 +73,7 @@ Wait for the user's answer.
 
 ## Step 4 — Confirm abandons
 
-Present a clear list of every commit that will be abandoned:
+Present clear list of every commit that will be abandoned:
 
 > Ready to abandon:
 >
@@ -85,12 +84,12 @@ Present a clear list of every commit that will be abandoned:
 >
 > Approve abandoning these? (yes / no)
 
-Do not abandon until the user says **yes**.
+Don't abandon until user says **yes**.
 
 ## Step 5 — Abandon
 
-For each approved commit, use the commit ID (not the change ID)
-to avoid ambiguity:
+For each approved commit, use commit ID (not change ID) to avoid
+ambiguity:
 
 ```
 jj abandon <commit_id>
@@ -107,3 +106,4 @@ jj log -r 'divergent()' --no-pager
 If divergent changes remain, return to Step 2.
 
 Otherwise report: "No divergent changes remain."
+</content>

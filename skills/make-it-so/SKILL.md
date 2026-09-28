@@ -5,39 +5,39 @@ description: Orchestrate plan-driven code implementation via sub-agents, includi
 
 # make-it-so
 
-Coordinate code implementation through isolated sub-agents. Parent is coordinator and
-adversarial verifier. Sub-agents do the work. Everything lands in a single jj working-copy
-revision — no commits, no admin tasks.
+Coordinate code implementation through isolated sub-agents. Parent is
+coordinator + adversarial verifier. Sub-agents do the work. Everything lands
+in a single jj working-copy revision — no commits, no admin tasks.
 
-For work that doesn't need integration/E2E test phases, use `add-code` instead — it's
-the lighter default.
+For work not needing integration/E2E test phases, use `add-code` instead —
+lighter default.
 
 ## Pre-flight checks
 
 Before anything else:
 
-1. **Plan required.** A written plan must exist (from `/plan` or equivalent). If only a
-   verbal description was given, stop: tell the user to run `/plan` first, then invoke
-   this skill again.
+1. **Plan required.** Written plan must exist (from `/plan` or equivalent). If
+   only a verbal description given, stop: tell user to run `/plan` first,
+   then invoke this skill again.
 
-2. **Behavioral examples required.** The plan must include at least one concrete
-   behavioral example per exported behavior: explicit input/output pairs, named edge
-   cases with expected results, or equivalent prose that pins the behavior unambiguously.
-   Vague intent ("process items") is not sufficient. If examples are missing, stop and
-   ask the user to add them before proceeding. These examples are the ground truth for
-   Phase 3 integration tests and Phase 5a unit tests.
+2. **Behavioral examples required.** Plan must include ≥1 concrete behavioral
+   example per exported behavior: explicit input/output pairs, named edge
+   cases with expected results, or equivalent prose pinning behavior
+   unambiguously. Vague intent ("process items") not sufficient. If examples
+   missing, stop, ask user to add before proceeding. These examples = ground
+   truth for Phase 3 integration tests + Phase 5a unit tests.
 
-3. **Test environment brief.** Ask the user upfront:
-   - Where do E2E smoke tests live, what framework/patterns do they use, what command
-     runs them, and what environment do they require?
-   - Where do integration tests live, what framework/patterns do they use, what command
-     runs them, and what environment do they require?
-   Record the answers. Phases 2 and 3 use this. The user runs both suites after this
+3. **Test environment brief.** Ask user upfront:
+   - Where do E2E smoke tests live, what framework/patterns, what command runs
+     them, what environment required?
+   - Where do integration tests live, what framework/patterns, what command
+     runs them, what environment required?
+   Record answers. Phases 2 + 3 use this. User runs both suites after this
    skill completes.
 
 ## Phases
 
-When communicating with the user, always refer to phases by name, not number
+When communicating with user, always refer to phases by name, not number
 (e.g., "scaffolding phase", "E2E smoke test phase", "integration test phase").
 
 | # | Phase | Who | Exit criterion |
@@ -55,28 +55,28 @@ See [PHASES.md](PHASES.md) for detailed per-phase instructions.
 
 ## Sub-agent briefing rule
 
-Every sub-agent brief must be fully self-contained: file excerpts, plan section, context,
-scope boundaries, and done-criteria — all included. Use the templates in
-[prompts/](prompts/) and fill every `[PLACEHOLDER]` before dispatching. Never dispatch
-with unfilled placeholders.
+Every sub-agent brief must be fully self-contained: file excerpts, plan
+section, context, scope boundaries, done-criteria — all included. Use
+templates in [prompts/](prompts/), fill every `[PLACEHOLDER]` before
+dispatching. Never dispatch with unfilled placeholders.
 
 ## Single-revision constraint
 
-All changes land in the current jj working copy. Sub-agents must NOT run `jj`, `git`, or
-any VCS commands. They only read and modify files.
+All changes land in current jj working copy. Sub-agents must NOT run `jj`,
+`git`, or any VCS commands. They only read + modify files.
 
 ## Fix loop
 
-Phase 5a failures surface directly to the user — no automated fix loop. The user decides
-whether to re-invoke Phase 4 or accept the divergence.
+Phase 5a failures surface directly to user — no automated fix loop. User
+decides whether to re-invoke Phase 4 or accept the divergence.
 
-When Phase 6 finds critical or moderate issues: dispatch a targeted fix sub-agent, then
-re-run Phase 6. Maximum 3 iterations. After 3 failures, surface the punch list to the
-user and stop.
+When Phase 6 finds critical or moderate issues: dispatch a targeted fix
+sub-agent, then re-run Phase 6. Max 3 iterations. After 3 failures, surface
+punch list to user and stop.
 
 ## What this skill does NOT do
 
 - Split the revision into multiple commits
 - Create PRs or bookmarks
 
-The user handles those with other skills after this one completes.
+User handles those with other skills after this one completes.

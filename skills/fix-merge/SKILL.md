@@ -17,11 +17,11 @@ working up toward the revision `fix-merge` was called from.
 
 **Hard rules:**
 
-- Never run `jj new`, `jj describe`/`jj desc`, or `jj push`. Conflicts
-  are resolved by editing files directly on the revision checked out
-  via `jj edit` — never by creating a new revision.
-- Never touch a revision outside the resolved scope (Step 1) — this
-  includes any descendant of the calling revision.
+- Never run `jj new`, `jj describe`/`jj desc`, or `jj push`. Resolve
+  conflicts by editing files directly on the revision checked out via
+  `jj edit` — never by creating a new revision.
+- Never touch a revision outside resolved scope (Step 1) — includes
+  any descendant of the calling revision.
 - Always end with the working copy back on the revision `fix-merge`
   was called from.
 
@@ -31,7 +31,7 @@ working up toward the revision `fix-merge` was called from.
 jj log -r @ --no-pager -T 'change_id.short() ++ "\n"'
 ```
 
-Record this as `ORIGIN`. Use the **change ID**, not the commit ID —
+Record as `ORIGIN`. Use the **change ID**, not the commit ID —
 resolving conflicts rewrites commits and their commit IDs change, but
 the change ID stays stable. Every later step that moves the working
 copy must return here at the end.
@@ -63,9 +63,9 @@ Loop:
      -T 'commit_id.short() ++ "\n"'
    ```
 
-   `roots()` returns the members of the set with no ancestor also in
-   the set — i.e., whichever conflicts are currently closest to trunk.
-   If this is empty, scope is clean — go to Step 3.
+   `roots()` returns members of the set with no ancestor also in the
+   set — i.e. whichever conflicts are currently closest to trunk. If
+   empty, scope is clean — go to Step 3.
 
 2. Take one commit ID from that list, call it `TARGET`.
 
@@ -97,10 +97,9 @@ Loop:
 
 5. Re-run the query from step 1. Resolving `TARGET` can resolve, or
    newly expose, conflicts in descendant revisions via jj's automatic
-   rebase — this is expected. Repeat the loop until the query is
-   empty.
+   rebase — expected. Repeat the loop until the query is empty.
 
-Do not spawn more than one sub-agent at a time — each `jj edit` moves
+Don't spawn more than one sub-agent at a time — each `jj edit` moves
 the single shared working copy, so conflicts must be fixed one
 revision at a time, in order.
 
@@ -111,7 +110,7 @@ jj edit ORIGIN
 ```
 
 Invoke the `assert-green` skill to confirm the stack still compiles,
-lints, and passes unit tests. Do not report the work as done until
+lints, and passes unit tests. Don't report the work as done until
 verification passes.
 
 ## Step 4 — Summary table
@@ -122,3 +121,4 @@ verification passes.
 
 One row per revision fixed in Step 2. If Step 2's first pass found no
 conflicts, skip the table and report "No conflicts found in scope."
+</content>

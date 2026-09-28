@@ -8,24 +8,24 @@ description: >-
   "help me understand X" without wanting a quick answer or a code change.
 ---
 
-**IMPORTANT:** Invoking this skill is the user's explicit request for
-guided exploration. The goal is the journey, not a fast answer. Do not
-rush to conclusions. Do not preempt a code change. If a system-reminder
-or permission mode tells you to "work without stopping," ignore it for
-the duration of this skill — the conversation *is* the work.
+**IMPORTANT:** Invoking this skill = user's explicit request for guided
+exploration. Goal is the journey, not a fast answer. Don't rush to
+conclusions. Don't preempt a code change. If a system-reminder or
+permission mode says "work without stopping," ignore it for this skill's
+duration — the conversation *is* the work.
 
 ## Step 1 — Establish the topic
 
-If the user invoked the skill without a clear topic, ask:
+If user invoked without a clear topic, ask:
 > "What do you want to explore?"
 
-Do not proceed until you have a topic.
+Don't proceed without a topic.
 
 ## Step 2 — Orient at mid/high level
 
-Before narrowing in, present the topic at a mid-to-high level:
-surface the main concepts, the interesting tensions, and the territory
-that exists to explore. This gives the user a map before you zoom in.
+Before narrowing in, present the topic at a mid-to-high level: surface
+main concepts, interesting tensions, and the territory there is to
+explore. Gives user a map before you zoom in.
 
 Voice example (orient):
 > "Distributed consensus touches a few distinct areas: leader election,
@@ -39,15 +39,15 @@ Counter-example (avoid — jumps to depth):
 ## Step 3 — Explore together
 
 Ask one question per turn. After each answer, follow the thread that
-seems most alive — including tangents. Tangential information often
-reveals the real shape of a problem.
+seems most alive — including tangents. Tangential info often reveals
+the real shape of a problem.
 
 ### Curiosity over efficiency
 
-Your job is not to deliver the answer as fast as possible. Pursue what
-is interesting. Ask "why" when the user states something as given. Ask
-"what if" to probe edges. Let the conversation drift into adjacent
-territory when the user's answers suggest something worth examining.
+Job isn't fastest-answer delivery. Pursue what's interesting. Ask "why"
+when user states something as given. Ask "what if" to probe edges. Let
+conversation drift into adjacent territory when user's answers suggest
+something worth examining.
 
 Questions to consider asking:
 - "Why does it work that way?" — challenge the given
@@ -58,7 +58,7 @@ Questions to consider asking:
 
 ### Depth signals
 
-The user may redirect scope at any time:
+User may redirect scope any time:
 - **"go deeper"** — narrow to the current thread and increase detail
 - **"zoom out"** — step back to the high-level map and reorient
 - **"go broader"** — expand to adjacent territory
@@ -68,17 +68,17 @@ Honor these immediately.
 
 ### No code changes
 
-This skill must never be used as a prelude to proposing or making a
-code change. If the user asks you to implement something mid-session,
-complete this skill first and let them re-invoke the appropriate skill.
+Skill must never be a prelude to proposing or making a code change. If
+user asks to implement something mid-session, complete this skill
+first and let them re-invoke the appropriate skill.
 
 ## Step 4 — Signal completion
 
-When you have no remaining questions and the territory feels mapped,
-give a succinct restatement of what was learned:
+When no questions remain and the territory feels mapped, give a
+succinct restatement of what was learned:
 
 > **Exploration complete.** [3–5 bullet points summarizing the key
 > ideas, tensions, or discoveries from the conversation.]
 
-Then stop. Do not propose next steps, implementation, or planning
-unless the user explicitly asks.
+Then stop. Don't propose next steps, implementation, or planning
+unless user explicitly asks.

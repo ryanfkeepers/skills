@@ -12,30 +12,30 @@ Invoke `keepers:sanity` with this topic:
 
 ### Step 4a — Check for overlaps
 
-Read the domain's standards doc (e.g., `go/STANDARDS.md`). Scan all
-existing entries. If any entry's name or behavior substantially overlaps
-with the new standard, flag it:
+Read domain's standards doc (e.g., `go/STANDARDS.md`). Scan all existing
+entries. If any entry's name or behavior substantially overlaps with new
+standard, flag it:
 
 > **Overlap detected:** "Standard Name" already covers similar ground:
 > [quote the existing entry]
 > Update the existing standard, or create a new one?
 
-Wait for the user's answer before continuing.
+Wait for user's answer before continuing.
 
 ### Step 5a — Handle new domain
 
-If the domain has no existing standards doc, ask:
+If domain has no existing standards doc, ask:
 
 > **New domain:** How would you describe the `<domain>` domain in one
 > sentence? (This description will appear in STANDARDS.md.)
 
-Create `~/.agents/mystandards/<domain>/STANDARDS.md` and add a link to it
-in the primary `STANDARDS.md`.
+Create `~/.agents/mystandards/<domain>/STANDARDS.md`, add link to it in
+primary `STANDARDS.md`.
 
 ### Step 6a — Write the entry
 
-Append the new standard to the appropriate domain doc using the standard
-format. Place it alphabetically by name among existing entries.
+Append new standard to appropriate domain doc using standard format.
+Place alphabetically by name among existing entries.
 
 ---
 
@@ -43,8 +43,8 @@ format. Place it alphabetically by name among existing entries.
 
 ### Step 3b — Identify the standard
 
-Ask the user which domain the standard is in. Read that domain's doc.
-List all standard names in that domain and ask which one to modify.
+Ask user which domain standard is in. Read that domain's doc. List all
+standard names in that domain, ask which one to modify.
 
 ### Step 4b — Interview via sanity
 
@@ -57,8 +57,7 @@ Invoke `keepers:sanity` with this topic:
 
 ### Step 5b — Write the update
 
-Replace the existing entry with the updated content, preserving the
-standard format.
+Replace existing entry with updated content, preserving standard format.
 
 ---
 
@@ -66,12 +65,12 @@ standard format.
 
 ### Step 3c — Identify the standard
 
-Ask the user which domain the standard is in. Read that domain's doc.
-List all standard names and ask which one to remove.
+Ask user which domain standard is in. Read that domain's doc. List all
+standard names, ask which one to remove.
 
-Show the full entry and ask for confirmation before deleting.
+Show full entry, ask for confirmation before deleting.
 
 ### Step 4c — Delete the entry
 
-Remove the entry from the domain doc. If the domain doc is now empty,
-ask the user whether to remove the domain link from STANDARDS.md too.
+Remove entry from domain doc. If domain doc now empty, ask user whether
+to remove the domain link from STANDARDS.md too.

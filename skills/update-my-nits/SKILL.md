@@ -30,20 +30,20 @@ A short description of the expected behavior.
 
 ## Step 1 — Determine the operation
 
-Ask the user: **"Do you want to add, modify, or remove a standard?"**
+Ask user: **"Do you want to add, modify, or remove a standard?"**
 
-Do not proceed until the operation is clear.
+Don't proceed until operation is clear.
 
 ## Step 2 — Load standards docs
 
 Read `~/.agents/mystandards/STANDARDS.md`.
 
-If the file does not exist, stop:
+If file doesn't exist, stop:
 
 > **Error:** `~/.agents/mystandards/STANDARDS.md` not found. Create this
 > file before running update-my-nits.
 
-Note every linked domain doc. For add/modify, you will need these shortly.
+Note every linked domain doc — needed shortly for add/modify.
 
 ## Step 3 — Execute the operation
 
@@ -51,5 +51,4 @@ Follow the appropriate flow in [FLOWS.md](FLOWS.md).
 
 ## Step 4 — Verify
 
-Invoke `assert-green`. Do not claim the work is done
-until verification passes.
+Invoke `assert-green`. Don't claim work done until verification passes.

@@ -16,26 +16,26 @@ argument-hint: "<review-url> [auto|manual (default)]"
 # PR Comments
 
 **IMPORTANT:** This skill never writes to the PR itself — no comments,
-no thread resolutions, no reviews. The only GitHub mutation it performs
-is pushing commits (Step 5). All PR review API calls are read-only.
+no thread resolutions, no reviews. Only GitHub mutation it performs is
+pushing commits (Step 5). All PR review API calls are read-only.
 
-**IMPORTANT:** Step 3 (resolving comments) is code-edit only. Whatever
-agent executes it must not describe, create, or push a revision, and
-must not run any `jj` command that modifies revision state directly
-(`jj describe`, `jj new`, `jj squash`, `jj git push`, etc.). Its only
-allowance is editing files to address the PR comments. Revision
-lifecycle stays with Steps 1 (create), 4 (verify), and 5 (describe,
-push) — never with Step 3.
+**IMPORTANT:** Step 3 (resolving comments) is code-edit only. Agent
+executing it must not describe, create, or push a revision, and must
+not run any `jj` command modifying revision state directly
+(`jj describe`, `jj new`, `jj squash`, `jj git push`, etc.). Only
+allowance: editing files to address PR comments. Revision lifecycle
+stays with Steps 1 (create), 4 (verify), 5 (describe, push) — never
+Step 3.
 
 ## Inputs
 
-- **Review URL** (required) — a GitHub PR or PR-review URL, e.g.
+- **Review URL** (required) — GitHub PR or PR-review URL, e.g.
   `https://github.com/<owner>/<repo>/pull/<number>` (optionally with a
-  `#pullrequestreview-<id>` fragment, which is ignored — see Step 2).
+  `#pullrequestreview-<id>` fragment, ignored — see Step 2).
 - **Mode** (optional) — `auto` or `manual`. Default `manual`.
 
-Parse `<owner>`, `<repo>`, and `<number>` from the URL up front; every
-later `gh` call needs them.
+Parse `<owner>`, `<repo>`, `<number>` from URL up front; every later
+`gh` call needs them.
 
 ## Step 1 — Stage a fixup revision
 
@@ -47,12 +47,12 @@ jj bookmark advance
 
 Run in this order: `jj new -A @` inserts a fresh empty revision right
 after the current `@` (rebasing any existing children of `@` onto it),
-which becomes the new working-copy revision — plain `jj new` can leave
-the stack in a bad shape if `@` isn't a head. The bookmark list call
-(before advancing) records the bookmark's name while it still points at
-the old `@` (now `@-`) — you need that name for Steps 2 and 5.
-`jj bookmark advance` then moves that bookmark forward onto the new `@`
-(its defaults — `--to @`, from `heads(::@ & bookmarks())` — do exactly
+becoming the new working-copy revision — plain `jj new` can leave the
+stack in a bad shape if `@` isn't a head. The bookmark list call
+(before advancing) records the bookmark's name while it still points
+at the old `@` (now `@-`) — you need that name for Steps 2 and 5.
+`jj bookmark advance` then moves that bookmark onto the new `@` (its
+defaults — `--to @`, from `heads(::@ & bookmarks())` — do exactly
 this).
 
 Verify the tugged bookmark is actually the PR from the URL, not some
@@ -62,15 +62,15 @@ other revision in the stack:
 gh pr view <bookmark-name> --json number
 ```
 
-If the number doesn't match `<number>` from the URL, **halt** and
-report the mismatch — do not guess which bookmark was intended.
+If the number doesn't match `<number>` from the URL, **halt**, report
+the mismatch — don't guess which bookmark was intended.
 
 ## Step 2 — Load the review
 
 Before pulling review comments, load the full PR change context — not
-just the top-of-tree diff. Review comments point at lines that may
-have been introduced several commits back in the stack, so you need
-every revision in this PR, not just `@-`.
+just the top-of-tree diff. Review comments point at lines that may be
+several commits back in the stack, so you need every revision in this
+PR, not just `@-`.
 
 ```
 jj log -r 'closest_bookmark(@-)..@-' --no-pager
@@ -81,12 +81,12 @@ jj diff --from 'closest_bookmark(@-)' --to '@-' --no-pager
 resolves to the *parent* branch point here, not this PR's own bookmark
 — Step 1 already advanced that bookmark onto `@`, so it no longer sits
 on `@-`, and the lookup walks up to whatever bookmark this PR is
-actually stacked on (trunk, if it isn't stacked on anything). Using
-that instead of `trunk()` keeps the range scoped to this PR's own
-commits when it sits on top of another bookmarked PR. The `log` call
-shows every commit in the PR; the `diff` call shows their combined
-effect, so a comment on a line touched two commits ago still resolves
-against the right context.
+actually stacked on (trunk, if not stacked on anything). Using that
+instead of `trunk()` keeps the range scoped to this PR's own commits
+when it sits atop another bookmarked PR. The `log` call shows every
+commit in the PR; the `diff` call shows their combined effect, so a
+comment on a line touched two commits ago still resolves against the
+right context.
 
 Then invoke `keepers:load` on the review URL for orientation (PR
 description, touched files, surrounding discussion).
@@ -94,8 +94,8 @@ description, touched files, surrounding discussion).
 The PR page itself won't reliably expose individual review comments to
 a plain page fetch, so pull the structured review threads *and* the
 top-level (issue) comments directly — a reviewer's "please also check
-X" left on the PR conversation, not attached to a line, is easy to
-miss if you only read `reviewThreads`:
+X" on the PR conversation, not attached to a line, is easy to miss if
+you only read `reviewThreads`:
 
 ```
 gh api graphql -f query='
@@ -120,77 +120,68 @@ gh api graphql -f query='
 ```
 
 From `reviewThreads`, keep only `isResolved == false` threads. A URL
-fragment naming a specific review (`#pullrequestreview-<id>`) does not
+fragment naming a specific review (`#pullrequestreview-<id>`) doesn't
 narrow this set — address every outstanding thread on the PR, since a
 review is just one batch of comments among possibly several.
 
 Top-level `comments` carry no `isResolved` field — GitHub tracks
 resolution only for review threads — so keep all of them every run.
 Treat each as its own pseudo-thread with `path = null`, `line = null`.
-Sort the merged list by `(path, line)`, with null-path (top-level)
-entries first, ordered among themselves by `createdAt`; this keeps the
-walk order stable across runs. When presenting a top-level entry (Step
-3), label it `(top-level)` in place of `file:line`.
+Sort the merged list by `(path, line)`, null-path (top-level) entries
+first, ordered among themselves by `createdAt`; this keeps the walk
+order stable across runs. When presenting a top-level entry (Step 3),
+label it `(top-level)` in place of `file:line`.
 
-If there are zero outstanding threads and zero top-level comments,
-report that and stop — skip Steps 3-5.
+If zero outstanding threads and zero top-level comments, report that
+and stop — skip Steps 3-5.
 
 ## Step 3 — Resolve each comment
 
-**IMPORTANT:** This step only edits files. Never describe, create, or
-push a revision, and never run `jj` commands that modify revision
-state directly — that belongs to Steps 1, 4, and 5.
+**IMPORTANT:** Edit-only, per the top-level note — no revision-modifying
+`jj` commands here; that belongs to Steps 1, 4, and 5.
 
 For each thread, **investigate before acting**: read the file around
 `path:line` (for a top-level comment, read whatever part of the diff
-or codebase it references — there's no line to anchor on), understand
-what the comment is pointing at, and form a view on the right fix (or
-on why no fix is needed).
+or codebase it references — no line to anchor on), understand what
+the comment is pointing at, form a view on the right fix (or why no
+fix is needed).
 
 ### Auto mode
 
 For each thread, apply the fixup directly, then report one line:
-comment summary → what changed (`file:line`, or `(top-level)` when
-there's no line to cite). No confirmation between threads.
+comment summary → what changed (`file:line`, or `(top-level)` with no
+line to cite). No confirmation between threads.
 
 ### Manual mode (default)
 
 Before walking threads, scan the sorted list for duplicates: threads
-that raise the *exact same* request in different locations (e.g. the
+raising the *exact same* request in different locations (e.g. the
 same reviewer asking for the same rename, the same missing check, the
 same nit — reworded or not — applied to multiple files/lines). Group
 only on functional identity — same fix, same reasoning. A shared
 *theme* or *pattern* across otherwise-distinct comments (different
-fixes that happen to relate) does not qualify; treat those as
-separate threads with their own fix/skip/investigate decision.
+fixes that happen to relate) doesn't qualify; treat those as separate
+threads with their own fix/skip/investigate decision.
 
 For each duplicate group, batch it: list every occurrence
 (`file:line` + quoted body for each), ask the fix/skip/investigate
-question once for the group, and apply the chosen action to every
+question once for the group, apply the chosen action to every
 occurrence in it. For everything else, walk threads individually, in
 order:
 
 1. Show the comment (author, `file:line` or `(top-level)`, quoted
    body) and your investigation (root cause, proposed fix) — label it
-   `Comment i/N` (a batched group counts as one `i` for numbering
-   purposes).
+   `Comment i/N` (a batched group counts as one `i` for numbering).
 2. Ask the user to choose:
    - **Fix it** — apply the fixup(s), show the diff(s).
-   - **Skip it** — leave as-is, note it as skipped.
+   - **Skip it** — leave as-is, note as skipped.
    - **Investigate further** — open-ended conversation. Keep
-     discussing (and fix inline if the user asks you to mid-conversation)
-     until the user says the investigation is resolved and you should
-     move on. Then continue to the next thread (or group).
+     discussing (fix inline if the user asks mid-conversation) until
+     the user says the investigation is resolved and you should move
+     on. Then continue to the next thread (or group).
 
-Voice example (batched group):
-> Comment 3/4 — 3 occurrences of the same request from `@reviewer`:
-> "use `errors.Is` instead of `==`" at `retry.go:42`, `retry.go:88`,
-> and `backoff.go:17`.
->
-> Investigation: confirmed at all three — direct `==` comparisons on
-> wrapped errors. Fix: swap each to `errors.Is`.
-
-Voice example (correct, single comment):
+Voice example (single comment; a batched group reads the same way, just
+with every occurrence listed and one shared investigation):
 > Comment 2/4 — `retry.go:42`, from `@reviewer`:
 > "This increments on the wrong branch — should count failed attempts,
 > not successful ones."
@@ -207,13 +198,13 @@ Counter-example (avoid):
 ## Step 4 — Verify
 
 Invoke `keepers:assert-green`. If it fails, **halt** — report what
-failed, wait for the user to resolve it, then re-run
-`keepers:assert-green`. Do not proceed to Step 5 until it passes.
+failed, wait for the user to resolve it, re-run `keepers:assert-green`.
+Don't proceed to Step 5 until it passes.
 
 ## Step 5 — Describe and push
 
-Invoke `keepers:jjdesc` to write the description for the new revision.
-Then:
+Invoke `keepers:jjdesc` to write the description for the new revision,
+then:
 
 ```
 jj git push --bookmark <bookmark-name>

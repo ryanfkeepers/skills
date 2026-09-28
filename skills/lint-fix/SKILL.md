@@ -12,7 +12,7 @@ Detect linters, fix all errors, confirm clean.
 
 ## Step 1 — Detect repo type
 
-Check root-level indicator files to determine applicable linters.
+Check root-level indicator files -> determine applicable linters.
 
 ### Task runners (check first)
 
@@ -22,9 +22,9 @@ Check root-level indicator files to determine applicable linters.
 | `Justfile` / `justfile` | `just lint`, `just build` |
 | `Taskfile.yml` / `Taskfile.yaml` | `task lint`, `task build` |
 
-If a task runner is present, list its targets (`make help`, `just --list`,
-`task --list`) and prefer task-runner commands over direct tool invocations
-when lint/build targets exist — they encode the project's exact configuration.
+If task runner present, list its targets (`make help`, `just --list`,
+`task --list`); prefer task-runner commands over direct tool invocations
+when lint/build targets exist — encodes the project's exact config.
 
 ### Language indicators
 
@@ -35,12 +35,12 @@ when lint/build targets exist — they encode the project's exact configuration.
 | `pyproject.toml` or `setup.py` | Python | `ruff check .`, `ruff format --check .` |
 | `Gemfile` | Ruby | `rubocop` |
 
-Multiple indicators can be present — run all detected linters.
+Multiple indicators can coexist — run all detected linters.
 
 ## Step 2 — Initial lint pass
 
-Run all detected linters and read full output before touching code.
-This establishes scope.
+Run all detected linters, read full output before touching code —
+establishes scope.
 
 **Go** (`go.mod` present):
 ```bash
@@ -67,7 +67,7 @@ ruff format --check .
 gofmt -w .
 ```
 Most Go linters don't auto-fix beyond formatting; fix remaining
-errors manually in source.
+errors manually.
 
 **Node/TS:**
 ```bash
@@ -81,11 +81,11 @@ ruff check --fix .
 ruff format .
 ```
 
-For errors that survive auto-fix, read each one and fix manually.
-Make the minimum required changes for correction.
+For errors surviving auto-fix, read each, fix manually — minimum
+changes needed.
 
 ## Step 4 — Re-run to confirm clean
 
 Re-run all linters from Step 2. Target: zero errors.
 
-If errors remain, fix and re-run until output is clean.
+If errors remain, fix -> re-run until clean.

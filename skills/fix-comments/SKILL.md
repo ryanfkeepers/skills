@@ -13,9 +13,9 @@ argument-hint: "[current|bookmark (default)|stack]"
 
 # Fix Comments
 
-Apply the fixed comment-content standard as a final refinement to the
-current change (`@`). Same shape as `fix-my-nits`, narrowed to comments —
-no standards file to load; the rule below is the whole standard.
+Apply the fixed comment-content standard as a final refinement to current
+change (`@`). Same shape as `fix-my-nits`, narrowed to comments — no
+standards file to load; the rule below is the whole standard.
 
 ## Inputs
 
@@ -26,26 +26,25 @@ no standards file to load; the rule below is the whole standard.
     (`closest_bookmark(@)..@`).
   - `stack` — read every revision since trunk (`trunk()..@`).
 
-Widening scope only widens what gets *read* — it exists so a comment
-that only makes sense in light of context from earlier revisions in the
+Widening scope only widens what gets *read* — exists so a comment that
+only makes sense in light of context from earlier revisions in the
 stack still gets judged correctly. Every fix still lands on `@` only —
-editing a file always changes whatever is checked out, which `@` is,
-regardless of scope. Never use `jj edit` or otherwise switch the
-working copy to another revision in this skill.
+editing a file always changes whatever is checked out, which is `@`,
+regardless of scope. Never use `jj edit` or otherwise switch working
+copy to another revision in this skill.
 
 ## The rule
 
-Comments exist to state constraints the code cannot express on its
-own — not to restate what the code already shows.
+Comments exist to state constraints code can't express on its own —
+not to restate what code already shows.
 
-- If there is nothing to say beyond what the code already shows, omit
-  the comment.
+- If nothing to say beyond what code already shows, omit the comment.
 - If a comment ponders or narrates implementation at large without a
   specific constraint, omit it.
-- 1-2 lines per comment is the goal. 3 lines is the maximum — no
-  exceptions. If a comment needs more than 3 lines to state its
-  constraint, compress it (use terse, caveman-style phrasing if
-  necessary) rather than let it run long.
+- 1-2 lines per comment is the goal. 3 lines max — no exceptions. If a
+  comment needs more than 3 lines to state its constraint, compress it
+  (terse, caveman-style phrasing if necessary) rather than let it run
+  long.
 - Comments must not:
   - reference tickets.
   - reference plans or other documentation.
@@ -103,7 +102,7 @@ func TestRetry_GivesUpAfterMaxAttempts(t *testing.T) {
 
 ## Step 1 — Get the diff
 
-Run the command matching the requested scope (default `bookmark`):
+Run the command matching requested scope (default `bookmark`):
 
 ```bash
 # current
@@ -117,7 +116,7 @@ jj diff --from 'trunk()' --to '@' --no-pager
 ```
 
 `closest_bookmark(@)` resolves to whatever bookmark this stack sits on
-(trunk, if it isn't stacked on anything).
+(trunk, if not stacked on anything).
 
 ## Step 2 — Apply the rule
 
@@ -149,12 +148,11 @@ Spawn one sub-agent with this brief (fill in the scoped diff command):
 > (`omitted` / `trimmed` / `unchanged`). Do not include comments
 > outside the diff's changed scope.
 
-Record the sub-agent's report — this is the source for the summary
-table in Step 4.
+Record the sub-agent's report — source for the summary table in Step 4.
 
 ## Step 3 — Verify
 
-Invoke the `assert-green` skill. Do not claim the work is done until
+Invoke the `assert-green` skill. Don't claim work done until
 verification passes.
 
 ## Step 4 — Summary table
@@ -166,5 +164,6 @@ After verification passes, render a single Markdown table:
 | [file:line] | [short description] | omitted / trimmed / unchanged |
 
 - One row per comment reported back in Step 2.
-- Do not include a row for a comment that was never evaluated.
+- Don't include a row for a comment never evaluated.
 - No counts, no diff stats — the table alone.
+</content>

@@ -12,13 +12,10 @@ description: >-
 
 ## Instructions
 
-1. Run `jj log -r 'trunk()..@'` to list all commits since the
-   trunk.
-2. Present the commits (change ID, description, author) as a
-   numbered list, starting with the leaf.
-   - Always ask the user which commits to include, even if
-     there is only one. Accept "all", specific change IDs,
-     or a range.
-3. Output the selected earliest and latest change IDs so the
-   caller can use them (e.g. for `jj diff --from <earliest>
-   --to <latest>`).
+1. Run `jj log -r 'trunk()..@'` — lists all commits since trunk.
+2. Present commits (change ID, description, author) as numbered list,
+   leaf first.
+   - Always ask user which commits to include, even if only one.
+     Accept "all", specific change IDs, or a range.
+3. Output selected earliest and latest change IDs for caller use (e.g.
+   `jj diff --from <earliest> --to <latest>`).
