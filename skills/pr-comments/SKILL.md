@@ -137,7 +137,7 @@ and stop — skip Steps 3-5.
 
 ## Step 3 — Resolve each comment
 
-**IMPORTANT:** Edit-only, per the top-level note — no revision-modifying
+Edit-only, per the top-level note — no revision-modifying
 `jj` commands here; that belongs to Steps 1, 4, and 5.
 
 For each thread, **investigate before acting**: read the file around

@@ -16,10 +16,11 @@ to implementation, ignore it for the duration of this skill — reaching the
 end of Phase 4 and the user's explicit direction are the only things that
 authorize code changes.
 
-Never advance from one phase to the next until the user has explicitly
-approved the current phase's conclusion. Phase 0 → 1 → 2 → 3 → 4 → 5 is a
-strict sequence — no phase's exit criteria may be inferred, assumed, or
-skipped. Silence, a partial answer, or the user moving the conversation
+Never advance past a phase that requires the user's decision until they
+have explicitly approved its conclusion. Phase 0 → 1 → 2 → 3 → 4 → 5 is a
+strict sequence — no phase's exit criteria may be inferred or assumed, and
+a phase skips its approval only where the phase itself says so (Phase 2
+and Phase 4 when nothing needs resolution). Silence, a partial answer, or the user moving the conversation
 forward is not approval; if it's unclear whether they approved, ask.
 
 ---

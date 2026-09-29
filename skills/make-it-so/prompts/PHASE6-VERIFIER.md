@@ -33,7 +33,8 @@ Run `jj diff --no-pager` yourself. Do not rely on a summary.
 ## Integration test results
 
 [INTEGRATION_RESULTS]
-<!-- "none" if Phase 3 was skipped or tests are pending user action -->
+<!-- "not run; pending user execution" or "not run; Phase 3 skipped" unless
+     the user ran them and provided output -->
 
 ## What to check
 

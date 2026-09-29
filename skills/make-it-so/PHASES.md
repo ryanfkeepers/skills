@@ -184,8 +184,8 @@ Dispatch Phase 6 verifier sub-agent:
 
 Provide:
 - The original plan verbatim
-- Integration test results: "not run; pending user execution" unless the user
-  ran them manually and provided output
+- Integration test results: "not run; pending user execution" (or "not run;
+  Phase 3 skipped") unless the user ran them manually and provided output
 
 The verifier runs `jj diff --no-pager` itself.
 

@@ -90,7 +90,7 @@ For each bookmarked revision (in stack order, oldest first):
 
 ## Step 5 — Remove shipped plan docs
 
-Plan docs (see `shared/docs/plan/FORMAT.md`) live as standalone
+Plan docs live as standalone
 `{plan-name}.md` files at repo root — meant to be deleted once the work
 they describe ships. Before creating any PR, check each bookmarked
 revision for a plan doc it introduced and still carries:
