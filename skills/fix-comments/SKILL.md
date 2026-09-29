@@ -152,8 +152,8 @@ Record the sub-agent's report — source for the summary table in Step 4.
 
 ## Step 3 — Verify
 
-Invoke the `assert-green` skill. Don't claim work done until
-verification passes.
+Invoke the `lint-fix` skill. Don't claim work done until
+it passes.
 
 ## Step 4 — Summary table
 
