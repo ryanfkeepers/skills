@@ -97,14 +97,15 @@ A comment on a function, type, field, parameter, or constant never
 describes what the construct is or does — that rehashes the code and is
 the same problem as stating the obvious. The only permitted content is
 a **non-obvious constraint on a value someone supplies or reads**,
-placed on the narrowest construct it governs.
+placed on the narrowest construct it governs. A function comment may
+also state an important invariant on its **return values** (below).
 
 - Most declarations need no comment. Omit it unless such a constraint
   is present.
 - **Placement.** A field, parameter, or constant carries its own
   constraint. A type comment does not restate its fields' constraints;
   with no constraint on the type as a whole, omit it. A function
-  comment holds parameter invariants only.
+  comment holds parameter invariants and return-value invariants only.
 - **Requirement, not characterization.** The comment tells someone how
   to set or read a specific value (`end is exclusive`). It must not
   claim what the construct is (`window spans [start, end)`); nothing
@@ -130,14 +131,22 @@ placed on the narrowest construct it governs.
   domain states defined elsewhere (e.g. "bypassed", "the window landed
   on"), the filesystem, the network, call order, concurrency context,
   or what a caller did beforehand.
+- **Return-value invariants.** A function comment may state a guarantee
+  about its return values that callers need to rely on and cannot see
+  from the signature (`Keys returns keys in ascending order`). It must
+  pass the same gates: self-contained (only the return types and
+  parameters), non-obvious, and not evident from the body or a callee
+  (returning the result of a sort call is evident). State the
+  guarantee, never how the result is computed.
 - Not a constraint: anything the type or signature already enforces,
-  return-value or error behavior, side effects, or a summary of the
-  steps taken.
+  error behavior, side effects, a description of what the function
+  does, or a summary of the steps taken.
 - **Shape.** The comment opens with the construct's name
   (`// FuncName ...`), per Go convention, in every language, and must
   read as a complete sentence once trimmed. The verb carries the
   constraint: `requires`, `expects`, `assumes`, or `is`/`must be`
-  followed by the constraint itself. Empty verbs (`holds`,
+  followed by the constraint itself; for return-value invariants,
+  `returns` followed by the guarantee. Empty verbs (`holds`,
   `represents`, `provides`, `contains`) are banned. After trimming,
   re-read each kept comment as English; if the name plus the remainder
   does not parse, rephrase.
@@ -153,6 +162,9 @@ func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 
 // Search requires xs to be sorted ascending.
 func Search(xs []int, target int) int {
+
+// Split returns non-overlapping ranges in ascending order.
+func Split(r Range, n int) []Range {
 
 type window struct {
 	start time.Time
@@ -292,7 +304,8 @@ Spawn one sub-agent with this brief (fill in the scoped diff command):
 > - Gate 3, non-obvious: if the language or convention already implies
 >   it (non-nil pointer, non-zero value), it fails.
 > - Gate 4, constraint: it must tell someone how to set or read a
->   value. A description of behavior or of what the construct is fails.
+>   value, or state a guarantee about a return value that callers rely
+>   on. A description of behavior or of what the construct is fails.
 > - A comment that passes all gates: re-read it as an English
 >   sentence; rephrase if the name plus the remainder does not parse.
 > - Nits are refinements — do not refactor or restructure code. The
