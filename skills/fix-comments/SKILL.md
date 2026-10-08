@@ -3,14 +3,14 @@ name: fix-comments
 description: >-
   Apply comment-content standards (no ticket/plan/caller references, no code
   examples, purpose-driven, 1-2 lines goal / 3 lines max; always remove
-  package-level comments and any comment stating the obvious; function
-  comments may only state non-obvious invariants on input parameters) to
-  the current working-copy change (@). Reads the diff — scoped to just @,
-  to the stack since the last bookmark, or to the stack since trunk — and
-  edits only comments on @. A targeted fix-my-nits variant with no
-  standards file to read; the rule is fixed. Use when asked to fix
-  comments, clean up comment noise, or trim over-explained comments.
-  Invoke as /fix-comments.
+  package-level comments and any comment stating the obvious; declaration
+  comments may only state non-obvious, unchecked constraints on the
+  value they govern) to the current working-copy change (@). Reads the
+  diff — scoped to just @, to the stack since the last bookmark, or to
+  the stack since trunk — and edits only comments on @. A targeted
+  fix-my-nits variant with no standards file to read; the rule is fixed.
+  Use when asked to fix comments, clean up comment noise, or trim
+  over-explained comments. Invoke as /fix-comments.
 argument-hint: "[current|bookmark (default)|stack]"
 ---
 
@@ -67,8 +67,8 @@ These are removed unconditionally — no judgment call, no trimming.
   shows, remove it. Examples: `// funcName does foo` where `foo` is
   explicitly what the body shows, or `// fooID holds an ID representing
   a foo`. Keep only if the comment states a constraint the code cannot
-  (see the rule above). Function comments are further limited by
-  "Function comments" below.
+  (see the rule above). Declaration comments are further limited by
+  "Declaration comments" below.
 
 Examples (all omitted):
 ```
@@ -91,52 +91,93 @@ const maxAttempts = 3
 var timeout = 5 * time.Second
 ```
 
-### Function comments
+### Declaration comments
 
-A function comment never describes what the function does — that
-rehashes the body and is the same problem as stating the obvious. The
-only permitted content is an **invariant on the input parameters**:
-a **non-obvious** expectation the function needs from its arguments
-to behave correctly.
+A comment on a function, type, field, parameter, or constant never
+describes what the construct is or does — that rehashes the code and is
+the same problem as stating the obvious. The only permitted content is
+a **non-obvious constraint on a value someone supplies or reads**,
+placed on the narrowest construct it governs.
 
-- Most functions need no comment. Omit it unless a parameter
-  invariant exists.
-- An invariant must be about a parameter's own value or shape, stated
-  as "when set (non-zero/non-nil), expects a shape, pattern, or state
-  like ...". Zero-value expectations the language or convention already
-  implies are obvious and omitted: pointers are non-nil, non-pointer
-  values are non-zero, slices and maps are non-empty where the body
-  would be meaningless otherwise.
-- An invariant must not reference external state: other
-  packages/types/globals, the filesystem, the network, call order,
-  concurrency context, or what a caller has done beforehand.
-- Not an invariant: anything the type or signature already enforces,
+- Most declarations need no comment. Omit it unless such a constraint
+  is present.
+- **Placement.** A field, parameter, or constant carries its own
+  constraint. A type comment does not restate its fields' constraints;
+  with no constraint on the type as a whole, omit it. A function
+  comment holds parameter invariants only.
+- **Requirement, not characterization.** The comment tells someone how
+  to set or read a specific value (`end is exclusive`). It must not
+  claim what the construct is (`window spans [start, end)`); nothing
+  enforces that claim. If the comment only characterizes the construct,
+  omit it. Never rename or edit code to encode the constraint; if a
+  rename would make the constraint self-describing (a half-open
+  `window` named `halfOpenStartWindow`), omit the comment and report
+  the rename as a suggestion only.
+- **Call-path check.** Trace the construct's callees, constructors, and
+  validators. If any code enforces or rejects the constraint (returns
+  an error, records a validation error, normalizes it away), omit the
+  comment: it is derivable from code and drifts when the validator
+  changes. Generic stand-ins ("must be valid") are the same problem.
+  Keep only constraints nothing checks.
+- **Non-obvious only.** Expectations the language or convention already
+  implies are omitted: pointers are non-nil, non-pointer values are
+  non-zero. State the constraint as "when set (non-zero/non-nil),
+  expects a shape, pattern, or state like ...".
+- **No external state.** Must not reference other packages, types,
+  globals, the filesystem, the network, call order, concurrency
+  context, or what a caller did beforehand.
+- Not a constraint: anything the type or signature already enforces,
   return-value or error behavior, side effects, or a summary of the
   steps taken.
-- The comment still opens with the function's name (`// FuncName ...`),
-  per Go convention, in every language. The name is followed by the
-  invariant only, never a description of behavior. If an existing
-  comment mixes a description with an invariant, keep only the
-  invariant, name-first.
-- Applies to functions and methods, exported or not. 3 lines max still
-  holds; one line is the norm.
+- **Shape.** The comment opens with the construct's name
+  (`// FuncName ...`), per Go convention, in every language, and must
+  read as a complete sentence once trimmed. The verb carries the
+  constraint: `requires`, `expects`, `assumes`, or `is`/`must be`
+  followed by the constraint itself. Empty verbs (`holds`,
+  `represents`, `provides`, `contains`) are banned. After trimming,
+  re-read each kept comment as English; if the name plus the remainder
+  does not parse, rephrase.
+- If an existing comment mixes description with a constraint, keep only
+  the constraint, name-first.
+- Applies to every language and visibility. 3 lines max still holds;
+  one line is the norm.
 
-Examples (kept — non-obvious parameter invariants):
+Examples (kept — unchecked constraints, on the construct they govern):
 ```
 // Retry requires fn to be idempotent.
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 
 // Search requires xs to be sorted ascending.
 func Search(xs []int, target int) int {
+
+type window struct {
+	start time.Time
+	// end is exclusive.
+	end time.Time
+}
 ```
 
-Avoid (describes behavior; no parameter invariant):
+Avoid (type comment characterizes the type; the constraint belongs on
+`end`, and the type comment is omitted):
+```
+// window spans [start, end); end is exclusive.
+type window struct {
+```
+
+Avoid (constraint is enforced by normalizeSteps, so it is derivable and
+drifts):
+```
+// New expects every step to be positive.
+func New[T any](queryName string, start, end time.Time, steps ...time.Duration) *Ladder[T] {
+```
+
+Avoid (describes behavior; no constraint):
 ```
 // Retry wraps fn with exponential backoff up to maxAttempts.
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 ```
 
-Avoid (invariant references external state):
+Avoid (constraint references external state):
 ```
 // Retry requires ctx to carry the logger installed by the server middleware.
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
@@ -149,7 +190,7 @@ Avoid (restates the obvious, references callers):
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 ```
 
-Avoid (yapping — broad narration, no invariant):
+Avoid (yapping — broad narration, no constraint):
 ```
 // ParseConfig loads and validates the service config from path.
 // It returns an error if required fields are missing.
@@ -211,7 +252,8 @@ Spawn one sub-agent with this brief (fill in the scoped diff command):
 > 2. Apply this rule to every comment on a changed line, and to any
 >    comment directly attached to a changed declaration/function/block:
 >
->    [paste the full "The rule" section above verbatim]
+>    [paste the full "The rule" section above verbatim, including
+>    its subsections]
 >
 > **Your task:**
 > - For each file touched in the diff, read the full file so you have
@@ -219,6 +261,11 @@ Spawn one sub-agent with this brief (fill in the scoped diff command):
 > - For each comment in scope, decide: omit, trim, or leave as-is.
 >   Only touch comments — do not edit code logic, formatting, or
 >   non-comment lines.
+> - For every kept constraint on a function, type, field, or
+>   parameter, trace its callees, constructors, and validators; omit
+>   the comment if any code enforces it.
+> - Re-read each kept comment as an English sentence; rephrase if the
+>   name plus the remainder does not parse.
 > - Nits are refinements — do not refactor or restructure beyond what
 >   the rule requires.
 > - Apply every fix by editing the files as currently checked out. Do
@@ -226,10 +273,11 @@ Spawn one sub-agent with this brief (fill in the scoped diff command):
 >   though the diff may span multiple revisions, every fix must land
 >   on `@`.
 >
-> **Report back**, as your final output, every comment you evaluated:
-> its file:line, a short description, and the action taken
-> (`omitted` / `trimmed` / `unchanged`). Do not include comments
-> outside the diff's changed scope.
+> **Report back**, as your final output, one entry per file in the
+> diff's changed scope: the file path and whether you `changed` or left
+> it `unchanged`. No per-comment detail. Also list any rename suggestions
+> (file:line, current name, suggested name, and the constraint it would
+> encode). Suggestions are report-only; never apply a rename.
 
 Record the sub-agent's report — source for the summary table in Step 4.
 
@@ -242,10 +290,13 @@ it passes.
 
 After verification passes, render a single Markdown table:
 
-| File:Line | Comment | Action |
-|---|---|---|
-| [file:line] | [short description] | omitted / trimmed / unchanged |
+| File | Status |
+|---|---|
+| [file] | changed / unchanged |
 
-- One row per comment reported back in Step 2.
-- Don't include a row for a comment never evaluated.
-- No counts, no diff stats — the table alone.
+- One row per file reported back in Step 2.
+- No per-comment rows, counts, or diff stats.
+- If Step 2 reported rename suggestions, follow the table with a
+  "Rename suggestions" list: `file:line` — `current` → `suggested`
+  (constraint encoded). Omit the list when there are none. Never apply
+  them.
