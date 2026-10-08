@@ -123,9 +123,13 @@ placed on the narrowest construct it governs.
   implies are omitted: pointers are non-nil, non-pointer values are
   non-zero. State the constraint as "when set (non-zero/non-nil),
   expects a shape, pattern, or state like ...".
-- **No external state.** Must not reference other packages, types,
-  globals, the filesystem, the network, call order, concurrency
-  context, or what a caller did beforehand.
+- **Self-contained.** The comment must be intelligible from the
+  construct's own signature alone: its name, parameter names, and
+  types. Any identifier or concept outside the signature is external
+  state and fails: sentinel errors, constants, other types' terms,
+  domain states defined elsewhere (e.g. "bypassed", "the window landed
+  on"), the filesystem, the network, call order, concurrency context,
+  or what a caller did beforehand.
 - Not a constraint: anything the type or signature already enforces,
   return-value or error behavior, side effects, or a summary of the
   steps taken.
@@ -181,6 +185,20 @@ Avoid (constraint references external state):
 ```
 // Retry requires ctx to carry the logger installed by the server middleware.
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
+```
+
+Avoid (names a sentinel error and a protocol defined elsewhere):
+```
+// Run expects fn to signal a short page by returning ErrPageNotFullyPopulated
+// with a non-nil response.
+func (l *Ladder[T]) Run(ctx context.Context, fn func(start, end time.Time) (T, error)) (T, error) {
+```
+
+Avoid (domain vocabulary from elsewhere; unintelligible from the signature):
+```
+// recordStepsUsed expects used to be the 1-based window landed on, or 0 when
+// bypassed.
+func recordStepsUsed(ctx context.Context, queryName string, used int64) {
 ```
 
 Avoid (restates the obvious, references callers):
@@ -261,13 +279,24 @@ Spawn one sub-agent with this brief (fill in the scoped diff command):
 > - For each comment in scope, decide: omit, trim, or leave as-is.
 >   Only touch comments — do not edit code logic, formatting, or
 >   non-comment lines.
-> - For every kept constraint on a function, type, field, or
->   parameter, trace its callees, constructors, and validators; omit
->   the comment if any code enforces it.
-> - Re-read each kept comment as an English sentence; rephrase if the
->   name plus the remainder does not parse.
-> - Nits are refinements — do not refactor or restructure beyond what
->   the rule requires.
+> - A comment already in the file is not evidence it is correct. The
+>   default for every comment is omit. It survives only by passing
+>   every gate below; a failed or uncertain gate means omit.
+> - Gate 1, self-contained: can the comment be understood from the
+>   construct's name, parameter names, and types alone? If it names a
+>   sentinel, constant, other type, or domain state defined elsewhere,
+>   it fails.
+> - Gate 2, unchecked: trace the construct's callees, constructors,
+>   and validators. If any code enforces or rejects the constraint, it
+>   fails.
+> - Gate 3, non-obvious: if the language or convention already implies
+>   it (non-nil pointer, non-zero value), it fails.
+> - Gate 4, constraint: it must tell someone how to set or read a
+>   value. A description of behavior or of what the construct is fails.
+> - A comment that passes all gates: re-read it as an English
+>   sentence; rephrase if the name plus the remainder does not parse.
+> - Nits are refinements — do not refactor or restructure code. The
+>   gates above are the rule; apply them in full.
 > - Apply every fix by editing the files as currently checked out. Do
 >   not run `jj edit` or otherwise switch the working copy — even
 >   though the diff may span multiple revisions, every fix must land
