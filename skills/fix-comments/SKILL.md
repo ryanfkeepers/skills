@@ -3,12 +3,14 @@ name: fix-comments
 description: >-
   Apply comment-content standards (no ticket/plan/caller references, no code
   examples, purpose-driven, 1-2 lines goal / 3 lines max; always remove
-  package-level comments and any comment stating the obvious) to the current
-  working-copy change (@). Reads the diff — scoped to just @, to the stack
-  since the last bookmark, or to the stack since trunk — and edits only
-  comments on @. A targeted fix-my-nits variant with no standards file to
-  read; the rule is fixed. Use when asked to fix comments, clean up comment
-  noise, or trim over-explained comments. Invoke as /fix-comments.
+  package-level comments and any comment stating the obvious; function
+  comments may only state non-obvious invariants on input parameters) to
+  the current working-copy change (@). Reads the diff — scoped to just @,
+  to the stack since the last bookmark, or to the stack since trunk — and
+  edits only comments on @. A targeted fix-my-nits variant with no
+  standards file to read; the rule is fixed. Use when asked to fix
+  comments, clean up comment noise, or trim over-explained comments.
+  Invoke as /fix-comments.
 argument-hint: "[current|bookmark (default)|stack]"
 ---
 
@@ -65,7 +67,8 @@ These are removed unconditionally — no judgment call, no trimming.
   shows, remove it. Examples: `// funcName does foo` where `foo` is
   explicitly what the body shows, or `// fooID holds an ID representing
   a foo`. Keep only if the comment states a constraint the code cannot
-  (see the rule above).
+  (see the rule above). Function comments are further limited by
+  "Function comments" below.
 
 Examples (all omitted):
 ```
@@ -88,20 +91,54 @@ const maxAttempts = 3
 var timeout = 5 * time.Second
 ```
 
-### Unit tests
+### Function comments
 
-Unit test files and code hold to a stricter version of the same rule.
-A test's name and body already show what it covers — a comment
-restating that is never useful, so omit it. Only keep a comment when
-the test's outcome depends on a runtime condition the code cannot
-express on its own (a race, a platform quirk, an external service's
-behavior, a flaky timing window) — and even then, state the
-condition, not what the test does.
+A function comment never describes what the function does — that
+rehashes the body and is the same problem as stating the obvious. The
+only permitted content is an **invariant on the input parameters**:
+a **non-obvious** expectation the function needs from its arguments
+to behave correctly.
 
-Example:
+- Most functions need no comment. Omit it unless a parameter
+  invariant exists.
+- An invariant must be about a parameter's own value or shape, stated
+  as "when set (non-zero/non-nil), expects a shape, pattern, or state
+  like ...". Zero-value expectations the language or convention already
+  implies are obvious and omitted: pointers are non-nil, non-pointer
+  values are non-zero, slices and maps are non-empty where the body
+  would be meaningless otherwise.
+- An invariant must not reference external state: other
+  packages/types/globals, the filesystem, the network, call order,
+  concurrency context, or what a caller has done beforehand.
+- Not an invariant: anything the type or signature already enforces,
+  return-value or error behavior, side effects, or a summary of the
+  steps taken.
+- The comment still opens with the function's name (`// FuncName ...`),
+  per Go convention, in every language. The name is followed by the
+  invariant only, never a description of behavior. If an existing
+  comment mixes a description with an invariant, keep only the
+  invariant, name-first.
+- Applies to functions and methods, exported or not. 3 lines max still
+  holds; one line is the norm.
+
+Examples (kept — non-obvious parameter invariants):
+```
+// Retry requires fn to be idempotent.
+func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
+
+// Search requires xs to be sorted ascending.
+func Search(xs []int, target int) int {
+```
+
+Avoid (describes behavior; no parameter invariant):
 ```
 // Retry wraps fn with exponential backoff up to maxAttempts.
-// Callers must ensure fn is idempotent; Retry does not deduplicate.
+func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
+```
+
+Avoid (invariant references external state):
+```
+// Retry requires ctx to carry the logger installed by the server middleware.
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 ```
 
@@ -112,7 +149,7 @@ Avoid (restates the obvious, references callers):
 func Retry(ctx context.Context, maxAttempts int, fn func() error) error {
 ```
 
-Avoid (yapping — broad narration, no constraint):
+Avoid (yapping — broad narration, no invariant):
 ```
 // ParseConfig loads and validates the service config from path.
 // It returns an error if required fields are missing.
@@ -123,6 +160,16 @@ Avoid (yapping — broad narration, no constraint):
 // but was extended over several releases to add overrides.
 func ParseConfig(path string) (*Config, error) {
 ```
+
+### Unit tests
+
+Unit test files and code hold to a stricter version of the same rule.
+A test's name and body already show what it covers — a comment
+restating that is never useful, so omit it. Only keep a comment when
+the test's outcome depends on a runtime condition the code cannot
+express on its own (a race, a platform quirk, an external service's
+behavior, a flaky timing window) — and even then, state the
+condition, not what the test does.
 
 Unit test example (kept — outcome depends on a runtime condition):
 ```
