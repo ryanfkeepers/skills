@@ -2,7 +2,8 @@
 name: fix-comments
 description: >-
   Apply comment-content standards (no ticket/plan/caller references, no code
-  examples, purpose-driven, 1-2 lines goal / 3 lines max) to the current
+  examples, purpose-driven, 1-2 lines goal / 3 lines max; always remove
+  package-level comments and any comment stating the obvious) to the current
   working-copy change (@). Reads the diff — scoped to just @, to the stack
   since the last bookmark, or to the stack since trunk — and edits only
   comments on @. A targeted fix-my-nits variant with no standards file to
@@ -51,6 +52,41 @@ not to restate what code already shows.
   - state who or what uses the thing.
   - reference prior conversations or memories outside the code.
   - contain code examples.
+
+### Always omit
+
+These are removed unconditionally — no judgment call, no trimming.
+
+- **Package-level comments** (Go `// Package foo ...`, or the
+  equivalent module/file header in other languages).
+- **Comments stating the obvious**, on any construct: small funcs,
+  fields, properties, variables, constants, structs, types, etc. If the
+  comment only restates what the name, type, signature, or body already
+  shows, remove it. Examples: `// funcName does foo` where `foo` is
+  explicitly what the body shows, or `// fooID holds an ID representing
+  a foo`. Keep only if the comment states a constraint the code cannot
+  (see the rule above).
+
+Examples (all omitted):
+```
+// Package retry provides retry helpers.
+package retry
+
+// Add returns the sum of a and b.
+func Add(a, b int) int { return a + b }
+
+// Foo provides a foo ID.
+type Foo struct {
+	// fooID holds an ID representing a foo.
+	fooID string
+}
+
+// maxAttempts is the maximum number of attempts.
+const maxAttempts = 3
+
+// timeout is the timeout.
+var timeout = 5 * time.Second
+```
 
 ### Unit tests
 
