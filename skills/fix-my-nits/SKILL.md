@@ -59,7 +59,7 @@ jj diff --from 'trunk()' --to '@' --no-pager
 ```
 
 `closest_bookmark(@)` resolves to whatever bookmark this stack sits on
-(trunk, if not stacked on anything) — same revset `pr-comments` uses
+(trunk, if not stacked on anything) — same revset `address-pr-requests` uses
 to scope a PR's own commits.
 
 Identify the languages, file types, and repo context of the diff.

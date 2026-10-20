@@ -98,7 +98,7 @@ Counter-example (avoid):
 ## Step 5 — Apply
 
 When the user invoked `/jjdesc`, or invoked a skill that calls it
-(`pr-comments`, `push-pr-stack`, `split-rev`), that invocation is
+(`address-pr-requests`, `push-pr-stack`, `split-rev`), that invocation is
 prior approval to describe the revision. Run immediately:
 
 ```

@@ -1,5 +1,5 @@
 ---
-name: pr-comments
+name: address-pr-requests
 description: >-
   Address outstanding review comments — both inline review-thread
   comments and top-level PR conversation comments — on a GitHub PR.
@@ -9,7 +9,7 @@ description: >-
   walks the user through each one for a fix/skip/investigate decision.
   Never posts comments or resolves threads on the PR. Use when the user
   pastes a PR review URL and asks to address, resolve, or fix up review
-  comments, or invokes /pr-comments.
+  comments, or invokes /address-pr-requests.
 argument-hint: "<review-url> [auto|manual (default)]"
 ---
 
@@ -163,15 +163,19 @@ only on functional identity — same fix, same reasoning. A shared
 fixes that happen to relate) doesn't qualify; treat those as separate
 threads with their own fix/skip/investigate decision.
 
-For each duplicate group, batch it: list every occurrence
-(`file:line` + quoted body for each), ask the fix/skip/investigate
-question once for the group, apply the chosen action to every
-occurrence in it. For everything else, walk threads individually, in
-order:
+For each duplicate group, batch it: list the `file:line` of every
+occurrence, quote the original body of one arbitrary occurrence as the
+example, ask the fix/skip/investigate question once for the group, apply
+the chosen action to every occurrence in it. For everything else, walk
+threads individually, in order:
 
-1. Show the comment (author, `file:line` or `(top-level)`, quoted
-   body) and your investigation (root cause, proposed fix) — label it
-   `Comment i/N` (a batched group counts as one `i` for numbering).
+1. Show the comment (author, `file:line` or `(top-level)`) with its
+   original body quoted verbatim, followed by your investigation (root
+   cause, proposed fix) — label it `Comment i/N` (a batched group counts
+   as one `i` for numbering). The quoted original is always shown
+   alongside your summary and findings, never in place of them, and
+   never omitted before the fix/skip/investigate question. For a
+   batched group, quote one arbitrary occurrence as the example.
 2. Ask the user to choose:
    - **Fix it** — apply the fixup(s), show the diff(s).
    - **Skip it** — leave as-is, note as skipped.
@@ -181,7 +185,8 @@ order:
      on. Then continue to the next thread (or group).
 
 Voice example (single comment; a batched group reads the same way, just
-with every occurrence listed and one shared investigation):
+with every occurrence's location listed, one arbitrary occurrence
+quoted, and one shared investigation):
 > Comment 2/4 — `retry.go:42`, from `@reviewer`:
 > "This increments on the wrong branch — should count failed attempts,
 > not successful ones."
