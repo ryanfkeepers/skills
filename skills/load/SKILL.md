@@ -15,8 +15,14 @@ context plus short orientation summary -- nothing else.
 
 Action is always exploration. `/load` never signals code change,
 proposed changes, next-step offers, or user questions. If exploration
-reveals a bug, stale doc, or missing feature, note it in one line in
-the summary and stop.
+reveals a bug, stale doc, or missing feature, record the observation
+in one line -- do not diagnose, hypothesize about, or trace its cause.
+
+Hard boundary: `/load` places information into context and nothing
+more. Under no conditions pursue, investigate, solve, or plan anything
+involving the target -- not in tool calls, not in reasoning, not in the
+summary. Explore to learn *what the target is*, never to answer *why it
+is that way* or *how to change it*.
 
 Do all exploration yourself, this session. Point of this skill: put
 material in *your* context -- a sub-agent's context is discarded when
@@ -45,6 +51,11 @@ Voice example (correct):
 > User: "/load current revision"
 > Assistant reads the diff, reports what changed and where, and stops.
 
+Counter-example (avoid -- investigating instead of loading):
+> User: "/load PROJ-123" (a bug ticket)
+> Assistant reads the ticket, then greps the repo for the failing
+> function and explains the likely cause.
+
 ## Step 1 -- Classify the target
 
 Match the argument to one of these, then follow that branch:
@@ -65,6 +76,11 @@ Use only read-only tools, directly -- Read, Grep, Glob, read-only Bash,
 WebFetch, WebSearch, MCP queries. Never Edit, Write, or run a
 state-mutating command. Delegate only under the large-surface
 exception above, and only for locating files.
+
+Scope is the target itself. A ticket, alert, or incident loads the
+record -- not the code it implicates. A bug report loads the report --
+never reproduce, debug, or root-cause it. Follow references only to
+situate the target, never to resolve something it describes.
 
 **Revision:** `jj show --no-pager` for the revision (or `jj diff
 --no-pager -r <rev>`), then read the touched files around the changed
@@ -92,7 +108,9 @@ the term, likely type names, doc files). Fall back to WebSearch only
 for genuinely external concepts.
 
 Stop once you can describe the target's shape, its parts, and where
-each lives. Don't exhaustively read everything reachable.
+each lives. Don't exhaustively read everything reachable. Stop the
+moment the next read would serve diagnosis, solution, or planning
+instead of description.
 
 ## Step 3 -- Report the orientation summary
 
@@ -102,8 +120,9 @@ one read. Structure:
 - **What it is** -- one or two sentences.
 - **Parts** -- the components, files, or sections, each with a
   `path/to/file.go:42` reference or URL.
-- **Notable** -- only the few items that stand out: anything surprising, broken, or
-  in tension with the surrounding code. State it; don't act on it.
+- **Notable** -- only observations taken directly from what you read:
+  anything surprising, broken, or in tension with the surrounding code.
+  State the observation; no cause, no hypothesis, no remedy.
 
 Never fabricate a path, line number, or URL. Cite only what you read.
 
@@ -120,4 +139,4 @@ Counter-example (avoid -- dumping raw output):
 ## Step 4 -- Stop
 
 Summary is the whole response. No proposed edits, offers, questions,
-plan.
+plans, diagnoses, root causes, or hypotheses.

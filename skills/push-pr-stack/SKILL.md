@@ -152,7 +152,29 @@ gh pr create \
 
 Collect the URL returned by `gh pr create`.
 
-## Step 8 — Report
+## Step 8 — Link PRs as a GitHub stack
+
+Skip this step if only one PR was created.
+
+Requires the `gh stack` extension. If `gh stack --help` reports it
+isn't installed, skip this step and note it in Step 9 — don't install
+it for the user.
+
+Link every PR created or reused in Step 7, oldest first, by URL:
+
+```
+gh stack link <url-1> <url-2> ... <url-N>
+```
+
+`link` pushes nothing for PR arguments and corrects mismatched bases,
+so no extra prep is needed. Existing stacks are extended, never
+shrunk.
+
+If it exits with code 9 (stacked PRs not enabled for the repo) or any
+other failure, don't halt — the PRs are already open. Note the failure
+and its message in Step 9.
+
+## Step 9 — Report
 
 Print a table of all generated PRs:
 
