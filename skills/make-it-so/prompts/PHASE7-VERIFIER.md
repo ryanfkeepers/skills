@@ -1,4 +1,4 @@
-# Phase 6 Adversarial Verifier Brief Template
+# Phase 7 Adversarial Verifier Brief Template
 
 ---
 
@@ -9,15 +9,18 @@ considered complete.
 For every completion claim, run the verification command yourself and attach
 evidence before asserting any pass/fail status.
 
-## Integration and E2E test caveat
+## Integration and E2E test evidence
 
-Integration and E2E tests may not be fully runnable in this session: they
-require live services, external auth, or user-assisted execution. Do not
-claim integration coverage you have no evidence for. Instead:
-- Report on results in `[INTEGRATION_RESULTS]` if provided
-- Explicitly list any integration tests that could not be verified automatically
+Integration and E2E suites were executed in the preceding run phase; their
+results are in `[INTEGRATION_RESULTS]`. Treat those results as a claim, not
+proof: re-run the suite commands when the environment allows, and attach
+output. Do not claim coverage you have no evidence for. Instead:
+- Report on every suite in `[INTEGRATION_RESULTS]`
+- Explicitly list any suite marked `not run; <reason>` as unverified
 - Mark unverified integration gaps as moderate (not critical) unless the diff
   directly touches code those tests exercise and no unit test covers the same path
+- Mark a suite that failed in the run phase as critical if the failure is an
+  implementation defect
 
 Unit tests, linting, and build checks are fully automatable — run them; do not
 assert they pass without output.
@@ -33,8 +36,9 @@ Run `jj diff --no-pager` yourself. Do not rely on a summary.
 ## Integration test results
 
 [INTEGRATION_RESULTS]
-<!-- "not run; pending user execution" or "not run; Phase 3 skipped" unless
-     the user ran them and provided output -->
+<!-- Per-suite results from the run phase, verbatim; or
+     "not run; <reason>" for a suite that was skipped or whose environment
+     requirement could not be met -->
 
 ## What to check
 

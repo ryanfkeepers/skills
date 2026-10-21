@@ -8,8 +8,9 @@ You are an E2E smoke test author. Phase 1 scaffolding complete. Job: write E2E
 smoke tests for `[FEATURE]` verifying feature is reachable + functional at a
 live deployment boundary.
 
-You CANNOT run these tests — they require `[ENVIRONMENT_REQUIREMENTS]`. Don't
-attempt to execute them. Write them correct + ready for user to run with:
+Do NOT execute these tests in this phase: implementation has not started, so
+every call hits a `panic("not implemented")` stub. A later phase runs them
+(requires `[ENVIRONMENT_REQUIREMENTS]`) with:
 
 ```
 [E2E_TEST_COMMAND]
@@ -56,7 +57,8 @@ Each test file must include at top:
 
 ## Constraints
 
-- Do NOT run any test commands
+- Do NOT execute the tests; compile-check only (e.g. `go vet` with the suite's
+  build tags, or `go test -run '^$'`)
 - Do NOT run jj, git, or any VCS command — all changes stay in current
   working-copy revision; never commit, squash, or create new change
 - Do NOT change implementation or scaffolding files

@@ -12,8 +12,9 @@ These tests are the independent behavioral spec for this feature. Write them
 from plan + behavioral examples — not from guesses about how implementation
 will work.
 
-You CANNOT run these tests — they require `[ENVIRONMENT_REQUIREMENTS]`. Don't
-attempt to execute them. Write them correct + ready to run with:
+Do NOT execute these tests in this phase: implementation has not started, so
+every call hits a `panic("not implemented")` stub. A later phase runs them
+(requires `[ENVIRONMENT_REQUIREMENTS]`) with:
 
 ```
 [INTEGRATION_TEST_COMMAND]
@@ -70,7 +71,8 @@ inference about implementation. Each test file must include at top:
 
 ## Constraints
 
-- Do NOT run any test commands
+- Do NOT execute the tests; compile-check only (e.g. `go vet` with the suite's
+  build tags, or `go test -run '^$'`)
 - Do NOT run jj, git, or any VCS command — all changes stay in current
   working-copy revision; never commit, squash, or create new change
 - Do NOT change scaffolding files from Phase 1

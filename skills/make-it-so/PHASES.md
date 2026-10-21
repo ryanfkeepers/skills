@@ -31,8 +31,9 @@ Fill every placeholder:
 
 **Before dispatching — test infra check:**
 
-Inspect repo for existing E2E + integration test infra (dirs, build tags, test
-helpers, CI config). Apply rules:
+Use the pre-flight test environment record (project skills, task runner
+targets, markdown docs, CI config) plus the repo's test dirs, build tags, and
+helpers to decide which tiers exist. Apply rules:
 
 - **Both exist** → dispatch Phase 2 (E2E) + Phase 3 (integration). Default path.
 - **Only E2E exists** → dispatch Phase 2; skip Phase 3.
@@ -54,6 +55,10 @@ Fill every placeholder:
 - `[E2E_TEST_FRAMEWORK_AND_PATTERNS]` — framework, setup/teardown, example
   from existing E2E test if available
 
+Sub-agent compiles the tests only (e.g. `go vet -tags=[tags] ./[dir]` or
+`go test -run '^$'`). It does not execute them: Phase 4 has not run, so every
+call hits a `panic("not implemented")` stub. Execution happens in Phase 6.
+
 **Phase 2 done when:**
 - E2E smoke test files written + compile
 - Each file documents run command + env requirements at top
@@ -62,7 +67,8 @@ Fill every placeholder:
 
 **Parent check after Phase 2 returns:**
 - Read test files. Do they target feature's top-level entry points?
-- Collect `[E2E_TEST_COMMAND]` for Phase 7 diagram.
+- Confirm `[E2E_TEST_COMMAND]` matches the pre-flight record; the run phase
+  executes it.
 
 ---
 
@@ -72,7 +78,7 @@ Dispatch Phase 3 sub-agent: [prompts/PHASE3-BRIEF.md](prompts/PHASE3-BRIEF.md).
 
 Runs **before implementation**. Sub-agent reads Phase 1 scaffolding for API
 shape, writes behavioral tests grounded in the plan's behavioral examples.
-These tests are the independent behavioral spec used by Phase 6.
+These tests are the independent behavioral spec checked by the integration + E2E run and Phase 7.
 
 Fill every placeholder:
 - `[FEATURE]`, `[PLAN_EXCERPT]` — include behavioral examples verbatim
@@ -81,6 +87,9 @@ Fill every placeholder:
 - `[INTEGRATION_TEST_DIR]`, `[INTEGRATION_TEST_COMMAND]`, `[ENVIRONMENT_REQUIREMENTS]`
 - `[INTEGRATION_TEST_FRAMEWORK_AND_PATTERNS]` — framework, fixture patterns,
   example from existing integration test if available
+
+Sub-agent compiles the tests only; execution happens in Phase 6, after
+implementation.
 
 **Phase 3 done when:**
 - Integration test files written + compile
@@ -177,17 +186,65 @@ Fill every placeholder:
 
 ---
 
-## Phase 6: Adversarial Verification
+## Phase 6: Integration + E2E Run
 
-Dispatch Phase 6 verifier sub-agent:
-[prompts/PHASE6-VERIFIER.md](prompts/PHASE6-VERIFIER.md).
+Only run if Phase 5b passes. Skip a suite only if its writing phase was
+skipped.
+
+Dispatch Phase 6 sub-agent: [prompts/PHASE6-RUN-BRIEF.md](prompts/PHASE6-RUN-BRIEF.md).
+
+Agent executes the Phase 2 + Phase 3 suites using the pre-flight record and
+reports verbatim results. It does NOT edit any file and does NOT fix failures.
+
+**Before dispatching — environment readiness:**
+
+- Confirm the target environment is the designated safe one from the
+  pre-flight record (local, dev, ephemeral). If the only available target is
+  shared or production-like, or the record is ambiguous, stop and ask the user.
+- Confirm each requirement is satisfiable from this session: services up,
+  env vars set (check presence, never print values), auth valid, build tags
+  known. Bring up local dependencies only via the documented command (project
+  skill, `just`/`make` target, or doc). If a requirement cannot be met, do not
+  dispatch that suite — record it as `not run; <missing requirement>` and
+  continue; Phase 7 receives that string.
+
+Fill every placeholder:
+- `[FEATURE]`
+- `[E2E_TEST_COMMAND]`, `[INTEGRATION_TEST_COMMAND]` — omit a suite's block if
+  skipped
+- `[ENVIRONMENT_SETUP]` — documented setup/teardown steps and the safe target
+- `[TEST_FILES]` — Phase 2 + Phase 3 files, so failures map to test names
+
+**Phase 6 done when:**
+- Each dispatched suite was executed to completion
+- Per suite: command, exit code, pass/fail counts, full output for failures
+- Each failure classified: `environment` (connection, auth, timeout before the
+  feature is reached), `test-defect` (test wrong against the plan), or
+  `impl-defect` (implementation diverges from the plan), with a one-line reason
+
+**Parent action after Phase 6 returns:**
+- Any `environment` failure: surface to the user with output and stop; do not
+  count it as a test result.
+- Any `test-defect` or `impl-defect`: surface all failures to the user with
+  full output and the classification. Stop. User decides whether to re-invoke
+  Phase 4, correct the test, or accept the divergence. No automated fix loop.
+- All pass: store the per-suite results for Phase 7 and Phase 8.
+
+---
+
+## Phase 7: Adversarial Verification
+
+Dispatch Phase 7 verifier sub-agent:
+[prompts/PHASE7-VERIFIER.md](prompts/PHASE7-VERIFIER.md).
 
 Provide:
 - The original plan verbatim
-- Integration test results: "not run; pending user execution" (or "not run;
-  Phase 3 skipped") unless the user ran them manually and provided output
+- Integration + E2E results from Phase 6, verbatim per suite — or, for a suite
+  that was not run, `not run; <reason>` (e.g. "not run; Phase 3 skipped",
+  "not run; missing <requirement>")
 
-The verifier runs `jj diff --no-pager` itself.
+The verifier runs `jj diff --no-pager` itself, and may re-run the suite
+commands to confirm the reported results.
 
 **Verifier checks:**
 1. Spec compliance — every requirement in the plan implemented? List any gap.
@@ -196,23 +253,25 @@ The verifier runs `jj diff --no-pager` itself.
    correctness, branches that never execute
 4. Regressions — changes to shared/common code that could silently break callers
 5. Test coverage — do Phase 5a tests verify the plan's behavioral examples? Do
-   Phase 5b tests cover the error paths?
+   Phase 5b tests cover the error paths? Do Phase 6 results show every
+   integration + E2E test passing, with any unrun suite justified?
 
-**On `VERIFIED`:** proceed to Phase 7.
+**On `VERIFIED`:** proceed to Phase 8.
 
 **On `ISSUES_FOUND` (critical or moderate):**
 1. Dispatch a fix sub-agent with a focused brief: the specific issue list plus
    relevant file excerpts. Scope tightly — not the full diff.
-2. After fix returns, re-run the test command.
-3. Re-dispatch Phase 6 with a fresh diff.
+2. After fix returns, re-run the unit test command, then re-run Phase 6 if the
+   fix touched code the integration or E2E suites exercise.
+3. Re-dispatch Phase 7 with a fresh diff and the latest Phase 6 results.
 4. Repeat up to 3 total fix iterations.
 5. After 3 failures: surface the remaining punch list to the user and stop.
 
-Minor issues: record them and surface in Phase 7. Do not block on them.
+Minor issues: record them and surface in Phase 8. Do not block on them.
 
 ---
 
-## Phase 7: Diagram
+## Phase 8: Diagram
 
 Show the user an ASCII tree of all changes. Generate from `jj diff --stat --no-pager`.
 
@@ -240,15 +299,18 @@ Out-of-scope work:
   Phase N — path/to/file.go: reason the agent gave
 ```
 
-If Phase 6 had minor issues not fixed, append:
+If Phase 7 had minor issues not fixed, append:
 ```
 Minor findings (not blocking):
   - path/to/file.go:42 — description
 ```
 
-Always append:
+Always append the Phase 6 results (from the stored per-suite results; never
+re-state a result that was not observed):
 ```
-Tests written, not yet run — execute when environment is ready:
-  E2E:          $ [E2E_TEST_COMMAND]
-  Integration:  $ [INTEGRATION_TEST_COMMAND]
+Integration + E2E results:
+  E2E:          PASS (N tests)   $ [E2E_TEST_COMMAND]
+  Integration:  PASS (N tests)   $ [INTEGRATION_TEST_COMMAND]
 ```
+A suite that was not run shows `NOT RUN — <reason>` in place of PASS, followed
+by the command for the user to run later.
