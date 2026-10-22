@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: butler-422-error-path
+expected_outcome: |
+  A built standalone page suitable for attaching to CP-7297; the error path from incomplete Butler identity to HTTP status is shown before (502) and after (422).

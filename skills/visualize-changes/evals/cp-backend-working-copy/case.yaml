@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: cp-backend-working-copy
+expected_outcome: |
+  A design-brief page for the working-copy revision (@, change tqxuqqrv when this case was written: undescribed, 19 files, +4011/-152) compared against @-. Tabs split by design topic, diagrams and shape cards instead of code, before/after where existing design changed, decisions per tab.

@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: orgless-prelogin-flow
+expected_outcome: |
+  A built page with an overview of at most 4 sentences and tabs per concern; the prelogin flow change is shown as a before/after diagram and changed exported symbols as before/after api items.

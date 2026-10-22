@@ -1,0 +1,8 @@
+---
+tags: [visualize-changes]
+max_turns: 60
+timeout_seconds: 1500
+allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash, Agent]
+---
+
+/visualize-changes for the current revision in ~/go/src/github.com/Veeam-VDC/control-plane-backend
