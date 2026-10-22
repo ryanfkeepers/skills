@@ -118,7 +118,7 @@ Typically 2–5.
 | what does each boundary expose, who uses it, what changed shape? | `boundaries` |
 | who calls whom, in what order over time? | `diagram` (sequenceDiagram; the only Mermaid allowed) |
 | how are the layers or the data shaped? | `html` (layer stack, payload shape, state matrix) |
-| which values changed? | `delta` |
+| which values or rules changed? | `delta`, never an html table |
 | where does it live, who owns it, what landed there? | automatic tree at the end of each tab: owners from `owners`, one line per package from `landed` |
 
 There are no notes and no decision write-ups. Show a design consequence as

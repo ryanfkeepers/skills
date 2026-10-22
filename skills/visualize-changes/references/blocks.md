@@ -198,11 +198,17 @@ Before → after for behavior and values: status codes, config, flags,
 defaults, limits, schema, permissions. Each row is a label naming the
 situation or setting in words ("Butler returns no email", "Retry limit"),
 then `before` → `after` as short phrases that say what happens (5–12 words),
-not bare tokens. `null` renders as "none".
+not bare tokens. `null` renders as "none"; use it when the thing didn't
+exist on that side (`"n/a"` and `"-"` render the same way).
 
 Only rows that changed. The build rejects a row whose before and after are
 the same, and rows with an explanation field; what stayed the same is not
 on the page. Warned above 10 rows.
+
+Delta is the only way to show a from → to comparison. The build rejects an
+html table with before and after columns (or was/now, old/new, from/to), or
+with "x → y" cells, and html that uses the delta classes. A table of kinds
+whose rules changed becomes one delta row per changed kind.
 
 ### html
 
@@ -247,7 +253,8 @@ Branches and ladders:
 
 Other pieces: `vc-box` (plain box, with `add`/`mod`/`del`/`accent`),
 `vc-row`, `vc-stack`, `vc-grid-2`, `vc-grid-3`, `<table class="vc-table">`
-(cells take `add`/`mod`/`del`), `vc-scroll`, `vc-pill add|mod|del`,
+(cells take `add`/`mod`/`del`; for matrices only, never before → after),
+`vc-scroll`, `vc-pill add|mod|del`,
 `vc-arrow`, `vc-mono`, `vc-muted`, `vc-strike`. Tokens for inline styles:
 `--bg --surface --sunken --ink --muted --line --accent --accent-soft --add
 --add-bg --del --del-bg --mod --mod-bg --font-mono --radius`.

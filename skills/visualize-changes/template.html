@@ -1,7 +1,4 @@
 <title>{{TITLE}}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: a design brief for a small meeting. Header, sticky agenda tabs, one topic visible at a time; type sized for a shared screen. */
 :root {
@@ -17,10 +14,12 @@
   --del: #b4281c;  --del-bg: #fce9e7;
   --mod: #8a5a00;  --mod-bg: #fbf0d4;
   --code-kw: #8a3ffc; --code-ty: #0e6f7a; --code-fn: #1f5fbf; --code-str: #1d7a43; --code-num: #a04c00; --code-com: #6b7785;
-  /* Atkinson Hyperlegible: Braille Institute face built for low-vision readers; one family for every role */
-  --font-display: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", Verdana, -apple-system, "Segoe UI", sans-serif;
-  --font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", Verdana, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* the viewer's own monospace font for every role: whatever they read code in all day */
+  --font-display: monospace;
+  --font-body: monospace;
+  --font-mono: monospace;
+  /* state borders: same as the state color in light mode, dimmed in dark mode */
+  --add-line: var(--add); --mod-line: var(--mod); --del-line: var(--del);
   --step--1: 0.875rem;
   --step-0: 1.0625rem;
   --step-1: 1.25rem;
@@ -30,17 +29,23 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e1318; --surface: #151c23; --sunken: #1b232c; --ink: #c5cdd6; --muted: #8e9bab;
-    --line: #29333e; --accent: #4fb8c3; --accent-soft: #173238;
-    --add: #5cc584; --add-bg: #12301f; --del: #f27a6f; --del-bg: #3b1915; --mod: #e2b44a; --mod-bg: #33290e;
+    --bg: #0b0f14; --surface: #11161b; --sunken: #161c22; --ink: #d5cfc7; --muted: #bab0a4;
+    --line: #776e62; --accent: #5fbfc9; --accent-soft: #163236;
+    --add: #71df9a; --add-bg: #0f261a; --del: #ff8274; --del-bg: #3b1915; --mod: #faca5c; --mod-bg: #2a210a;
+    --add-line: color-mix(in srgb, var(--add) 55%, var(--bg));
+    --mod-line: color-mix(in srgb, var(--mod) 55%, var(--bg));
+    --del-line: color-mix(in srgb, var(--del) 55%, var(--bg));
     --code-kw: #c49bff; --code-ty: #6cc7d1; --code-fn: #82aaff; --code-str: #8fd19e; --code-num: #f0a868; --code-com: #7b8794;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e1318; --surface: #151c23; --sunken: #1b232c; --ink: #c5cdd6; --muted: #8e9bab;
-  --line: #29333e; --accent: #4fb8c3; --accent-soft: #173238;
-  --add: #5cc584; --add-bg: #12301f; --del: #f27a6f; --del-bg: #3b1915; --mod: #e2b44a; --mod-bg: #33290e;
+  --bg: #0b0f14; --surface: #11161b; --sunken: #161c22; --ink: #d5cfc7; --muted: #bab0a4;
+  --line: #776e62; --accent: #5fbfc9; --accent-soft: #163236;
+  --add: #71df9a; --add-bg: #0f261a; --del: #ff8274; --del-bg: #3b1915; --mod: #faca5c; --mod-bg: #2a210a;
+  --add-line: color-mix(in srgb, var(--add) 55%, var(--bg));
+  --mod-line: color-mix(in srgb, var(--mod) 55%, var(--bg));
+  --del-line: color-mix(in srgb, var(--del) 55%, var(--bg));
   --code-kw: #c49bff; --code-ty: #6cc7d1; --code-fn: #82aaff; --code-str: #8fd19e; --code-num: #f0a868; --code-com: #7b8794;
   color-scheme: dark;
 }
@@ -121,18 +126,18 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-landed { display: block; margin: 1px 0 4px 2px; font-size: var(--step--1); color: var(--muted); white-space: normal; }
 .vc-pkg { display: inline-block; font-family: var(--font-mono); font-size: var(--step--1); padding: 0 8px; border-radius: 4px; border: 1px solid var(--line);
   background: var(--sunken); color: var(--ink); white-space: nowrap; }
-.vc-pkg.add { border-color: var(--add); background: var(--add-bg); color: var(--add); }
-.vc-pkg.mod { border-color: var(--mod); background: var(--mod-bg); color: var(--mod); }
-.vc-pkg.del { border-color: var(--del); border-style: dashed; color: var(--del); text-decoration: line-through; }
+.vc-pkg.add { border-color: var(--add-line); background: var(--add-bg); color: var(--add); }
+.vc-pkg.mod { border-color: var(--mod-line); background: var(--mod-bg); color: var(--mod); }
+.vc-pkg.del { border-color: var(--del-line); border-style: dashed; color: var(--del); text-decoration: line-through; }
 .vc-pkg.test, .vc-pkg.doc { color: var(--muted); border-style: dotted; background: none; }
 
 /* legend + pills */
 .vc-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--step--1); color: var(--muted); }
 .vc-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .vc-legend i { width: 14px; height: 10px; border-radius: 2px; border: 2px solid var(--line); }
-.vc-legend .add { border-color: var(--add); background: var(--add-bg); }
-.vc-legend .mod { border-color: var(--mod); background: var(--mod-bg); }
-.vc-legend .del { border-color: var(--del); border-style: dashed; }
+.vc-legend .add { border-color: var(--add-line); background: var(--add-bg); }
+.vc-legend .mod { border-color: var(--mod-line); background: var(--mod-bg); }
+.vc-legend .del { border-color: var(--del-line); border-style: dashed; }
 .vc-legend .test, .vc-legend .doc { border-style: dotted; }
 .vc-pill, .vc-badge { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 0.8125rem; font-weight: 500; white-space: nowrap;
   background: var(--sunken); color: var(--muted); }
@@ -208,16 +213,16 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-bcard { flex: 1 1 0; min-width: 165px; overflow-wrap: anywhere; display: grid; gap: 8px; align-content: start; padding: 14px 16px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .vc-bcard-ext { flex: 0 1 160px; min-width: 120px; align-self: center; background: transparent; border-style: dashed; }
-.vc-bcard.add { border-color: var(--add); } .vc-bcard.mod { border-color: var(--mod); }
-.vc-bcard.del { border-color: var(--del); border-style: dashed; }
+.vc-bcard.add { border-color: var(--add-line); } .vc-bcard.mod { border-color: var(--mod-line); }
+.vc-bcard.del { border-color: var(--del-line); border-style: dashed; }
 .vc-bcard-head { display: grid; gap: 1px; }
 .vc-bcard-head strong { font-weight: 600; }
 .vc-bmeta { font-size: var(--step--1); color: var(--muted); }
 .vc-bart { display: grid; gap: 2px; min-width: 0; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
 .vc-bart code { font-size: var(--step--1); overflow-wrap: break-word; }
-.vc-bart.add { border-color: var(--add); background: var(--add-bg); } .vc-bart.add code { color: var(--add); }
-.vc-bart.mod { border-color: var(--mod); background: var(--mod-bg); } .vc-bart.mod code { color: var(--mod); }
-.vc-bart.del { border-color: var(--del); border-style: dashed; } .vc-bart.del code { color: var(--del); text-decoration: line-through; }
+.vc-bart.add { border-color: var(--add-line); background: var(--add-bg); } .vc-bart.add code { color: var(--add); }
+.vc-bart.mod { border-color: var(--mod-line); background: var(--mod-bg); } .vc-bart.mod code { color: var(--mod); }
+.vc-bart.del { border-color: var(--del-line); border-style: dashed; } .vc-bart.del code { color: var(--del); text-decoration: line-through; }
 .vc-bhang { font-size: 0.8125rem; color: var(--muted); }
 .vc-bcall { font-size: 0.8125rem; color: var(--muted); }
 .vc-bcall strong { font-weight: 600; color: var(--ink); }
@@ -252,15 +257,15 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-step { display: grid; gap: 3px; padding: 12px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
 .vc-step.term { border-radius: 999px; padding-inline: 20px; }
 .vc-detail { font-size: var(--step--1); color: var(--muted); }
-.vc-step.add { border-color: var(--add); background: var(--add-bg); } .vc-step.add .vc-detail { color: var(--add); font-weight: 500; }
-.vc-step.mod { border-color: var(--mod); background: var(--mod-bg); } .vc-step.mod .vc-detail { color: var(--mod); font-weight: 500; }
-.vc-step.del { border-color: var(--del); border-style: dashed; background: transparent; color: var(--muted); }
+.vc-step.add { border-color: var(--add-line); background: var(--add-bg); } .vc-step.add .vc-detail { color: var(--add); font-weight: 500; }
+.vc-step.mod { border-color: var(--mod-line); background: var(--mod-bg); } .vc-step.mod .vc-detail { color: var(--mod); font-weight: 500; }
+.vc-step.del { border-color: var(--del-line); border-style: dashed; background: transparent; color: var(--muted); }
 .vc-step.del .vc-detail { color: var(--del); }
 
 .vc-branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; align-items: start; }
 .vc-branch { display: grid; gap: 10px; align-content: start; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
 .vc-branch.alt { background: transparent; border-style: dashed; }
-.vc-branch.add { border-color: var(--add); } .vc-branch.mod { border-color: var(--mod); } .vc-branch.del { border-color: var(--del); border-style: dashed; }
+.vc-branch.add { border-color: var(--add-line); } .vc-branch.mod { border-color: var(--mod-line); } .vc-branch.del { border-color: var(--del-line); border-style: dashed; }
 .vc-branch-title { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink); }
 .vc-branch.add .vc-branch-title { color: var(--add); } .vc-branch.mod .vc-branch-title { color: var(--mod); }
 .vc-branch p { margin: 0; color: var(--muted); font-size: var(--step--1); }
@@ -278,9 +283,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; }
 .vc-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
 .vc-box { padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }
-.vc-box.add { border-color: var(--add); background: var(--add-bg); }
-.vc-box.mod { border-color: var(--mod); background: var(--mod-bg); }
-.vc-box.del { border-color: var(--del); border-style: dashed; }
+.vc-box.add { border-color: var(--add-line); background: var(--add-bg); }
+.vc-box.mod { border-color: var(--mod-line); background: var(--mod-bg); }
+.vc-box.del { border-color: var(--del-line); border-style: dashed; }
 .vc-box.accent { border-color: var(--accent); background: var(--accent-soft); }
 .vc-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .vc-table th { text-align: left; font-size: var(--step--1); font-weight: 600; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--line); }

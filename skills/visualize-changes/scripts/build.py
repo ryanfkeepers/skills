@@ -226,6 +226,33 @@ def strip_scripts(fragment):
     return cleaned, cleaned != fragment
 
 
+FROM_HEADS = re.compile(r"\b(before|was|old|from|previous(ly)?|prior|current)\b")
+TO_HEADS = re.compile(r"\b(after|now|new|to|proposed)\b")
+NONE_VALUES = {"", "n/a", "na", "none", "null", "-", "—"}
+
+
+def cell_text(cell):
+    return html.unescape(re.sub(r"<[^>]+>", " ", cell)).strip().lower()
+
+
+def from_to_table(fragment):
+    """Header of the first html table that compares a before state to an after state, or None.
+
+    That is a table with separate from and to columns, or one whose cells hold "x → y".
+    """
+    for table in re.findall(r"<table\b.*?</table\s*>", fragment, flags=re.S | re.I):
+        rows = re.findall(r"<tr\b.*?</tr\s*>", table, flags=re.S | re.I)
+        if not rows:
+            continue
+        head = [cell_text(c) for c in re.findall(r"<t[hd]\b[^>]*>(.*?)</t[hd]\s*>", rows[0], flags=re.S | re.I)]
+        froms = {i for i, h in enumerate(head) if FROM_HEADS.search(h)}
+        tos = {i for i, h in enumerate(head) if TO_HEADS.search(h)}
+        cells = re.findall(r"<td\b[^>]*>(.*?)</td\s*>", table, flags=re.S | re.I)
+        if any(i != j for i in froms for j in tos) or any(re.search(r"→|&rarr;| -> ", c) for c in cells):
+            return " | ".join(head)
+    return None
+
+
 def go_owner(text, ident):
     """Find what a Go identifier hangs off: ("struct", "client") for a method or field, ("interface", "Store")."""
     if not text:
@@ -762,7 +789,7 @@ class Builder:
         def calls(key):
             items = incoming.get(key) or []
             return "".join(
-                f'<div class="vc-bcall {st}"><span class="vc-arrow">←</span> <strong>{esc(frm)}</strong>'
+                f'<div class="vc-bcall {st}"><span class="vc-arrow">←</span> <strong>{soft_breaks(frm)}</strong>'
                 + (f" · {esc(lbl)}" if lbl else "") + "</div>"
                 for frm, lbl, st in items
             )
@@ -779,7 +806,7 @@ class Builder:
         body = "".join(arts)
         return (
             f'<div class="vc-bcard {state}{" vc-bcard-ext" if not arts else ""}">'
-            f'<div class="vc-bcard-head"><strong>{esc(bd.get("label") or bd["id"])}</strong>'
+            f'<div class="vc-bcard-head"><strong>{soft_breaks(bd.get("label") or bd["id"])}</strong>'
             + (f'<span class="vc-bmeta">{esc(meta)}</span>' if meta else "")
             + f"</div>{calls((i, None))}{body}</div>"
         )
@@ -863,18 +890,24 @@ class Builder:
             name = r.get("name", "")
             if any(k in r for k in ("explain", "effect", "note")):
                 raise SpecError(f"tab {tab!r}: delta row {name!r}: rows are a label plus before -> after; drop the explanation")
-            if r.get("before") == r.get("after"):
+            before, after = self.delta_none(r.get("before")), self.delta_none(r.get("after"))
+            if before == after:
                 raise SpecError(f"tab {tab!r}: delta row {name!r} has the same before and after; only show what changed")
             out.append(
                 f'<div class="vc-drow"><div class="vc-dlabel">{esc(name)}</div>'
-                f'<div class="vc-dba">{self.delta_value(r.get("before"), "vc-dbefore")}'
-                f'<span class="vc-arrow">→</span>{self.delta_value(r.get("after"), "vc-dafter")}</div></div>'
+                f'<div class="vc-dba">{self.delta_value(before, "vc-dbefore")}'
+                f'<span class="vc-arrow">→</span>{self.delta_value(after, "vc-dafter")}</div></div>'
             )
         return f'<div class="vc-delta">{"".join(out)}</div>'
 
     @staticmethod
+    def delta_none(v):
+        """Values like n/a and - mean the thing didn't exist on that side; render them all as none."""
+        return None if v is None or str(v).strip().lower() in NONE_VALUES else v
+
+    @staticmethod
     def delta_value(v, cls):
-        if v in (None, ""):
+        if v is None:
             return '<span class="vc-dnone">none</span>'
         return f'<span class="{cls}">{esc(str(v))}</span>'
 
@@ -891,6 +924,14 @@ class Builder:
                     f"tab {tab!r}: html block sets a literal color ({m.group(0)[:60]}); use the kit's state classes "
                     "or var(--token) so the theme and color-blind palettes apply"
                 )
+        head = from_to_table(frag)
+        if head is not None:
+            raise SpecError(
+                f"tab {tab!r}: html table compares before and after ({head}); use a delta block instead: "
+                "one row per changed case, a label, then before -> after, and no unchanged rows"
+            )
+        if re.search(r'class="[^"]*\bvc-(delta|drow|dlabel|dba|dbefore|dafter)\b', frag):
+            raise SpecError(f"tab {tab!r}: html block uses delta classes; use a delta block so its rules apply")
         return f'<div class="vc-html">{frag}</div>'
 
     # ---- coverage
