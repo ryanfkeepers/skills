@@ -1,6 +1,6 @@
 # Spec reference
 
-The spec is one JSON file. `build.py` validates it against the jj range and
+The spec is one JSON file. `build.py` validates it against the revision range and
 renders the page. Errors stop the build with a message naming the field;
 warnings print but still build.
 

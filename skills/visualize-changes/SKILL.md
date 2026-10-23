@@ -2,7 +2,7 @@
 name: visualize-changes
 description: >
   Build a shareable, tabbed HTML design brief of the changes in a jj
-  revision, bookmark, or stack, for 2-3 people to talk through the design
+  revision, bookmark, or stack (or a git commit, branch, or working tree), for 2-3 people to talk through the design
   together: process flow, where the code lives and who owns it, exported
   interfaces and structs, communication patterns, and before/after
   of anything the change reshapes. Overview tab first, one tab per design
@@ -49,32 +49,52 @@ hand-write page HTML or CSS.
 ### 1. Resolve the range
 
 The page compares two revisions: `--from` (before) and `--to` (after).
+`build.py` uses jj when the repo has it (colocated repos included), else git.
 
-| user says | `--from` | `--to` |
-|---|---|---|
-| nothing / "this change" | `@-` | `@` |
-| a revision `X` | `X-` | `X` |
-| `X` through `Y` (a stack) | `roots(X::Y)-` | `Y` |
-| a bookmark `B` | `fork_point(trunk() \| B)` | `B` |
-| "the stack" / "since trunk" | `fork_point(trunk() \| @)` | `@` |
+| user says | jj `--from` | jj `--to` | git `--from` | git `--to` |
+|---|---|---|---|---|
+| nothing / "this change" | `@-` | `@` | `HEAD` | `WORKTREE` |
+| a revision `X` | `X-` | `X` | `X~1` | `X` |
+| `X` through `Y` (a stack) | `roots(X::Y)-` | `Y` | `X~1` | `Y` |
+| a bookmark / branch `B` | `fork_point(trunk() \| B)` | `B` | `$(git merge-base <trunk> B)` | `B` |
+| "the stack" / "since trunk" | `fork_point(trunk() \| @)` | `@` | `$(git merge-base <trunk> HEAD)` | `WORKTREE` |
 
-If `@` is empty with no description, use `@-` as the tip instead. Confirm
-both ends resolve to one revision each:
-`jj log --no-graph -r '<rev>' -T 'change_id.shortest(8) ++ " " ++ description.first_line() ++ "\n"'`.
+Git notes:
+- `WORKTREE` is a `build.py` token for the working tree: tracked edits plus
+  untracked, non-ignored files. Use it only with `build.py`; for git commands
+  below, compare against the working tree by omitting the `--to` side.
+- `<trunk>` is the remote default branch:
+  `git symbolic-ref --short refs/remotes/origin/HEAD`, else `origin/main`,
+  else `origin/master`.
+- `X~1` through `Y` assumes linear history from `X` to `Y`. If merges sit in
+  between, ask which base the user means.
+
+If the tip is empty (jj: `@` empty with no description; git: `git status
+--porcelain` prints nothing), step the range back one: jj uses `@-` as the
+tip, git uses `HEAD~1` → `HEAD`. Confirm both ends resolve to one revision
+each:
+- jj: `jj log --no-graph -r '<rev>' -T 'change_id.shortest(8) ++ " " ++ description.first_line() ++ "\n"'`
+- git: `git log -1 --format='%h %s' '<rev>'`
+
 A multi-revision range renders as one before → after comparison, so tabs
 follow design topics, not commits.
 
 ### 2. Understand the design
 
 ```bash
+# jj
 jj diff --stat --from '<from>' --to '<to>'
 jj diff --git --from '<from>' --to '<to>' '~glob:"**/*_test.go" & ~root-file:"go.sum"'
+# git (drop '<to>' when it is WORKTREE; untracked files then show only in `git status`)
+git diff --stat '<from>' '<to>'
+git diff '<from>' '<to>' -- . ':(exclude,glob)**/*_test.go' ':(exclude)go.sum'
 ```
 
-Adjust the exclusion fileset to the repo's test and lockfile conventions;
-tests rarely carry design. Read surrounding code with
-`jj file show -r '<to>' <path>` (or `-r '<from>'` for the old version), not
-from disk: the working copy is often ahead of or beside the range.
+Adjust the exclusions to the repo's test and lockfile conventions; tests
+rarely carry design. Read surrounding code at a revision, not from disk: the
+working copy is often ahead of or beside the range. jj: `jj file show -r
+'<rev>' <path>`; git: `git show '<rev>:<path>'`. When git's `--to` is
+`WORKTREE`, read the after side from disk.
 
 Read the diff, then the surrounding code, until you can answer these
 questions for the change:

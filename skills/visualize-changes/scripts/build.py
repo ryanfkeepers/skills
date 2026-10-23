@@ -7,8 +7,9 @@ Usage:
 
 The spec holds the design story: flow diagrams, boundary maps of exposed
 artifacts, and before/after scenarios. The page never shows code bodies or
-diff hunks. jj is used only to find which packages changed and to check that
-names the spec cites appear in the before/after code.
+diff hunks. The VCS (jj, else git) is used only to find which packages changed
+and to check that names the spec cites appear in the before/after code. In git,
+--to WORKTREE (the default) includes uncommitted and untracked files.
 
 Writes two files:
   <slug>.html           standalone document (attach to Jira/Confluence)
@@ -68,9 +69,21 @@ class SpecError(Exception):
     pass
 
 
-# ---------------------------------------------------------------- jj access
+# ---------------------------------------------------------------- repo access
+
+WORKTREE = "WORKTREE"  # git only: the working tree, including uncommitted and untracked files
+
+
+def run(cmd, root, check=True, env=None):
+    res = subprocess.run(cmd, capture_output=True, text=True, cwd=root, env=env)
+    if check and res.returncode != 0:
+        raise SpecError(f"{' '.join(cmd)} failed:\n{res.stderr.strip()}")
+    return res
+
 
 class Repo:
+    """Read-only view of two revisions; subclasses supply the VCS commands."""
+
     def __init__(self, root, rev_from, rev_to):
         self.root = root
         self.rev_from = rev_from
@@ -78,21 +91,32 @@ class Repo:
         self._files = {}
         self._dirs = {}
 
-    def jj(self, *args, check=True):
-        res = subprocess.run(
-            ["jj", "--no-pager", "--color=never", "-R", self.root, *args],
-            capture_output=True, text=True, cwd=self.root,  # jj prints paths relative to cwd
-        )
-        if check and res.returncode != 0:
-            raise SpecError(f"jj {' '.join(args)} failed:\n{res.stderr.strip()}")
-        return res
-
     @property
     def name(self):
         return os.path.basename(self.root.rstrip("/"))
 
     def rev(self, side):
         return self.rev_from if side == "before" else self.rev_to
+
+    def text(self, side, path):
+        """File contents on one side of the change, or None if absent there."""
+        key = (side, path)
+        if key not in self._files:
+            self._files[key] = self.show(self.rev(side), path)
+        return self._files[key]
+
+    def dirs(self, side):
+        if side not in self._dirs:
+            self._dirs[side] = {os.path.dirname(p) for p in self.paths(self.rev(side))}
+        return self._dirs[side]
+
+
+class JjRepo(Repo):
+    DEFAULT_FROM, DEFAULT_TO = "@-", "@"
+
+    def jj(self, *args, check=True):
+        # jj prints paths relative to cwd
+        return run(["jj", "--no-pager", "--color=never", "-R", self.root, *args], self.root, check)
 
     def single_id(self, rev):
         out = self.jj("log", "--no-graph", "-r", rev, "-T", 'change_id.shortest(8) ++ "\\n"').stdout.split()
@@ -103,20 +127,80 @@ class Repo:
     def diff(self):
         return self.jj("diff", "--git", "--from", self.rev_from, "--to", self.rev_to).stdout
 
-    def text(self, side, path):
-        """File contents on one side of the change, or None if absent there."""
-        key = (side, path)
-        if key not in self._files:
-            quoted = path.replace("\\", "\\\\").replace('"', '\\"')
-            res = self.jj("file", "show", "-r", self.rev(side), f'root-file:"{quoted}"', check=False)
-            self._files[key] = res.stdout if res.returncode == 0 else None
-        return self._files[key]
+    def show(self, rev, path):
+        quoted = path.replace("\\", "\\\\").replace('"', '\\"')
+        res = self.jj("file", "show", "-r", rev, f'root-file:"{quoted}"', check=False)
+        return res.stdout if res.returncode == 0 else None
 
-    def dirs(self, side):
-        if side not in self._dirs:
-            paths = self.jj("file", "list", "-r", self.rev(side)).stdout.splitlines()
-            self._dirs[side] = {os.path.dirname(p) for p in paths}
-        return self._dirs[side]
+    def paths(self, rev):
+        return self.jj("file", "list", "-r", rev).stdout.splitlines()
+
+
+class GitRepo(Repo):
+    DEFAULT_FROM, DEFAULT_TO = "HEAD", WORKTREE
+
+    def __init__(self, root, rev_from, rev_to):
+        super().__init__(root, rev_from, rev_to)
+        self._trees = {}
+
+    def git(self, *args, check=True, env=None):
+        # pin settings that would change paths or diff headers away from what diffparse reads
+        cfg = ["-c", "core.quotePath=false", "-c", "diff.noprefix=false", "-c", "diff.mnemonicPrefix=false"]
+        return run(["git", "--no-pager", "-C", self.root, *cfg, *args], self.root, check, env)
+
+    def tree(self, rev):
+        """Tree id for a revision; WORKTREE snapshots the working tree without touching the real index."""
+        if rev not in self._trees:
+            if rev == WORKTREE:
+                self._trees[rev] = self.snapshot()
+            else:
+                res = self.git("rev-parse", "--verify", "--quiet", f"{rev}^{{tree}}", check=False)
+                if res.returncode != 0:
+                    raise SpecError(f"git revision {rev!r} must resolve to exactly one commit")
+                self._trees[rev] = res.stdout.strip()
+        return self._trees[rev]
+
+    def snapshot(self):
+        index = self.git("rev-parse", "--path-format=absolute", "--git-path", "index").stdout.strip()
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_index = os.path.join(tmp, "index")
+            if os.path.exists(index):
+                shutil.copyfile(index, tmp_index)  # reuses the stat cache so unchanged files aren't rehashed
+            env = {**os.environ, "GIT_INDEX_FILE": tmp_index}
+            self.git("add", "--all", env=env)
+            return self.git("write-tree", env=env).stdout.strip()
+
+    def single_id(self, rev):
+        self.tree(rev)
+        if rev == WORKTREE:
+            return "worktree"
+        return self.git("rev-parse", "--short=8", rev).stdout.strip()
+
+    def diff(self):
+        return self.git(
+            "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-relative", "-M",
+            self.tree(self.rev_from), self.tree(self.rev_to),
+        ).stdout
+
+    def show(self, rev, path):
+        res = self.git("cat-file", "blob", f"{self.tree(rev)}:{path}", check=False)
+        return res.stdout if res.returncode == 0 else None
+
+    def paths(self, rev):
+        out = self.git("ls-tree", "-r", "-z", "--name-only", "--full-tree", self.tree(rev)).stdout
+        return [p for p in out.split("\0") if p]
+
+
+def open_repo(path, rev_from, rev_to):
+    """Prefer jj (including colocated repos), then plain git."""
+    for cls, cmd in ((JjRepo, ["jj", "--no-pager", "-R", path, "root"]),
+                     (GitRepo, ["git", "-C", path, "rev-parse", "--show-toplevel"])):
+        if not shutil.which(cmd[0]):
+            continue
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode == 0:
+            return cls(res.stdout.strip(), rev_from or cls.DEFAULT_FROM, rev_to or cls.DEFAULT_TO)
+    raise SystemExit(f"not a jj or git repo: {path}")
 
 
 # ---------------------------------------------------------------- helpers
@@ -1018,9 +1102,9 @@ def verify(standalone_path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--spec", required=True)
-    ap.add_argument("--from", dest="rev_from", default="@-", help="revision before the change (default @-)")
-    ap.add_argument("--to", dest="rev_to", default="@", help="revision after the change (default @)")
-    ap.add_argument("--repo", default=".", help="path inside the jj repo (default .)")
+    ap.add_argument("--from", dest="rev_from", help="revision before the change (default: jj @-, git HEAD)")
+    ap.add_argument("--to", dest="rev_to", help=f"revision after the change (default: jj @, git {WORKTREE})")
+    ap.add_argument("--repo", default=".", help="path inside the jj or git repo (default .)")
     ap.add_argument("--out-dir", help="output directory (default: the spec's directory)")
     ap.add_argument("--slug", help="output basename (default: spec filename without .json / -spec)")
     ap.add_argument("--verify", action="store_true", help="render headlessly and report diagram errors and overflow")
@@ -1028,10 +1112,7 @@ def main():
 
     spec_path = Path(args.spec)
     spec = json.loads(spec_path.read_text())
-    root = subprocess.run(["jj", "--no-pager", "-R", args.repo, "root"], capture_output=True, text=True)
-    if root.returncode != 0:
-        raise SystemExit(f"not a jj repo ({args.repo}): {root.stderr.strip()}")
-    repo = Repo(root.stdout.strip(), args.rev_from, args.rev_to)
+    repo = open_repo(args.repo, args.rev_from, args.rev_to)
 
     try:
         files = diffparse.parse(repo.diff())
