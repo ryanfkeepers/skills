@@ -1,0 +1,1071 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one header, a tab strip for five views, and a global control row. Each view is a full-width panel of SVG built from the embedded graph and history data. */
+:root {
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --ink: #14181d;
+  --ink2: #48535e;
+  --muted: #6b7783;
+  --line: #d9dee4;
+  --grid: #e8ecf0;
+  --edge-lo: #b9c2cc;
+  --edge-hi: #1b2631;
+  --sel: #2a78d6;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100;
+  --c5: #e87ba4; --c6: #008300; --c7: #6250d6; --c8: #e34948;
+  --other: #8d98a4;
+  --ramp-1: #184f95; --ramp-2: #3987e5; --ramp-3: #9ec5f4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1216; --surface: #151a20; --ink: #e9edf1; --ink2: #b4bec8; --muted: #8b97a3;
+    --line: #28313a; --grid: #1e252c; --edge-lo: #3a4651; --edge-hi: #dfe6ed; --sel: #3987e5;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+    --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+    --other: #6f7b87;
+    --ramp-1: #9ec5f4; --ramp-2: #3987e5; --ramp-3: #1c5cab;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1216; --surface: #151a20; --ink: #e9edf1; --ink2: #b4bec8; --muted: #8b97a3;
+  --line: #28313a; --grid: #1e252c; --edge-lo: #3a4651; --edge-hi: #dfe6ed; --sel: #3987e5;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+  --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+  --other: #6f7b87;
+  --ramp-1: #9ec5f4; --ramp-2: #3987e5; --ramp-3: #1c5cab;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1180px; margin: 0 auto; }
+h1 { font-size: 24px; line-height: 1.2; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; }
+h3 { font-size: 11px; font-weight: 600; margin: 0 0 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+p { margin: 0; }
+.sub { color: var(--ink2); max-width: 78ch; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+code { font-family: var(--font-mono); font-size: 12px; }
+.bar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; margin: 18px 0 14px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs button {
+  font: inherit; font-weight: 500; color: var(--ink2); background: transparent; border: 1px solid transparent;
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+}
+.tabs button:hover { background: var(--grid); }
+.tabs button[aria-selected="true"] { color: var(--ink); background: var(--surface); border-color: var(--line); }
+:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; color: var(--ink2); font-size: 13px; }
+.controls label { display: inline-flex; gap: 6px; align-items: center; }
+select, input[type=number] {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--sel);
+  border-radius: 6px; padding: 3px 6px;
+}
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.panel + .panel { margin-top: 14px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 14px; margin-top: 14px; }
+.grid2 > .panel { margin-top: 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.stat .n { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat .l { font-weight: 500; margin-top: 2px; }
+.stat .d { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.scroll { overflow-x: auto; }
+svg { display: block; max-width: 100%; }
+svg text { font-family: var(--font-ui); fill: var(--ink2); font-size: 11px; }
+svg text.m { font-family: var(--font-mono); font-size: 10.5px; }
+svg text.strong { fill: var(--ink); font-weight: 500; }
+svg .halo { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 0; font-size: 12px; color: var(--ink2); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.note { color: var(--muted); font-size: 12px; margin-top: 8px; max-width: 90ch; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 4px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+tbody tr:nth-child(odd) { background: var(--grid); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+td.path { font-family: var(--font-mono); font-size: 12px; word-break: break-all; }
+.pill { font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--ink2); white-space: nowrap; }
+.pill.hot { border-color: var(--edge-hi); color: var(--ink); font-weight: 500; }
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 9px;
+  border-radius: 6px; font-size: 12px; max-width: 320px; line-height: 1.35; display: none;
+}
+#tip b { font-weight: 600; }
+#tip .mono { color: inherit; }
+.guide { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 18px; background: var(--grid); border-radius: 6px; padding: 10px 12px; margin-top: 10px; font-size: 12.5px; color: var(--ink2); }
+.guide b { display: block; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; font-weight: 600; }
+.guide .gnote { grid-column: 1 / -1; color: var(--muted); }
+.finding { display: flex; gap: 16px; align-items: flex-start; }
+.finding .fnum { font-family: var(--font-mono); font-size: 22px; font-weight: 500; color: var(--sel); min-width: 28px; line-height: 1.1; }
+.finding .imp { margin-top: 8px; color: var(--ink); max-width: 90ch; }
+.finding ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink2); }
+.art { max-width: 760px; margin: 0 auto; padding-block: 8px 16px; }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; margin: 0 0 6px; }
+.art-title { font-size: 28px; line-height: 1.2; margin: 0 0 12px; text-wrap: balance; letter-spacing: -0.01em; }
+.art p { font-size: 15px; line-height: 1.7; color: var(--ink); max-width: 70ch; margin: 0; }
+.art p.lede { font-size: 17px; line-height: 1.6; color: var(--ink2); }
+.art-sec { margin-top: 36px; }
+.art-sec h2 { font-size: 20px; margin: 0 0 8px; }
+.art a { color: var(--sel); text-underline-offset: 2px; }
+figure.mini { margin: 16px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+figure.mini figcaption { font-size: 12.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+figure.mini figcaption .legend { margin: 0 0 6px; }
+.art-aside { margin-top: 40px; padding: 14px 16px; background: var(--grid); border-radius: 8px; }
+.art-aside ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; color: var(--ink2); }
+.art-aside p { margin-top: 10px; }
+.split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.splitmain { flex: 1 1 520px; min-width: 0; }
+.splitside { flex: 0 1 340px; min-width: 0; }
+.splitside .guide { margin-top: 0; grid-template-columns: 1fr; }
+section[hidden] { display: none; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+
+<div class="wrap">
+  <h1 id="h1"></h1>
+  <p class="sub" id="lede"></p>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="controls">
+      <label for="binSel">Highlight binary
+        <select id="binSel"><option value="">none</option></select>
+      </label>
+      <label for="tSel">Cross-subtree at tree distance ≥
+        <select id="tSel"></select>
+      </label>
+      <label for="mockChk"><input type="checkbox" id="mockChk"> include mocks &amp; test helpers</label>
+    </div>
+  </div>
+
+  <section id="view-overview" hidden></section>
+  <section id="view-analysis" hidden></section>
+  <section id="view-suggestions" hidden></section>
+  <section id="view-scorecard" hidden></section>
+  <section id="view-forest" hidden></section>
+  <section id="view-dsm" hidden></section>
+  <section id="view-matrix" hidden></section>
+  <section id="view-graph" hidden></section>
+  <section id="view-bundle" hidden></section>
+  <section id="view-churn" hidden></section>
+</div>
+<div id="tip"></div>
+
+<script>
+const D = /*__DATA__*/null;
+const SUBJ = D.meta.subject;
+
+const ALL_TABS = [
+  ["overview", "Overview"], ["analysis", "Analysis"], ["suggestions", "Suggestions"], ["scorecard", "Scorecard"], ["forest", "Forest"], ["dsm", "Dependency matrix"],
+  ["matrix", "Binary × package"], ["graph", "Import graph"], ["bundle", "Directory vs dependency"], ["churn", "Size & churn"],
+];
+const HAS_BINS = Object.keys(D.binaries).length > 0;
+const TAB_ON = { analysis: !!(D.narrative && D.narrative.analysis), suggestions: !!(D.narrative && D.narrative.suggestions), forest: HAS_BINS, matrix: HAS_BINS, churn: D.churn.available };
+const TABS = ALL_TABS.filter(([id]) => TAB_ON[id] !== false);
+const state = { T: 4, mocks: false, binary: "", tab: "overview" };
+const $ = (s, r = document) => r.querySelector(s);
+const fmt = d3.format(",");
+const short = b => (D.meta.short && D.meta.short[b]) || b;
+const label = id => id.replace(/^internal\//, "");
+const groupOf = id => id === "(root)" ? "(root)" : (id.startsWith("internal/") ? id.split("/")[1] : id.split("/")[0]);
+
+/* ---------- derived model ---------- */
+const byId = new Map(D.packages.map(p => [p.id, p]));
+const binIds = Object.keys(D.binaries).sort();
+const directBin = new Map(binIds.map(b => [b, new Set(byId.get(b).imports)]));
+
+const groupLoc = d3.rollup(D.packages.filter(p => p.kind === "code"), v => d3.sum(v, p => p.loc), p => groupOf(p.id));
+const groupOrder = [...groupLoc].sort((a, b) => b[1] - a[1]).map(d => d[0]);
+const groupColor = g => { const i = groupOrder.indexOf(g); return i >= 0 && i < 8 ? `var(--c${i + 1})` : "var(--other)"; };
+
+function model() {
+  const ok = p => p.kind === "code" || (state.mocks && (p.kind === "mock" || p.kind === "test"));
+  const nodes = D.packages.filter(ok);
+  const ids = new Set(nodes.map(p => p.id));
+  const edges = D.edges.filter(e => ids.has(e.s) && ids.has(e.t));
+  const useCount = new Map(nodes.map(p => [p.id, 0]));
+  for (const b of binIds) for (const id of D.binaries[b]) if (useCount.has(id)) useCount.set(id, useCount.get(id) + 1);
+  const fin = new Map(nodes.map(p => [p.id, 0])), fout = new Map(nodes.map(p => [p.id, 0]));
+  for (const e of edges) { fin.set(e.t, fin.get(e.t) + 1); fout.set(e.s, fout.get(e.s) + 1); }
+  return { nodes, ids, edges, useCount, fin, fout, cross: edges.filter(e => e.d >= state.T) };
+}
+const closureSet = () => state.binary ? new Set(D.binaries[state.binary]) : null;
+
+/* ---------- helpers ---------- */
+const tip = $("#tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+function pkgTip(p, m) {
+  return `<b class="mono">${label(p.id)}</b><br>${fmt(p.loc)} LOC · ${p.files} files<br>fan-in ${m ? m.fin.get(p.id) : p.fan_in} · fan-out ${m ? m.fout.get(p.id) : p.fan_out}${D.churn.available ? `<br>${p.commits} commits since ${D.churn.after}` : ""}`;
+}
+function legendHTML() {
+  const used = groupOrder.slice(0, 8);
+  return `<div class="legend">${used.map(g => `<span><i class="sw" style="background:${groupColor(g)}"></i>${g}</span>`).join("")}${groupOrder.length > 8 ? `<span><i class="sw" style="background:var(--other)"></i>other (${groupOrder.length - 8} dirs)</span>` : ""}</div>`;
+}
+function svgIn(host, w, h) {
+  return d3.select(host).append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img");
+}
+const hostWidth = (host, max = 1100) => Math.max(320, Math.min(max, host.clientWidth || 1000));
+
+/* ---------- overview ---------- */
+function renderOverview(root) {
+  const m = model();
+  const loc = d3.sum(m.nodes, p => p.loc);
+  const nCross = m.cross.length;
+  const covered = m.nodes.filter(p => m.useCount.get(p.id) > 0);
+  const shared4 = covered.filter(p => m.useCount.get(p.id) >= 4);
+  const sharedLoc = d3.sum(shared4, p => p.loc), coveredLoc = d3.sum(covered, p => p.loc);
+  const hidden = D.churn.pairs.filter(p => !p.linked && byId.get(p.a)?.kind === "code" && byId.get(p.b)?.kind === "code");
+  const medianD = d3.median(m.edges, e => e.d);
+  root.innerHTML = `
+    <div class="panel">
+      <div class="stats">
+        ${binIds.length ? `<div class="stat"><div class="n">${binIds.length}</div><div class="l">entry points</div><div class="d">${D.meta.entry_desc}</div></div>` : ""}
+        <div class="stat"><div class="n">${m.nodes.length}</div><div class="l">packages · ${fmt(loc)} LOC</div><div class="d">non-test code, excluding mocks unless toggled</div></div>
+        <div class="stat"><div class="n">${Math.round(100 * nCross / Math.max(1, m.edges.length))}%</div><div class="l">${nCross} of ${m.edges.length} imports cross subtrees</div><div class="d">tree distance ≥ ${state.T}; median edge spans ${medianD} hops</div></div>
+        ${binIds.length ? `<div class="stat"><div class="n">${Math.round(100 * sharedLoc / Math.max(1, coveredLoc))}%</div><div class="l">of deployed LOC shared by 4+ binaries</div><div class="d">${shared4.length} of ${covered.length} reachable packages</div></div>` : ""}
+        ${D.churn.available ? `<div class="stat"><div class="n">${hidden.length}</div><div class="l">co-changing pairs with no import</div><div class="d">changed together ≥3 times in ${D.churn.commits_touching_subject} commits to ${SUBJ}</div></div>` : ""}
+      </div>
+    </div>
+    <div class="grid2">
+      ${binIds.length ? `<div class="panel"><h2>What each binary drags in</h2>
+        <p class="sub">Transitive in-module closure per binary, split by how many binaries use each package. The legend shows which shade means only this binary uses a package.</p>
+        <div id="ovFoot" style="margin-top:10px"></div></div>` : ""}
+      <div class="panel"><h2>How far imports travel</h2>
+        <p class="sub">Imports by tree distance: directory hops through the common ancestor. Distance 1 is parent to child; long edges are the ones that cut across the layout.</p>
+        <div id="ovDist" style="margin-top:10px"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h2>Most depended on</h2><p class="sub">Highest fan-in. A change here touches every importer.</p><div id="ovIn" style="margin-top:10px"></div></div>
+      <div class="panel"><h2>Widest reach</h2><p class="sub">Highest fan-out. These packages know about the most others.</p><div id="ovOut" style="margin-top:10px"></div></div>
+    </div>
+    <div class="panel" style="margin-top:14px"><h3>How the numbers are defined</h3>
+      <p class="note" style="margin-top:0">Packages are the directories that hold code. An import is a file-level import edge from the graphify graph (<code>graphify-out/graph.json</code>) rolled up to directories; binary closures follow those imports from each entry point. Tree distance between two packages is the number of directory hops up to their lowest common ancestor and back down. Fan-in counts packages that import this one; fan-out counts packages it imports. Churn counts ${D.churn.vcs} commits since ${D.churn.after} that touched a non-test source file in the package. Co-change pairs skip ${D.churn.cochange_skipped_big_commits} sweeping commits that touched more than 25 packages. Test-only imports are excluded from edges.</p></div>`;
+  if (binIds.length) footprint($("#ovFoot", root), m);
+  distHist($("#ovDist", root), m);
+  rankList($("#ovIn", root), m, m.fin);
+  rankList($("#ovOut", root), m, m.fout);
+}
+function footprint(host, m) {
+  const rows = binIds.map(b => {
+    const ids = D.binaries[b].filter(id => m.ids.has(id) && byId.get(id).kind !== "cmd");
+    const part = { one: 0, mid: 0, many: 0 };
+    for (const id of ids) { const c = m.useCount.get(id), l = byId.get(id).loc; part[c <= 1 ? "one" : c <= 3 ? "mid" : "many"] += l; }
+    return { b, n: ids.length, ...part, total: part.one + part.mid + part.many };
+  }).sort((a, b) => b.total - a.total);
+  const w = hostWidth(host, 560), lw = 136, rw = 150, h = rows.length * 24 + 8;
+  const x = d3.scaleLinear([0, d3.max(rows, r => r.total)], [0, w - lw - rw]);
+  const svg = svgIn(host, w, h);
+  rows.forEach((r, i) => {
+    const y = i * 24 + 4, g = svg.append("g").attr("transform", `translate(0,${y})`);
+    if (i % 2 === 0) g.append("rect").attr("x", 0).attr("y", -2).attr("width", w).attr("height", 24).attr("rx", 4).style("fill", "var(--grid)").attr("opacity", 0.7);
+    g.append("text").attr("class", "m strong").attr("x", lw - 8).attr("y", 13).attr("text-anchor", "end").text(short(r.b));
+    let acc = 0;
+    [["one", "var(--ramp-1)"], ["mid", "var(--ramp-2)"], ["many", "var(--ramp-3)"]].forEach(([k, c]) => {
+      const wd = x(r[k]);
+      if (wd > 0) g.append("rect").attr("x", lw + x(acc)).attr("y", 2).attr("width", Math.max(0, wd - 2)).attr("height", 16).attr("rx", 3).style("fill", c)
+        .on("mousemove", ev => showTip(ev, `<b>${short(r.b)}</b><br>${fmt(r[k])} LOC in packages used by ${k === "one" ? "only this binary" : k === "mid" ? "2-3 binaries" : "4+ binaries"}`)).on("mouseleave", hideTip);
+      acc += r[k];
+    });
+    g.append("text").attr("class", "m").attr("x", lw + x(r.total) + 6).attr("y", 14).text(`${fmt(r.total)} · ${r.n} pkg`);
+  });
+  host.insertAdjacentHTML("beforeend", `<div class="legend"><span><i class="sw" style="background:var(--ramp-1)"></i>only this binary</span><span><i class="sw" style="background:var(--ramp-2)"></i>shared by 2-3</span><span><i class="sw" style="background:var(--ramp-3)"></i>shared by 4+</span></div>`);
+}
+function distHist(host, m) {
+  const counts = d3.rollup(m.edges, v => v.length, e => e.d);
+  const ds = d3.range(1, (d3.max(m.edges, e => e.d) || 1) + 1);
+  const w = hostWidth(host, 560), h = 190, ml = 34, mb = 26;
+  const x = d3.scaleBand(ds, [ml, w - 8]).padding(0.15), y = d3.scaleLinear([0, d3.max(ds, d => counts.get(d) || 0)], [h - mb, 8]);
+  const svg = svgIn(host, w, h);
+  svg.append("g").selectAll("line").data(y.ticks(4)).join("line").attr("x1", ml).attr("x2", w - 8).attr("y1", y).attr("y2", y).style("stroke", "var(--grid)");
+  svg.append("g").selectAll("text").data(y.ticks(4)).join("text").attr("x", ml - 6).attr("y", d => y(d) + 4).attr("text-anchor", "end").text(d => d);
+  svg.selectAll("rect.b").data(ds).join("rect").attr("class", "b").attr("x", d => x(d)).attr("width", x.bandwidth())
+    .attr("y", d => y(counts.get(d) || 0)).attr("height", d => y(0) - y(counts.get(d) || 0)).attr("rx", 3)
+    .style("fill", d => d >= state.T ? "var(--edge-hi)" : "var(--edge-lo)")
+    .on("mousemove", (ev, d) => showTip(ev, `<b>${counts.get(d) || 0} imports</b> at tree distance ${d}`)).on("mouseleave", hideTip);
+  svg.append("g").selectAll("text").data(ds).join("text").attr("x", d => x(d) + x.bandwidth() / 2).attr("y", h - 8).attr("text-anchor", "middle").text(d => d);
+  svg.append("text").attr("x", w - 8).attr("y", 14).attr("text-anchor", "end").text(`emphasised = cross-subtree (≥ ${state.T})`);
+}
+function rankList(host, m, metric) {
+  const rows = m.nodes.filter(p => p.kind === "code").sort((a, b) => metric.get(b.id) - metric.get(a.id)).slice(0, 10);
+  const w = hostWidth(host, 560), rh = 22, h = rows.length * rh + 4, lw = Math.min(300, w * 0.62);
+  const x = d3.scaleLinear([0, metric.get(rows[0].id)], [0, w - lw - 40]);
+  const svg = svgIn(host, w, h);
+  rows.forEach((p, i) => {
+    const g = svg.append("g").attr("transform", `translate(0,${i * rh + 2})`).style("cursor", "default")
+      .on("mousemove", ev => showTip(ev, pkgTip(p, m))).on("mouseleave", hideTip);
+    if (i % 2 === 0) g.append("rect").attr("x", 0).attr("y", -2).attr("width", w).attr("height", rh).attr("rx", 4).style("fill", "var(--grid)").attr("opacity", 0.7);
+    g.append("text").attr("class", "m strong").attr("x", lw - 8).attr("y", 14).attr("text-anchor", "end").text(label(p.id).length > 42 ? "…" + label(p.id).slice(-41) : label(p.id));
+    g.append("rect").attr("x", lw).attr("y", 3).attr("height", 14).attr("rx", 3).attr("width", Math.max(2, x(metric.get(p.id)))).style("fill", groupColor(groupOf(p.id)));
+    g.append("text").attr("class", "m").attr("x", lw + x(metric.get(p.id)) + 6).attr("y", 14).text(metric.get(p.id));
+  });
+}
+
+/* ---------- binary × package matrix ---------- */
+let matrixSort = "path";
+function renderMatrix(root) {
+  const m = model();
+  const rowsAll = m.nodes.filter(p => p.kind !== "cmd");
+  const sel = closureSet();
+  const sorters = {
+    path: (a, b) => d3.ascending(a.id, b.id),
+    binaries: (a, b) => d3.descending(m.useCount.get(a.id), m.useCount.get(b.id)) || d3.ascending(a.id, b.id),
+    loc: (a, b) => d3.descending(a.loc, b.loc),
+  };
+  const rows = rowsAll.filter(p => m.useCount.get(p.id) > 0).sort(sorters[matrixSort]);
+  const unreached = rowsAll.length - rows.length;
+  root.innerHTML = `<div class="panel">
+    <div style="display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:space-between;align-items:end">
+      <div><h2>Which binary pulls in which package</h2>
+      <p class="sub">Each row is a package reachable from at least one binary; each column is an entry point. Click a column to highlight one binary's closure.</p></div>
+      <label class="controls" for="mxSort">Sort rows by <select id="mxSort"><option value="path">directory path</option><option value="binaries">binaries using it</option><option value="loc">size (LOC)</option></select></label>
+    </div>
+    <div class="legend"><span><i class="sw" style="background:var(--sel)"></i>imported directly by main</span><span><i class="sw" style="background:var(--sel);opacity:.35"></i>pulled in transitively</span></div>
+    <div class="scroll" id="mxHost" style="margin-top:10px"></div>
+    <p class="note">${rows.length} packages are reachable from a binary${unreached ? `; ${unreached} are not reachable from any main (tests, tools, dead code or helpers only used by tests)` : ""}. Row labels drop the leading <code>internal/</code>.</p></div>`;
+  $("#mxSort").value = matrixSort;
+  $("#mxSort").onchange = e => { matrixSort = e.target.value; renderMatrix(root); };
+  const lw = 330, cw = 38, rh = 17, top = 124, right = 150;
+  const w = lw + cw * binIds.length + right, h = top + rows.length * rh + 10;
+  const svg = svgIn($("#mxHost"), w, h);
+  binIds.forEach((b, i) => {
+    const cx = lw + i * cw + cw / 2, active = state.binary === b;
+    const n = D.binaries[b].filter(id => m.ids.has(id) && byId.get(id).kind !== "cmd").length;
+    const g = svg.append("g").style("cursor", "pointer").on("click", () => { state.binary = state.binary === b ? "" : b; $("#binSel").value = state.binary; rerender(); });
+    g.append("rect").attr("x", lw + i * cw).attr("y", 0).attr("width", cw).attr("height", top - 6).style("fill", active ? "var(--grid)" : "transparent");
+    g.append("text").attr("class", "m strong").attr("transform", `translate(${cx + 4},${top - 24}) rotate(-55)`).text(short(b));
+    g.append("text").attr("class", "m").attr("x", cx).attr("y", top - 8).attr("text-anchor", "middle").text(n);
+  });
+  svg.append("text").attr("x", lw - 8).attr("y", top - 8).attr("text-anchor", "end").text("packages pulled in →");
+  svg.append("text").attr("x", lw + cw * binIds.length + 12).attr("y", top - 8).text("binaries · LOC");
+  const maxLoc = d3.max(rows, p => p.loc), lx = d3.scaleSqrt([0, maxLoc], [0, 60]);
+  rows.forEach((p, ri) => {
+    const y = top + ri * rh, dim = sel && !sel.has(p.id);
+    const g = svg.append("g").attr("opacity", dim ? 0.22 : 1)
+      .on("mousemove", ev => showTip(ev, pkgTip(p, m) + `<br>used by ${m.useCount.get(p.id)} of ${binIds.length} binaries`)).on("mouseleave", hideTip);
+    g.append("rect").attr("x", 0).attr("y", y).attr("width", w).attr("height", rh).style("fill", ri % 2 ? "transparent" : "var(--grid)").attr("opacity", 0.45);
+    g.append("rect").attr("x", 2).attr("y", y + 4).attr("width", 8).attr("height", 9).attr("rx", 2).style("fill", groupColor(groupOf(p.id)));
+    const t = label(p.id);
+    g.append("text").attr("class", "m strong").attr("x", 16).attr("y", y + 12.5).text(t.length > 50 ? "…" + t.slice(-49) : t);
+    binIds.forEach((b, i) => {
+      const direct = directBin.get(b).has(p.id), trans = D.binaries[b].includes(p.id);
+      if (trans) g.append("rect").attr("x", lw + i * cw + 6).attr("y", y + 2).attr("width", cw - 12).attr("height", rh - 4).attr("rx", 3)
+        .style("fill", "var(--sel)").attr("opacity", direct ? 1 : 0.35);
+      else g.append("circle").attr("cx", lw + i * cw + cw / 2).attr("cy", y + rh / 2).attr("r", 1.4).style("fill", "var(--edge-lo)");
+    });
+    const rx = lw + binIds.length * cw + 12;
+    g.append("text").attr("class", "m").attr("x", rx).attr("y", y + 12.5).attr("text-anchor", "start").text(m.useCount.get(p.id));
+    g.append("rect").attr("x", rx + 22).attr("y", y + 4).attr("height", 9).attr("rx", 2).attr("width", Math.max(1, lx(p.loc))).style("fill", "var(--other)").attr("opacity", 0.7);
+    g.append("text").attr("class", "m").attr("x", rx + 28 + lx(p.loc)).attr("y", y + 12.5).text(fmt(p.loc));
+  });
+  if (state.binary) {
+    const own = rows.filter(p => sel.has(p.id) && m.useCount.get(p.id) === 1);
+    $(".note", root).insertAdjacentHTML("beforebegin", `<p class="sub" style="margin-top:8px"><b>${short(state.binary)}</b> pulls in ${rows.filter(p => sel.has(p.id)).length} packages (${fmt(d3.sum(rows.filter(p => sel.has(p.id)), p => p.loc))} LOC); ${own.length} of them are used by no other binary.</p>`);
+  }
+}
+
+/* ---------- import graph ---------- */
+let onlyCross = false;
+function renderGraph(root) {
+  const m = model(), sel = closureSet();
+  root.innerHTML = `<div class="panel">
+    <div style="display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:space-between;align-items:end">
+      <div><h2>Package import graph</h2>
+      <p class="sub">Each dot is a package, sized by LOC and coloured by its top-level directory. Dots are pulled toward their directory's anchor, so lines that run between clusters are imports that cut across the layout.</p></div>
+      <label class="controls" for="gOnly"><input type="checkbox" id="gOnly"> show only cross-subtree imports</label>
+    </div>
+    ${legendHTML()}
+    <div class="legend"><span><i class="sw" style="background:var(--edge-lo)"></i>import within a subtree</span><span><i class="sw" style="background:var(--edge-hi)"></i>cross-subtree (distance ≥ ${state.T})</span></div>
+    <div class="scroll" id="gHost" style="margin-top:10px"></div>
+    <p class="note">Hover a dot to isolate its imports. Drag to rearrange. Pick a binary in the control row to dim everything outside its closure.</p></div>`;
+  $("#gOnly").checked = onlyCross; $("#gOnly").onchange = e => { onlyCross = e.target.checked; renderGraph(root); };
+  const nodes = m.nodes.filter(p => p.kind !== "cmd").map(p => ({ ...p, g: groupOf(p.id) }));
+  const idx = new Map(nodes.map(n => [n.id, n]));
+  const links = m.edges.filter(e => idx.has(e.s) && idx.has(e.t) && (!onlyCross || e.d >= state.T)).map(e => ({ source: e.s, target: e.t, d: e.d }));
+  const W = hostWidth($("#gHost")), H = Math.round(Math.min(760, W * 0.72));
+  const groups = [...new Set(nodes.map(n => n.g))];
+  const ring = Math.min(W, H) * 0.31, anchor = new Map(groups.map((g, i) => [g, [W / 2 + ring * Math.cos(2 * Math.PI * i / groups.length - Math.PI / 2), H / 2 + ring * Math.sin(2 * Math.PI * i / groups.length - Math.PI / 2)]]));
+  const r = n => 3 + Math.min(16, Math.sqrt(n.loc) / 5.5);
+  const sim = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(34).strength(0.04))
+    .force("charge", d3.forceManyBody().strength(-38))
+    .force("x", d3.forceX(n => anchor.get(n.g)[0]).strength(0.13))
+    .force("y", d3.forceY(n => anchor.get(n.g)[1]).strength(0.13))
+    .force("collide", d3.forceCollide(n => r(n) + 1.5)).stop();
+  for (let i = 0; i < 320; i++) sim.tick();
+  const svg = svgIn($("#gHost"), W, H);
+  const gl = svg.append("g"), gn = svg.append("g"), gt = svg.append("g").style("pointer-events", "none");
+  const lineSel = gl.selectAll("line").data(links).join("line")
+    .style("stroke", d => d.d >= state.T ? "var(--edge-hi)" : "var(--edge-lo)")
+    .attr("stroke-width", d => d.d >= state.T ? 1 : 0.7).attr("stroke-opacity", d => d.d >= state.T ? 0.5 : 0.55);
+  const nodeSel = gn.selectAll("circle").data(nodes).join("circle").attr("r", r)
+    .style("fill", n => groupColor(n.g)).style("stroke", "var(--surface)").attr("stroke-width", 1.5).style("cursor", "grab");
+  const top = new Set([...nodes].sort((a, b) => (b.fan_in + b.fan_out) - (a.fan_in + a.fan_out)).slice(0, 8).map(n => n.id));
+  const textSel = gt.selectAll("text").data(nodes).join("text").attr("class", "m halo strong").attr("text-anchor", "middle").style("display", n => top.has(n.id) ? null : "none").text(n => label(n.id).split("/").slice(-2).join("/"));
+  function paint() {
+    lineSel.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+    nodeSel.attr("cx", n => n.x).attr("cy", n => n.y);
+    textSel.attr("x", n => n.x).attr("y", n => n.y - r(n) - 4);
+  }
+  function dim() {
+    nodeSel.attr("opacity", n => sel && !sel.has(n.id) ? 0.2 : 1);
+    lineSel.attr("opacity", d => sel && !(sel.has(d.source.id) && sel.has(d.target.id)) ? 0.08 : 1);
+  }
+  paint(); dim();
+  nodeSel.on("mousemove", (ev, n) => {
+    const nb = new Set([n.id]); links.forEach(l => { if (l.source.id === n.id) nb.add(l.target.id); if (l.target.id === n.id) nb.add(l.source.id); });
+    nodeSel.attr("opacity", d => nb.has(d.id) ? 1 : 0.12);
+    lineSel.attr("opacity", l => l.source.id === n.id || l.target.id === n.id ? 1 : 0.04).attr("stroke-width", l => l.source.id === n.id || l.target.id === n.id ? 1.8 : 0.6);
+    textSel.style("display", d => nb.has(d.id) ? null : "none");
+    showTip(ev, pkgTip(n, m));
+  }).on("mouseleave", () => {
+    dim(); lineSel.attr("stroke-width", d => d.d >= state.T ? 1 : 0.7); textSel.style("display", n => top.has(n.id) ? null : "none"); hideTip();
+  }).call(d3.drag().on("start", (ev, n) => { n.fx = n.x; n.fy = n.y; }).on("drag", (ev, n) => { n.fx = n.x = ev.x; n.fy = n.y = ev.y; paint(); }).on("end", (ev, n) => { n.fx = n.fy = null; }));
+  const gr = svg.append("g").style("pointer-events", "none");
+  groups.forEach(g => {
+    const ns = nodes.filter(n => n.g === g);
+    gr.append("text").attr("class", "halo strong").attr("x", d3.mean(ns, n => n.x)).attr("y", d3.min(ns, n => n.y - r(n)) - 8).attr("text-anchor", "middle").style("font-size", "12px").text(g);
+  });
+}
+
+/* ---------- directory vs dependency ---------- */
+function buildTree(pkgs) {
+  const root = { name: SUBJ, children: [], path: "" };
+  const at = new Map([["", root]]);
+  const sorted = [...pkgs].sort((a, b) => d3.ascending(a.id, b.id));
+  const hasKids = new Set();
+  for (const p of sorted) { const s = p.id.split("/"); for (let i = 1; i < s.length; i++) hasKids.add(s.slice(0, i).join("/")); }
+  for (const p of sorted) {
+    const segs = p.id === "(root)" ? ["(root)"] : p.id.split("/");
+    let parent = root, path = "";
+    segs.forEach((seg, i) => {
+      path = path ? path + "/" + seg : seg;
+      const last = i === segs.length - 1;
+      if (last && !hasKids.has(p.id)) { const n = { name: seg, id: p.id, pkg: p, path }; parent.children.push(n); at.set("leaf:" + p.id, n); }
+      else {
+        let n = at.get(path);
+        if (!n) { n = { name: seg, children: [], path }; parent.children.push(n); at.set(path, n); }
+        if (last) { const leaf = { name: seg + " ·", id: p.id, pkg: p, path: path + "/·" }; n.children.push(leaf); at.set("leaf:" + p.id, leaf); }
+        parent = n;
+      }
+    });
+  }
+  return { root, at };
+}
+function renderBundle(root) {
+  const m = model(), sel = closureSet();
+  root.innerHTML = `<div class="panel">
+    <h2>Directory structure against actual imports</h2>
+    <p class="sub">Packages sit on the circle in directory order, so neighbours share a parent. Each curve is an import. A tidy layout draws short arcs between neighbours; long chords through the middle are imports that ignore the directory boundaries.</p>
+    ${legendHTML()}
+    <div class="legend"><span><i class="sw" style="background:var(--edge-lo)"></i>within a subtree</span><span><i class="sw" style="background:var(--edge-hi)"></i>cross-subtree (≥ ${state.T})</span><span><i class="sw" style="background:var(--sel)"></i>hovered package imports</span><span><i class="sw" style="background:var(--c2)"></i>imported by hovered package</span></div>
+    <div class="scroll" id="bHost" style="margin-top:10px"></div></div>
+    <div class="panel"><h2>What lives where</h2>
+    <p class="sub">The same packages as a treemap sized by LOC and grouped by top-level directory. A directory holding unrelated big blocks is a candidate for splitting.</p>
+    <div class="scroll" id="tHost" style="margin-top:10px"></div></div>
+    <div class="panel"><h2>Longest imports</h2><p class="sub">The cross-subtree imports that span the most directory hops.</p><div class="scroll" id="bTable" style="margin-top:8px"></div></div>`;
+  const pk = m.nodes.filter(p => p.kind !== "cmd");
+  const { root: tree } = buildTree(pk);
+  const W = hostWidth($("#bHost")), H = Math.min(Math.round(W * 0.95), 900), R = Math.min(W, H) / 2 - 215;
+  const h = d3.hierarchy(tree).sort((a, b) => d3.ascending(a.data.path, b.data.path));
+  d3.cluster().size([2 * Math.PI, R])(h);
+  const leaves = new Map(h.leaves().map(l => [l.data.id, l]));
+  const links = m.edges.filter(e => leaves.has(e.s) && leaves.has(e.t) && e.s !== e.t);
+  const line = d3.lineRadial().curve(d3.curveBundle.beta(0.82)).radius(d => d.y).angle(d => d.x);
+  const svg = svgIn($("#bHost"), W, H);
+  const g = svg.append("g").attr("transform", `translate(${W / 2},${H / 2})`);
+  const paths = g.append("g").selectAll("path").data(links).join("path")
+    .attr("d", e => line(leaves.get(e.s).path(leaves.get(e.t)))).attr("fill", "none")
+    .style("stroke", e => e.d >= state.T ? "var(--edge-hi)" : "var(--edge-lo)")
+    .attr("stroke-width", e => e.d >= state.T ? 0.9 : 0.7).attr("stroke-opacity", e => e.d >= state.T ? 0.38 : 0.5);
+  const base = () => paths.attr("opacity", e => sel && !(sel.has(e.s) && sel.has(e.t)) ? 0.06 : 1).style("stroke", e => e.d >= state.T ? "var(--edge-hi)" : "var(--edge-lo)").attr("stroke-width", e => e.d >= state.T ? 0.9 : 0.7);
+  base();
+  const dots = g.append("g").selectAll("g").data([...leaves.values()]).join("g")
+    .attr("transform", d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`).attr("opacity", d => sel && !sel.has(d.data.id) ? 0.3 : 1);
+  dots.append("circle").attr("r", 3.2).style("fill", d => groupColor(groupOf(d.data.id)));
+  dots.append("text").attr("class", "m").attr("dy", "0.31em").attr("x", d => d.x < Math.PI ? 8 : -8).attr("text-anchor", d => d.x < Math.PI ? "start" : "end")
+    .attr("transform", d => d.x >= Math.PI ? "rotate(180)" : null).text(d => { const s = label(d.data.id); return s.length > 32 ? "…" + s.slice(-31) : s; });
+  dots.style("cursor", "default").on("mousemove", (ev, d) => {
+    const id = d.data.id;
+    paths.attr("opacity", e => e.s === id || e.t === id ? 1 : 0.03).style("stroke", e => e.s === id ? "var(--sel)" : e.t === id ? "var(--c2)" : (e.d >= state.T ? "var(--edge-hi)" : "var(--edge-lo)")).attr("stroke-width", e => e.s === id || e.t === id ? 1.8 : 0.7);
+    showTip(ev, pkgTip(d.data.pkg, m));
+  }).on("mouseleave", () => { base(); hideTip(); });
+  /* treemap */
+  const tw = hostWidth($("#tHost")), th = 440;
+  const byG = d3.group(pk.filter(p => p.loc > 0), p => groupOf(p.id));
+  const th2 = d3.hierarchy({ name: SUBJ, children: [...byG].map(([k, v]) => ({ name: k, children: v.map(p => ({ name: label(p.id), pkg: p, value: p.loc })) })) }).sum(d => d.value || 0).sort((a, b) => b.value - a.value);
+  d3.treemap().size([tw, th]).paddingInner(2).paddingTop(d => d.depth === 1 ? 16 : 0).round(true)(th2);
+  const ts = svgIn($("#tHost"), tw, th);
+  const grp = ts.selectAll("g.grp").data(th2.children).join("g").attr("class", "grp");
+  grp.append("text").attr("class", "strong").attr("x", d => d.x0 + 3).attr("y", d => d.y0 + 11).text(d => (d.x1 - d.x0) > 60 ? `${d.data.name} · ${fmt(d.value)}` : "");
+  const leafG = ts.selectAll("g.leaf").data(th2.leaves()).join("g").attr("class", "leaf");
+  leafG.append("rect").attr("x", d => d.x0).attr("y", d => d.y0).attr("width", d => Math.max(0, d.x1 - d.x0)).attr("height", d => Math.max(0, d.y1 - d.y0)).attr("rx", 3)
+    .style("fill", d => groupColor(d.parent.data.name)).attr("opacity", d => sel && !sel.has(d.data.pkg.id) ? 0.2 : 0.88)
+    .on("mousemove", (ev, d) => showTip(ev, pkgTip(d.data.pkg, m))).on("mouseleave", hideTip);
+  leafG.append("text").attr("class", "m halo").attr("x", d => d.x0 + 4).attr("y", d => d.y0 + 13).style("pointer-events", "none")
+    .text(d => (d.x1 - d.x0) > 90 && (d.y1 - d.y0) > 20 ? d.data.name.split("/").slice(-1)[0] : "");
+  const long = [...m.edges].filter(e => e.d >= state.T && byId.get(e.s).kind !== "cmd").sort((a, b) => b.d - a.d || d3.ascending(a.s, b.s)).slice(0, 14);
+  $("#bTable").innerHTML = `<table><thead><tr><th>Importer</th><th>Imports</th><th class="num">hops</th></tr></thead><tbody>${long.map(e => `<tr><td class="path">${label(e.s)}</td><td class="path">${label(e.t)}</td><td class="num">${e.d}</td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ---------- size & churn ---------- */
+function renderChurn(root) {
+  const m = model(), sel = closureSet();
+  const pk = m.nodes.filter(p => p.kind === "code");
+  root.innerHTML = `<div class="panel">
+    <h2>Size against change rate</h2>
+    <p class="sub">Each dot is a package: horizontal is LOC, vertical is the number of trunk commits since ${D.churn.after} that touched its non-test source files (${D.churn.commits_touching_subject} of ${D.churn.commits_total} repo commits touched ${SUBJ} at all). Dot area follows fan-in. Big, busy and widely imported is where a tangle costs the most.</p>
+    ${legendHTML()}
+    <div class="scroll" id="cHost" style="margin-top:10px"></div></div>
+    <div class="grid2">
+      <div class="panel"><h2>Hotspots</h2><div class="scroll" id="cTable" style="margin-top:8px"></div></div>
+      <div class="panel"><h2>Changes together, no import between them</h2>
+        <p class="sub">Package pairs that landed in the same commit at least 3 times. A pair with no import edge is coupled through convention or shared data instead of code.</p>
+        <div class="scroll" id="cPairs" style="margin-top:8px"></div></div>
+    </div>`;
+  const W = hostWidth($("#cHost")), H = Math.round(Math.min(520, W * 0.5)), ml = 46, mb = 34, mr = 16, mt = 10;
+  const x = d3.scaleSymlog().constant(40).domain([0, d3.max(pk, p => p.loc)]).range([ml, W - mr]).nice();
+  const y = d3.scaleSymlog().constant(6).domain([0, d3.max(pk, p => p.commits) * 1.05]).range([H - mb, mt]).nice();
+  const svg = svgIn($("#cHost"), W, H);
+  const yt = [0, 5, 10, 25, 50, 100, 150].filter(v => v <= y.domain()[1]);
+  const xt = [0, 100, 300, 1000, 3000, 10000].filter(v => v <= x.domain()[1]);
+  svg.append("g").selectAll("line").data(yt).join("line").attr("x1", ml).attr("x2", W - mr).attr("y1", y).attr("y2", y).style("stroke", "var(--grid)");
+  svg.append("g").selectAll("text").data(yt).join("text").attr("x", ml - 6).attr("y", d => y(d) + 4).attr("text-anchor", "end").text(d => d);
+  svg.append("g").selectAll("text").data(xt).join("text").attr("x", x).attr("y", H - 16).attr("text-anchor", "middle").text(d => fmt(d));
+  svg.append("text").attr("x", W - mr).attr("y", H - 2).attr("text-anchor", "end").text("lines of code (non-test), symlog scale");
+  svg.append("text").attr("x", 4).attr("y", 10).text("commits (symlog)");
+  const r = p => 3.5 + Math.sqrt(m.fin.get(p.id)) * 2.4;
+  const sorted = [...pk].sort((a, b) => b.loc - a.loc);
+  svg.append("g").selectAll("circle").data(sorted).join("circle").attr("cx", p => x(p.loc)).attr("cy", p => y(p.commits)).attr("r", r)
+    .style("fill", p => groupColor(groupOf(p.id))).attr("fill-opacity", 0.78).style("stroke", "var(--surface)").attr("stroke-width", 1.5)
+    .attr("opacity", p => sel && !sel.has(p.id) ? 0.2 : 1)
+    .on("mousemove", (ev, p) => showTip(ev, pkgTip(p, m) + `<br>${p.test_commits} test-file commits`)).on("mouseleave", hideTip);
+  const lab = [...pk].sort((a, b) => (b.commits * 3 + b.loc / 400 + m.fin.get(b.id)) - (a.commits * 3 + a.loc / 400 + m.fin.get(a.id))).slice(0, 11);
+  svg.append("g").style("pointer-events", "none").selectAll("text").data(lab).join("text").attr("class", "m halo strong")
+    .attr("x", p => x(p.loc) > W * 0.82 ? x(p.loc) - r(p) - 4 : x(p.loc) + r(p) + 4).attr("text-anchor", p => x(p.loc) > W * 0.82 ? "end" : "start").attr("y", p => y(p.commits) + 3).text(p => label(p.id).split("/").slice(-2).join("/"));
+  const hot = [...pk].sort((a, b) => b.commits - a.commits).slice(0, 12);
+  $("#cTable").innerHTML = `<table><thead><tr><th>Package</th><th class="num">commits</th><th class="num">LOC</th><th class="num">in</th><th class="num">out</th></tr></thead><tbody>${hot.map(p => `<tr><td class="path">${label(p.id)}</td><td class="num">${p.commits}</td><td class="num">${fmt(p.loc)}</td><td class="num">${m.fin.get(p.id)}</td><td class="num">${m.fout.get(p.id)}</td></tr>`).join("")}</tbody></table>`;
+  const pairs = D.churn.pairs.filter(p => byId.get(p.a)?.kind === "code" && byId.get(p.b)?.kind === "code");
+  const nolink = pairs.filter(p => !p.linked).slice(0, 12);
+  $("#cPairs").innerHTML = nolink.length ? `<table><thead><tr><th>Pair</th><th class="num">together</th></tr></thead><tbody>${nolink.map(p => `<tr><td class="path">${label(p.a)}<br>↔ ${label(p.b)}</td><td class="num">${p.n}</td></tr>`).join("")}</tbody></table>`
+    : `<p class="sub">No unlinked pair reached 3 co-changes.</p>`;
+  const linkedN = pairs.filter(p => p.linked).length;
+  $("#cPairs").insertAdjacentHTML("beforeend", `<p class="note">${linkedN} of ${pairs.length} frequent pairs do have an import edge between them.</p>`);
+}
+
+/* ---------- shared model for forest, DSM and scorecard (code packages only) ---------- */
+const codePk = D.packages.filter(p => p.kind === "code");
+const codeIds = new Set(codePk.map(p => p.id));
+const codeEdges = D.edges.filter(e => codeIds.has(e.s) && codeIds.has(e.t));
+const adjOut = new Map(codePk.map(p => [p.id, []]));
+for (const e of codeEdges) adjOut.get(e.s).push(e.t);
+const useN = new Map(codePk.map(p => [p.id, 0]));
+for (const b of binIds) for (const id of D.binaries[b]) if (useN.has(id)) useN.set(id, useN.get(id) + 1);
+const shareKey = id => { const c = useN.get(id); return c <= 1 ? "one" : c <= 3 ? "mid" : "many"; };
+const shareFill = { one: "var(--ramp-1)", mid: "var(--ramp-2)", many: "var(--ramp-3)" };
+const shareLegend = `<div class="legend"><span><i class="sw" style="background:var(--ramp-1)"></i>used by only this binary</span><span><i class="sw" style="background:var(--ramp-2)"></i>shared by 2-3 binaries</span><span><i class="sw" style="background:var(--ramp-3)"></i>shared by 4+ binaries</span><span><i class="sw" style="background:var(--ink);border-radius:0"></i>the binary's main package</span></div>`;
+const f1 = d3.format(".1f"), f2 = d3.format(".2f"), f3 = d3.format(".3f"), pct = d3.format(".0%");
+const nz = (v, f) => v == null ? "n/a" : f(v);
+
+/* ---------- forest ---------- */
+const U = D.used || null;
+let forestMode = U ? "path" : "imports";
+const guide = (shows, better, worse, extra = "") => `<div class="guide"><div><b>Shows</b>${shows}</div><div><b>Better</b>${better}</div><div><b>Worse</b>${worse}</div>${extra ? `<div class="gnote">${extra}</div>` : ""}</div>`;
+const ord = n => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+
+function forestModel(mode) {
+  const nodes = new Map(), edges = new Map();
+  const node = (id, pkg, root) => { if (!nodes.has(id)) nodes.set(id, { id, pkg, root, bins: new Set(), copies: 1 }); return nodes.get(id); };
+  const edge = (s, t, bins) => { const k = s + ">" + t; if (!edges.has(k)) edges.set(k, { s, t, bins: new Set() }); bins.forEach(b => edges.get(k).bins.add(b)); };
+  if (mode === "path") {
+    U.states.forEach((s, i) => { const n = node("s" + i, s.pkg, s.pkg.startsWith("cmd/")); s.bins.forEach(b => n.bins.add(b)); });
+    U.state_edges.forEach(([a, c, bs]) => edge("s" + a, "s" + c, bs));
+    const cnt = d3.rollup([...nodes.values()], v => v.length, n => n.pkg);
+    nodes.forEach(n => { n.copies = cnt.get(n.pkg); });
+  } else {
+    for (const b of binIds) {
+      node(b, b, true).bins.add(b);
+      if (mode === "pkg") {
+        const u = U.per_binary[b];
+        u.pkgs.forEach(p => node(p, p, false).bins.add(b));
+        u.edges.forEach(e => edge(e.s, e.t, [b]));
+      } else {
+        const ids = D.binaries[b].filter(x => codeIds.has(x)), set = new Set(ids);
+        ids.forEach(p => node(p, p, false).bins.add(b));
+        for (const s of [b, ...ids]) for (const t of byId.get(s).imports) if (set.has(t)) edge(s, t, [b]);
+      }
+    }
+  }
+  return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
+const perBinaryRows = () => D.facts.binary_rows;
+const ALL_MODES = { path: "used, by call path (each package once per distinct way it is used)", pkg: "used, by package (one node per package)", imports: "all imports (everything that is imported)" };
+const MODES = Object.fromEntries(Object.entries(ALL_MODES).filter(([k]) => U || k === "imports"));
+let forestLayout = "combined";
+const LAYOUTS = { combined: "combined, one panel", layered: "per binary, layered (each package once)", tree: "per binary, expanded tree (repeats shown)" };
+function binaryGraph(fm, b) {
+  const rootN = fm.nodes.find(n => n.root && n.pkg === b);
+  const out = d3.group(fm.edges.filter(e => e.bins.has(b)), e => e.s);
+  const seen = new Set([rootN.id]), stack = [rootN.id], edges = [];
+  while (stack.length) { const u = stack.pop(); for (const e of out.get(u) || []) { edges.push(e); if (!seen.has(e.t)) { seen.add(e.t); stack.push(e.t); } } }
+  const byN = new Map(fm.nodes.map(n => [n.id, n]));
+  return { nodes: [...seen].map(id => byN.get(id)), edges };
+}
+function renderForest(root) {
+  const rows = perBinaryRows();
+  root.innerHTML = `<div class="panel">
+    <div style="display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:space-between;align-items:end">
+      <div><h2>Forest of binaries</h2>
+      <p class="sub">Each binary is the root of a tree; every edge below is an import and points strictly down, so the bottom row holds packages that use nothing further in the module. Show every binary in one panel to see which packages they share, or one panel per binary to read each tree on its own.</p></div>
+      <div class="controls"><label for="fLayout">Layout <select id="fLayout">${Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+      <label for="fMode">Edges <select id="fMode">${Object.entries(MODES).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label></div>
+    </div>
+    ${guide("how each binary reaches into shared packages. A package drawn with many lines coming in is shared territory; a binary whose lines mostly end in nodes only it uses is self-contained.",
+      "few lines per binary, nodes colored lighter (used by one binary), shallow chains.",
+      "many lines converging on dark nodes (used by 4+ binaries), long chains, the same package repeated many times.",
+      U ? "Used means the linker kept the code and a call or reference leads to it. It comes from <code>go build -ldflags=-dumpdep</code> per binary (Go only; linux/amd64, CGO off). Imported-but-unused packages are dropped from the lines and counted in the table below. Choose <i>all imports</i> to see the plain import graph instead." : "Every edge is an import. Linker-reachability data (which imports are actually called) needs a Go unit that builds locally, so it is not available in this run.")}
+    ${shareLegend}</div>
+    <div id="fHost" style="margin-top:14px"></div>
+    ${U ? `<div class="panel" style="margin-top:14px"><h2>What imports cost each binary</h2>
+      <p class="sub">Every package a binary imports falls into one of three states: <b>called</b> (code is linked and something reaches it), <b>init only</b> (linked and its package initializer runs, but nothing calls into it) or <b>eliminated</b> (imported but removed by the linker).</p>
+      <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Binary</th><th class="num">imported pkgs</th><th class="num">called</th><th class="num">init only</th><th class="num">eliminated</th><th class="num">import edges</th><th class="num">used edges</th><th class="num">edges that are noise</th><th class="num">call-path nodes</th></tr></thead><tbody>${rows.map(r => `<tr><td class="path">${short(r.b)}</td><td class="num">${r.n}</td><td class="num">${r.called}</td><td class="num">${r.init}</td><td class="num">${r.gone}</td><td class="num">${r.imp}</td><td class="num">${r.used}</td><td class="num">${pct(r.noise)}</td><td class="num">${r.states}</td></tr>`).join("")}</tbody></table></div>
+      <p class="note">Edges that are noise: the share of import edges in the binary's closure that no used edge backs up. Init only is the signal to look at first: those packages ride along for their <code>init()</code> or package-level variables and are never called. Call-path nodes exceed called packages when a package is reached in more than one distinct way.</p>
+      <div class="guide"><div><b>Better</b>Fewer imported packages that are init-only or eliminated; high called share.</div><div><b>Worse</b>Large init-only counts: the binary carries and initializes code it does not use.</div><div class="gnote">Limits: the linker graph is conservative (a method kept for any interface call stays), so it can over-count use but not miss a real call. Chains through third-party libraries and calls hidden by inlining are not credited, so use can be under-reported. Only module packages are tracked.</div></div></div>` : ""}`;
+  $("#fLayout").value = forestLayout; $("#fLayout").onchange = e => { forestLayout = e.target.value; renderForest(root); };
+  $("#fMode").value = forestMode; $("#fMode").onchange = e => { forestMode = e.target.value; renderForest(root); };
+  const fm = forestModel(forestMode), host = $("#fHost");
+  if (forestLayout === "combined") {
+    const p = el(`<div class="panel"><h2>All binaries</h2><div class="scroll" style="margin-top:8px"></div><p class="note"></p></div>`);
+    host.appendChild(p);
+    $(".note", p).textContent = drawForest($(".scroll", p), fm);
+    return;
+  }
+  const order = state.binary ? [state.binary, ...binIds.filter(b => b !== state.binary)] : rows.map(r => r.b);
+  for (const b of order) {
+    const g = binaryGraph(fm, b), n = g.nodes.length - 1;
+    const shared = g.nodes.filter(x => !x.root && x.bins.size >= 2).length;
+    const p = el(`<div class="panel" style="margin-top:14px"><h2>${short(b)}</h2><p class="sub">${n} package nodes, ${g.edges.length} edges; ${shared} also reached by other binaries.</p><div class="scroll" style="margin-top:8px"></div><p class="note"></p></div>`);
+    host.appendChild(p);
+    const note = (forestLayout === "layered" ? drawForest : drawTree)($(".scroll", p), g, { noDim: true });
+    $(".note", p).textContent = note;
+  }
+}
+function drawTree(host, g) {
+  const byN = new Map(g.nodes.map(n => [n.id, n])), kids = new Map(g.nodes.map(n => [n.id, []]));
+  g.edges.forEach(e => kids.get(e.s).push(e.t));
+  const rootN = g.nodes.find(n => n.root);
+  const hm = new Map();
+  const hgt = id => { if (hm.has(id)) return hm.get(id); hm.set(id, 0); const k = kids.get(id); const v = k.length ? 1 + d3.max(k, hgt) : 0; hm.set(id, v); return v; };
+  g.nodes.forEach(n => hgt(n.id));
+  const occ = new Map([[rootN.id, 1]]);
+  for (const id of [...g.nodes].sort((a, b) => hm.get(b.id) - hm.get(a.id)).map(n => n.id)) for (const k of kids.get(id)) occ.set(k, (occ.get(k) || 0) + (occ.get(id) || 0));
+  const expanded = d3.sum([...occ.values()]);
+  const CAP = 420;
+  let cur = new Map([[rootN.id, 1]]), total = 1, depthCap = 0;
+  for (let d = 1; d < 30; d++) {
+    const next = new Map(); for (const [id, c] of cur) for (const k of kids.get(id)) next.set(k, (next.get(k) || 0) + c);
+    const add = d3.sum([...next.values()]);
+    if (!add) { depthCap = d - 1; break; }
+    if (total + add > CAP && d > 4) { depthCap = d - 1; break; }
+    total += add; depthCap = d; cur = next;
+  }
+  const build = (id, d) => ({ id, d, trunc: d === depthCap && kids.get(id).length > 0, children: d < depthCap ? kids.get(id).map(k => build(k, d + 1)) : [] });
+  const h = d3.hierarchy(build(rootN.id, 0));
+  d3.tree().nodeSize([15, 58])(h);
+  const xs = h.descendants().map(n => n.x), x0 = d3.min(xs), x1 = d3.max(xs);
+  const W = Math.max(hostWidth(host, 1100), x1 - x0 + 40), H = (depthCap + 1) * 58 + 24;
+  const svg = svgIn(host, W, H).style("max-width", "none"), gg = svg.append("g").attr("transform", `translate(${20 - x0},16)`);
+  gg.append("g").selectAll("path").data(h.links()).join("path").attr("fill", "none").style("stroke", "var(--edge-lo)").attr("stroke-width", 1).attr("stroke-opacity", 0.8)
+    .attr("d", d3.linkVertical().x(n => n.x).y(n => n.y));
+  const nd = gg.append("g").selectAll("g").data(h.descendants()).join("g").attr("transform", n => `translate(${n.x},${n.y})`);
+  const fillOf = n => { const c = byN.get(n.data.id).bins.size; return shareFill[c <= 1 ? "one" : c <= 3 ? "mid" : "many"]; };
+  nd.each(function (n) {
+    const s = d3.select(this);
+    if (n.depth === 0) s.append("rect").attr("x", -7).attr("y", -7).attr("width", 14).attr("height", 14).attr("rx", 2).style("fill", "var(--ink)");
+    else s.append("circle").attr("r", 4.5).style("fill", fillOf(n)).style("stroke", n.data.trunc ? "var(--ink)" : "var(--surface)").attr("stroke-width", n.data.trunc ? 1.6 : 1);
+  });
+  nd.on("mousemove", (ev, n) => { const x = byN.get(n.data.id);
+    showTip(ev, x.root ? `<b class="mono">${short(x.pkg)}</b><br>binary entry point` : `<b class="mono">${label(x.pkg)}</b><br>reached by ${x.bins.size} binar${x.bins.size === 1 ? "y" : "ies"}<br>appears ${occ.get(x.id)}× in this binary's expanded tree${n.data.trunc ? "<br>deeper imports not drawn" : ""}`); }).on("mouseleave", hideTip);
+  return `Showing ${fmt(h.descendants().length)} of ${fmt(expanded)} nodes, to depth ${depthCap} of ${hm.get(rootN.id)}. Outlined nodes have deeper imports that are not drawn. Scroll sideways if the tree is wider than the page.`;
+}
+function drawForest(host, fm, opts = {}) {
+  const { nodes, edges } = fm, byN = new Map(nodes.map(n => [n.id, n]));
+  const kids = new Map(nodes.map(n => [n.id, []])), pars = new Map(nodes.map(n => [n.id, []]));
+  edges.forEach(e => { kids.get(e.s).push(e.t); pars.get(e.t).push(e.s); });
+  const hm = new Map();
+  const h = id => { if (hm.has(id)) return hm.get(id); hm.set(id, 0); const k = kids.get(id); const v = k.length ? 1 + d3.max(k, h) : 0; hm.set(id, v); return v; };
+  nodes.forEach(n => h(n.id));
+  const nonRoot = nodes.filter(n => !n.root), maxH = d3.max(nonRoot, n => hm.get(n.id)) || 0;
+  const rowOf = n => n.root ? 0 : 1 + (maxH - hm.get(n.id));
+  const rows = d3.range(maxH + 2).map(() => []);
+  nodes.forEach(n => rows[rowOf(n)].push(n.id));
+  const SP = 8, M = 36, ML = 52;
+  const maxCnt = d3.max(rows, r => r.length), W = Math.max(hostWidth(host, 1600), maxCnt * SP + ML + M);
+  rows.forEach(r => r.sort((a, b) => d3.ascending(byN.get(a).pkg, byN.get(b).pkg) || d3.ascending(a, b)));
+  const pos = new Map();
+  const place = r => { const sp = Math.max(SP, Math.min(90, (W - ML - M) / Math.max(1, r.length))); r.forEach((id, i) => pos.set(id, ML + (W - ML - M - sp * r.length) / 2 + sp * (i + 0.5))); return sp; };
+  rows.forEach(place);
+  const bary = (id, nb) => { const xs = nb.get(id).map(n => pos.get(n)); return xs.length ? d3.mean(xs) : pos.get(id); };
+  for (let it = 0; it < 8; it++) {
+    for (let i = 1; i < rows.length; i++) { rows[i].sort((a, b) => bary(a, pars) - bary(b, pars) || d3.ascending(a, b)); place(rows[i]); }
+    for (let i = rows.length - 2; i >= 0; i--) { rows[i].sort((a, b) => bary(a, kids) - bary(b, kids) || d3.ascending(a, b)); place(rows[i]); }
+  }
+  const spRow = rows.map(r => Math.max(SP, Math.min(90, (W - ML - M) / Math.max(1, r.length))));
+  const RH = 80, MT = 24, H = MT + (rows.length - 1) * RH + 36;
+  const yOf = id => MT + rowOf(byN.get(id)) * RH;
+  const svg = svgIn(host, W, H).style("max-width", "none");
+  rows.forEach((r, i) => { if (r.length) svg.append("text").attr("class", "m").attr("x", 4).attr("y", MT + i * RH + 3).text(i === 0 ? "binaries" : "h=" + (maxH - (i - 1))); });
+  const sel = opts.noDim ? "" : state.binary;
+  const edgeOn = e => !sel || e.bins.has(sel), nodeOn = n => !sel || n.bins.has(sel);
+  const path = e => { const x1 = pos.get(e.s), y1 = yOf(e.s), x2 = pos.get(e.t), y2 = yOf(e.t), my = (y1 + y2) / 2; return `M${x1},${y1}C${x1},${my} ${x2},${my} ${x2},${y2}`; };
+  const cnt = n => n.bins.size;
+  const fillOf = n => shareFill[cnt(n) <= 1 ? "one" : cnt(n) <= 3 ? "mid" : "many"];
+  const lk = svg.append("g").selectAll("path").data(edges).join("path").attr("d", path).attr("fill", "none").style("stroke", "var(--edge-lo)").attr("stroke-width", 1).attr("stroke-opacity", e => edgeOn(e) ? 0.8 : 0.07);
+  const nd = svg.append("g").selectAll("g").data(nodes).join("g").attr("transform", n => `translate(${pos.get(n.id)},${yOf(n.id)})`).attr("opacity", n => nodeOn(n) ? 1 : 0.18);
+  nd.each(function (n) {
+    const g = d3.select(this);
+    if (n.root) g.append("rect").attr("x", -7).attr("y", -7).attr("width", 14).attr("height", 14).attr("rx", 2).style("fill", "var(--ink)");
+    else g.append("circle").attr("r", spRow[rowOf(n)] < 14 ? 3.4 : 4.6).style("fill", fillOf(n)).style("stroke", "var(--surface)").attr("stroke-width", 1.4);
+  });
+  const lab = svg.append("g").style("pointer-events", "none").selectAll("text").data(nodes.filter(n => n.root || spRow[rowOf(n)] >= 52)).join("text").attr("class", "m halo").attr("text-anchor", "middle")
+    .attr("x", n => pos.get(n.id)).attr("y", n => yOf(n.id) + (rows[rowOf(n)].indexOf(n.id) % 2 ? 24 : 15)).attr("opacity", n => nodeOn(n) ? 1 : 0.2)
+    .text(n => { if (n.root) return short(n.pkg); const s = n.pkg.split("/").pop(); return s.length > 11 ? s.slice(0, 10) + "…" : s; });
+  const tipFor = n => n.root ? `<b class="mono">${short(n.pkg)}</b><br>binary entry point` : `<b class="mono">${label(n.pkg)}</b><br>reached by ${n.bins.size} binar${n.bins.size === 1 ? "y" : "ies"}: ${[...n.bins].map(short).join(", ")}${forestMode === "path" && n.copies > 1 ? `<br>drawn ${n.copies} times: each copy is a different way of using it` : ""}`;
+  nd.on("mousemove", (ev, n) => {
+    const rel = new Set([n.id]); edges.forEach(e => { if (e.s === n.id || e.t === n.id) { rel.add(e.s); rel.add(e.t); } });
+    lk.attr("stroke-opacity", e => e.s === n.id || e.t === n.id ? 1 : 0.05).style("stroke", e => e.s === n.id ? "var(--sel)" : e.t === n.id ? "var(--c2)" : "var(--edge-lo)").attr("stroke-width", e => e.s === n.id || e.t === n.id ? 1.8 : 1);
+    nd.attr("opacity", m => rel.has(m.id) ? 1 : 0.15);
+    showTip(ev, tipFor(n));
+  }).on("mouseleave", () => { lk.attr("stroke-opacity", e => edgeOn(e) ? 0.8 : 0.07).style("stroke", "var(--edge-lo)").attr("stroke-width", 1); nd.attr("opacity", n => nodeOn(n) ? 1 : 0.18); hideTip(); });
+  return `${nodes.length - binIds.length} package nodes and ${edges.length} edges. Rows are height: the longest chain below a node, so every edge points down. Hover a node to see who uses it and what it uses; scroll sideways if the forest is wider than the page.`;
+}
+
+/* ---------- design structure matrix ---------- */
+let dsmOrder = "dir", dsmTrans = true;
+function renderDsm(root) {
+  const nodes = codePk.map(p => p.id);
+  const order = dsmOrder === "dir" ? [...nodes].sort(d3.ascending) : [...nodes].sort((a, b) => byId.get(b).h - byId.get(a).h || d3.ascending(a, b));
+  const idx = new Map(order.map((id, i) => [id, i]));
+  const reach = new Map();
+  for (const n of nodes) { const seen = new Set([n]), q = [n]; while (q.length) { const u = q.pop(); for (const v of adjOut.get(u)) if (!seen.has(v)) { seen.add(v); q.push(v); } } reach.set(n, seen); }
+  const N = nodes.length, ones = d3.sum([...reach.values()], s => s.size);
+  const direct = new Set(codeEdges.map(e => e.s + "|" + e.t));
+  const intra = codeEdges.filter(e => groupOf(e.s) === groupOf(e.t)).length;
+  const below = codeEdges.filter(e => idx.get(e.s) > idx.get(e.t)).length;
+  root.innerHTML = `<div class="panel">
+    <div style="display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:space-between;align-items:end">
+      <div><h2>Design structure matrix</h2>
+      <p class="sub">The standard dependency-matrix rendering from the software-architecture literature. Row depends on column. In directory order, a modular layout shows marks packed into blocks along the diagonal; marks far from it reach across directories. In layer order marks land on one side of the diagonal, apart from any import cycles.</p></div>
+      <div class="controls"><label for="dsmO">Order <select id="dsmO"><option value="dir">directory path</option><option value="layer">dependency layer</option></select></label>
+      <label for="dsmT"><input type="checkbox" id="dsmT"> show indirect reach</label></div>
+    </div>
+    <div class="legend"><span><i class="sw" style="background:var(--sel)"></i>direct import</span><span><i class="sw" style="background:var(--sel);opacity:.25"></i>reachable through other packages</span></div>
+    <div class="scroll" id="dsmHost" style="margin-top:10px"></div>
+    <p class="note">${N} packages. Direct imports fill ${f1(100 * codeEdges.length / (N * N))}% of the matrix; with indirect reach it is ${f1(100 * ones / (N * N))}%, which is the propagation cost: on average a change in one package can reach that share of all packages. ${pct(intra / codeEdges.length)} of direct imports stay inside one top-level directory. In this order ${below} marks sit below the diagonal.</p></div>`;
+  $("#dsmO").value = dsmOrder; $("#dsmO").onchange = e => { dsmOrder = e.target.value; renderDsm(root); };
+  $("#dsmT").checked = dsmTrans; $("#dsmT").onchange = e => { dsmTrans = e.target.checked; renderDsm(root); };
+  const lw = 130, top = 120, cs = Math.max(4, Math.min(8, Math.floor((hostWidth($("#dsmHost"), 1100) - lw - 10) / N)));
+  const W = lw + cs * N + 10, H = top + cs * N + 10;
+  const svg = svgIn($("#dsmHost"), W, H);
+  svg.append("rect").attr("x", lw).attr("y", top).attr("width", cs * N).attr("height", cs * N).style("fill", "none").style("stroke", "var(--line)");
+  for (let i = 0; i < N; i++) svg.append("rect").attr("x", lw + i * cs).attr("y", top + i * cs).attr("width", cs).attr("height", cs).style("fill", "var(--grid)");
+  if (dsmOrder === "dir") {
+    let start = 0;
+    const flush = i => { const gname = groupOf(order[start]); const y0 = top + start * cs;
+      svg.append("text").attr("class", "m strong").attr("x", lw - 6).attr("y", y0 + 9).attr("text-anchor", "end").text(gname);
+      svg.append("text").attr("class", "m strong").attr("transform", `translate(${lw + start * cs + 9},${top - 6}) rotate(-60)`).text(gname);
+      if (start > 0) { svg.append("line").attr("x1", lw).attr("x2", lw + cs * N).attr("y1", y0).attr("y2", y0).style("stroke", "var(--line)"); svg.append("line").attr("y1", top).attr("y2", top + cs * N).attr("x1", lw + start * cs).attr("x2", lw + start * cs).style("stroke", "var(--line)"); }
+      start = i; };
+    for (let i = 1; i <= N; i++) if (i === N || groupOf(order[i]) !== groupOf(order[start])) flush(i);
+  } else {
+    svg.append("text").attr("class", "m").attr("x", lw - 6).attr("y", top + 9).attr("text-anchor", "end").text("importers first");
+    svg.append("text").attr("class", "m").attr("x", lw - 6).attr("y", top + cs * N).attr("text-anchor", "end").text("leaves last");
+  }
+  const marks = [];
+  for (const s of nodes) for (const t of reach.get(s)) if (s !== t) { const dr = direct.has(s + "|" + t); if (dr || dsmTrans) marks.push({ s, t, dr }); }
+  svg.append("g").selectAll("rect").data(marks).join("rect").attr("x", d => lw + idx.get(d.t) * cs).attr("y", d => top + idx.get(d.s) * cs).attr("width", cs - 0.5).attr("height", cs - 0.5)
+    .style("fill", "var(--sel)").attr("opacity", d => d.dr ? 1 : 0.25)
+    .on("mousemove", (ev, d) => showTip(ev, `<b class="mono">${label(d.s)}</b><br>${d.dr ? "imports" : "reaches"}<br><b class="mono">${label(d.t)}</b>`)).on("mouseleave", hideTip);
+}
+
+/* ---------- scorecard ---------- */
+const SRC = {
+  pc: ["https://ideas.repec.org/a/inm/ormnsc/v52y2006i7p1015-1030.html", "MacCormack, Rusnak & Baldwin 2006"],
+  lakos: ["https://docs.lattix.com/lattix/userGuide/Metrics.html", "Lakos, via Lattix docs"],
+  martin: ["https://en.wikipedia.org/wiki/Software_package_metrics", "Martin's package metrics"],
+};
+const ln = k => `<a href="${SRC[k][0]}" target="_blank" rel="noopener" style="color:var(--sel)">${SRC[k][1]}</a>`;
+/* One record per measure drives the table header, the peer strips and the reading guide. */
+const MEASURES = [
+  { key: "n", col: "packages", name: "Packages", dir: "none", get: m => m.n, f: fmt, pub: "count",
+    what: "Non-test, non-mock, non-entry-point packages in the unit.", read: "Size only. Larger modules naturally score higher on reach-based measures.", warn: "" },
+  { key: "e", col: "edges", name: "Import edges", dir: "none", get: m => m.e, f: fmt, pub: "count",
+    what: "Pairs where one package imports another.", read: "Size only.", warn: "" },
+  { key: "epp", col: "edges / pkg", name: "Edges per package", dir: "low", get: m => m.edges_per_pkg, f: f1, pub: "derived here",
+    what: "Average number of other packages each package imports directly.", read: "3.2 means a typical package imports about three others. Lower means looser wiring.", warn: "Compare with similarly sized modules. Not a published score." },
+  { key: "acd", col: "ACD", name: "Average component dependency (ACD)", dir: "low", get: m => m.acd, f: f1, pub: "published", src: "lakos",
+    what: "Average number of packages a package depends on, directly or through others, counting itself.", read: "7.5 means the average package pulls in itself plus 6.5 others. 1.0 would mean nothing imports anything.", warn: "Grows with module size; use NCCD to compare across sizes." },
+  { key: "nccd", col: "NCCD", name: "Normalized cumulative component dependency (NCCD)", dir: "low", get: m => m.nccd, f: f2, pub: "published", src: "lakos",
+    what: "Total dependency reach divided by that of a perfectly balanced binary tree with the same number of packages.", read: "1.0 equals a balanced tree. Below 1 is flatter than a tree. 1.30 means 30% more total dependency than a balanced tree of that size; higher means more chained, vertical structure.", warn: "The tree is only a yardstick; real systems are not trees." },
+  { key: "pc", col: "propagation cost", name: "Propagation cost", dir: "low", get: m => m.pc, f: pct, pub: "published", src: "pc",
+    what: "Share of all package pairs where the first depends on the second, directly or through others (a package counts as depending on itself).", read: "7% means a change to a typical package can reach about 7 of every 100 packages. Lower means changes stay contained.", warn: "Falls as modules get bigger even at the same wiring density, so a low value in a large module reflects its size as much as its design." },
+  { key: "d", col: "mean D", name: "Mean distance from the main sequence", dir: "low", get: m => m.mean_d, f: f2, pub: "published", src: "martin",
+    what: "Average of |abstractness + instability − 1| over packages. Abstractness is interfaces / types; instability is imports out / (in + out).", read: "0 is ideal balance between stable-and-abstract and unstable-and-concrete. 1 is as far as it gets. One source flags packages above 0.7.", warn: "Idiomatic Go is concrete, so abstractness sits near 0 everywhere and D mostly restates stability. Weak signal here." },
+  { key: "sdp", col: "SDP violations", name: "Imports toward less stable packages", dir: "low", get: m => m.sdp_pct, f: pct, pub: "published principle, % derived here", src: "martin",
+    what: "Share of imports where a package depends on one that is less stable than itself (instability of the target is higher than the importer's).", read: "0% is ideal: dependencies point toward more stable, harder-to-change packages. Each violation is a stable package that must change when something volatile changes.", warn: "A few percent of a small module is a handful of edges; look at the list below, not just the percentage." },
+  { key: "x", col: "cross-subtree imports", name: "Imports crossing 4+ directory hops", dir: "low", get: m => m.cross_pct, f: pct, pub: "derived here, not a published standard",
+    what: "Share of imports whose two packages are at least 4 directory hops apart through their nearest common parent.", read: "10% means most imports stay near home; 35% means a third of imports reach across the tree. Lower means the directory layout matches the dependencies.", warn: "Deeper nesting inflates it." },
+  { key: "q", col: "modularity Q (z)", name: "Directory modularity Q", dir: "high", get: m => m.q.top.q, f: f2, pub: "published", extraGet: m => m.q.top.z,
+    what: "Share of imports that stay inside a top-level directory minus the share expected if the same packages were wired at random. The z in brackets says how many standard deviations above random that is.", read: "0 means the directories explain the imports no better than chance. Network studies commonly treat roughly 0.3 to 0.7 as clear community structure (the figure comes from Newman and Girvan's original work; I did not re-check it). z above about 3 means the result is not chance.", warn: "Depends on how many directory groups there are." },
+];
+const DIRTXT = { low: "Lower is better", high: "Higher is better", none: "No direction" };
+const DIRARROW = { low: " ↓", high: " ↑", none: "" };
+function renderScorecard(root) {
+  const mods = Object.values(D.metrics.modules).sort((a, b) => b.n - a.n);
+  const minN = D.metrics.min_n_for_ranking;
+  const ranked = mods.filter(m => m.n >= minN), tiny = mods.filter(m => m.n < minN);
+  const subjM = D.metrics.modules[SUBJ];
+  const cell = (c, m) => c.key === "q" ? `${f2(m.q.top.q)} (${f1(m.q.top.z)})` : (c.get(m) == null ? "n/a" : c.f(c.get(m)));
+  const row = m => `<tr style="${m.name === SUBJ ? "background:var(--line);font-weight:600" : ""}"><td class="path" style="white-space:nowrap">${m.name}</td>${MEASURES.map(c => `<td class="num">${cell(c, m)}</td>`).join("")}</tr>`;
+  const rank = c => { if (c.dir === "none") return null; const vals = ranked.filter(m => c.get(m) != null).sort((a, b) => c.dir === "low" ? c.get(a) - c.get(b) : c.get(b) - c.get(a)); const i = vals.findIndex(m => m.name === SUBJ); return i < 0 ? null : `${ord(i + 1)} of ${vals.length}`; };
+  root.innerHTML = `<div class="panel">
+    <h2>Scorecard against peers</h2>
+    <p class="sub">Each column is one way of measuring dependency structure, computed the same way for every unit in the comparison (${D.meta.units_desc}), over non-test, non-mock, non-entry-point packages. The highlighted row, <b>${SUBJ}</b>, is the subject of this analysis. An arrow on the header says which direction is better; hover a header for its definition. No single threshold separates clean from tangled, so read ${SUBJ} against its peers.</p>
+    <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Module</th>${MEASURES.map(c => `<th class="num" title="${c.name}. ${DIRTXT[c.dir]}. ${c.what}">${c.col}${DIRARROW[c.dir]}</th>`).join("")}</tr></thead><tbody>${ranked.map(row).join("")}${tiny.length ? `<tr><td colspan="${MEASURES.length + 1}" class="path" style="color:var(--muted)">too small to compare (under ${minN} packages)</td></tr>${tiny.map(row).join("")}` : ""}</tbody></table></div>
+    <p class="note">↓ lower is better, ↑ higher is better, no arrow means size only. Only ${ranked.length} modules clear the size cutoff, so this is a small peer group.</p></div>
+    <div class="panel"><h2>How to read each column</h2>
+      <p class="sub">Rank counts ${SUBJ} among the ${ranked.length} comparable modules, 1st being best by the stated direction.</p>
+      <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Measure</th><th>What it counts</th><th>Better is</th><th>How to read a value</th><th class="num">${SUBJ}</th><th>Rank</th><th>Source</th></tr></thead><tbody>${MEASURES.map((c, i) => `<tr style="${i % 2 ? "" : "background:var(--grid)"}"><td><b>${c.name}</b></td><td>${c.what}${c.warn ? `<br><span style="color:var(--muted)">${c.warn}</span>` : ""}</td><td>${DIRTXT[c.dir]}</td><td>${c.read}</td><td class="num">${cell(c, subjM)}</td><td>${rank(c) || "n/a"}</td><td>${c.src ? ln(c.src) : ""}<br><span class="pill">${c.pub}</span></td></tr>`).join("")}</tbody></table></div></div>
+    <div class="panel"><h2>Where ${SUBJ} sits in the peer group</h2>
+      ${guide(`each measure as a line, one dot per comparable module. ${SUBJ} is the large blue dot.`, `${SUBJ}'s dot toward the end labelled better, close to or beyond the best peers.`, `${SUBJ}'s dot toward the worse end, away from the cluster of peers.`, `A dot far from the others matters more than its exact value. With ${ranked.length} modules, one outlier moves the whole axis.`)}
+      <div id="strips" style="margin-top:8px"></div></div>
+    <div style="margin-top:14px">
+      ${D.meta.has_abstractness ? `<div class="panel"><h2>Instability against abstractness</h2>
+        <div class="split"><div class="splitside" style="order:2">${guide("each package placed by how stable it is (horizontal) and how abstract it is (vertical).", "dots near the dashed main sequence line.", "bottom left: stable, concrete, hard to change (the zone of pain). Top right: abstract but unused.", "Go is mostly concrete types with small interfaces defined by the consumer, so A is near 0 almost everywhere and the picture mostly sorts packages by stability. Treat it as a weak signal.")}
+        </div><div class="splitmain" style="order:1">${legendHTML()}<div id="martin" style="margin-top:8px"></div></div></div></div>
+      <div class="panel"><h2>Farthest from the main sequence</h2>
+        <p class="sub">Packages with the largest distance D. Almost all are leaf packages with no imports (I = 0) and no interfaces (A = 0), which Martin's scheme scores as 1.0 whether or not they are a problem.</p>
+        <div class="scroll" id="dTable" style="margin-top:8px"></div></div>` : ""}
+    </div>
+    <div style="margin-top:14px">
+      <div class="panel"><h2>Imports toward less stable packages</h2>
+        ${guide("imports where the target is less stable than the importer, which breaks Martin's Stable Dependencies Principle.", "an empty list. Dependencies point toward packages that change less.", "many rows with large gaps between the two instability values.", `${subjM.sdp_bad} of ${subjM.sdp_total} imports (${pct(subjM.sdp_pct)}) qualify. Gap is the target's instability minus the importer's. Largest:`)}
+        <div class="scroll" id="sdpTable" style="margin-top:8px"></div></div>
+      <div class="panel"><h2>Does the directory layout match the imports?</h2>
+        ${guide("how many imports stay inside a directory group compared with random wiring.", "higher Q and higher z; the layout predicts the imports.", "Q near 0: the directories say little about who imports whom.", `Top-level directory has ${subjM.q.top.groups} groups; the immediate-parent split has ${subjM.q.parent.groups}${subjM.q.parent.q < subjM.q.top.q ? " and scores lower because the code is spread thinner" : ""}.`)}
+        <div class="scroll" id="qTable" style="margin-top:8px"></div>
+        <h3 style="margin-top:12px">Packages least at home in their directory</h3>
+        <p class="note" style="margin-top:0">Share of a package's import neighbours that live in its own top-level directory. Low is expected for shared utilities used everywhere (models, telemetry); it is a concern for a package that is supposed to belong to one area.</p>
+        <div class="scroll" id="fitTable"></div></div>
+    </div>
+    <div class="panel"><h3>Sources and what is ours</h3>
+      <p class="note" style="margin-top:0">Published definitions: ACD, CCD and NCCD (${ln("lakos")}; I confirmed the balanced-tree formula by hand, not against the book), propagation cost (${ln("pc")}), instability, abstractness, distance and the Stable Dependencies Principle (${ln("martin")}), and Newman–Girvan modularity (no link checked here). Derived here and not published standards: edges per package, the cross-subtree import share, the SDP violation percentage, and the used-versus-imported analysis on the Forest tab. Thresholds quoted in the literature, such as D above 0.7, are heuristics and were not calibrated on Go.</p></div>`;
+  strips($("#strips", root), ranked);
+  if (D.meta.has_abstractness) martinScatter($("#martin", root));
+  const withD = codePk.filter(p => p.d != null).sort((a, b) => b.d - a.d).slice(0, 12);
+  if (D.meta.has_abstractness) $("#dTable", root).innerHTML = `<table><thead><tr><th>Package</th><th class="num">I</th><th class="num">A</th><th class="num">D</th><th>side</th></tr></thead><tbody>${withD.map(p => `<tr><td class="path">${label(p.id)}</td><td class="num">${f2(p.i)}</td><td class="num">${f2(p.a)}</td><td class="num">${f2(p.d)}</td><td><span class="pill">${p.a + p.i < 1 ? "stable & concrete" : "abstract & unstable"}</span></td></tr>`).join("")}</tbody></table>`;
+  const I = id => byId.get(id).i;
+  const sdp = D.sdp_violations.map(v => ({ ...v, gap: I(v.t) - I(v.s) })).sort((a, b) => b.gap - a.gap).slice(0, 10);
+  $("#sdpTable", root).innerHTML = `<table><thead><tr><th>Importer (I)</th><th>Imports (I)</th><th class="num">gap</th></tr></thead><tbody>${sdp.map(v => `<tr><td class="path">${label(v.s)} (${f2(I(v.s))})</td><td class="path">${label(v.t)} (${f2(I(v.t))})</td><td class="num">${f2(v.gap)}</td></tr>`).join("")}</tbody></table>`;
+  const q = subjM.q;
+  $("#qTable", root).innerHTML = `<table><thead><tr><th>Partition</th><th class="num">groups</th><th class="num">Q</th><th class="num">random</th><th class="num">z</th></tr></thead><tbody>${[["top-level directory", q.top], ["immediate parent directory", q.parent]].map(([n, v]) => `<tr><td>${n}</td><td class="num">${v.groups}</td><td class="num">${f2(v.q)}</td><td class="num">${f2(v.null_mean)}</td><td class="num">${f1(v.z)}</td></tr>`).join("")}</tbody></table>`;
+  const fit = codePk.filter(p => p.fit != null && p.deg >= 4).sort((a, b) => a.fit - b.fit || b.deg - a.deg).slice(0, 10);
+  $("#fitTable", root).innerHTML = `<table><thead><tr><th>Package</th><th class="num">neighbours</th><th class="num">in own dir</th></tr></thead><tbody>${fit.map(p => `<tr><td class="path">${label(p.id)}</td><td class="num">${p.deg}</td><td class="num">${pct(p.fit)}</td></tr>`).join("")}</tbody></table>`;
+}
+function strips(host, mods) {
+  const defs = MEASURES.filter(c => c.dir !== "none" && c.key !== "epp" && mods.some(m => (c.key === "q" ? m.q.top.q : c.get(m)) != null));
+  const W = hostWidth(host, 1100), rowH = 150, ml = 16;
+  const svg = svgIn(host, W, defs.length * rowH + 6);
+  defs.forEach((c, i) => {
+    const get = c.key === "q" ? m => m.q.top.q : c.get;
+    const vals = mods.map(m => ({ m, v: get(m) })).filter(d => d.v != null);
+    const lo = d3.min(vals, d => d.v), hi = d3.max(vals, d => d.v), pad = (hi - lo || 1) * 0.08;
+    const x = d3.scaleLinear([lo - pad, hi + pad], [ml + 20, W - ml - 40]);
+    const g = svg.append("g").attr("transform", `translate(0,${i * rowH})`);
+    if (i % 2 === 0) g.append("rect").attr("x", 0).attr("y", -6).attr("width", W).attr("height", rowH).attr("rx", 6).style("fill", "var(--grid)").attr("opacity", 0.7);
+    g.append("text").attr("class", "strong").attr("x", ml).attr("y", 14).text(c.name);
+    g.append("text").attr("x", W - ml - 40).attr("y", 14).attr("text-anchor", "end").style("fill", "var(--muted)").html(c.dir === "low" ? '<tspan>← better</tspan><tspan dx="22">worse →</tspan>' : '<tspan>← worse</tspan><tspan dx="22">better →</tspan>');
+    g.append("line").attr("x1", ml + 20).attr("x2", W - ml - 40).attr("y1", 100).attr("y2", 100).style("stroke", "var(--line)");
+    [...vals].sort((a, b) => a.v - b.v).forEach((d, j) => {
+      const isE = d.m.name === SUBJ, cx = x(d.v);
+      if (!isE) g.append("line").attr("x1", cx).attr("x2", cx).attr("y1", [48, 64, 80][j % 3] + 4).attr("y2", 94).style("stroke", "var(--line)");
+      g.append("circle").attr("cx", cx).attr("cy", 100).attr("r", isE ? 8 : 5).style("fill", isE ? "var(--sel)" : "var(--other)").style("stroke", "var(--surface)").attr("stroke-width", 1.5)
+        .on("mousemove", ev => showTip(ev, `<b>${d.m.name}</b><br>${c.name}: ${c.f(d.v)}<br>${d.m.n} packages`)).on("mouseleave", hideTip);
+      g.append("text").attr("class", isE ? "m strong" : "m").attr("x", cx).attr("y", isE ? 126 : [48, 64, 80][j % 3]).attr("text-anchor", "middle").text(`${d.m.name} ${c.f(d.v)}`);
+    });
+  });
+}
+function martinScatter(host) {
+  const pts = codePk.filter(p => p.i != null && p.a != null);
+  const skipped = codePk.length - pts.length;
+  const W = hostWidth(host, 900), H = 460, ml = 40, mb = 36, mr = 12, mt = 10;
+  const x = d3.scaleLinear([0, 1], [ml, W - mr]), y = d3.scaleLinear([0, 1], [H - mb, mt]);
+  const svg = svgIn(host, W, H);
+  svg.append("g").selectAll("line").data([0, 0.25, 0.5, 0.75, 1]).join("line").attr("x1", ml).attr("x2", W - mr).attr("y1", y).attr("y2", y).style("stroke", "var(--grid)");
+  svg.append("g").selectAll("text").data([0, 0.5, 1]).join("text").attr("x", ml - 6).attr("y", d => y(d) + 4).attr("text-anchor", "end").text(d => d);
+  svg.append("g").selectAll("text").data([0, 0.5, 1]).join("text").attr("x", x).attr("y", H - 20).attr("text-anchor", "middle").text(d => d);
+  svg.append("text").attr("x", W - mr).attr("y", H - 4).attr("text-anchor", "end").text("instability I (0 stable, 1 unstable)");
+  svg.append("text").attr("x", 4).attr("y", 10).text("abstractness A");
+  svg.append("line").attr("x1", x(0)).attr("y1", y(1)).attr("x2", x(1)).attr("y2", y(0)).style("stroke", "var(--ink2)").attr("stroke-dasharray", "4 3");
+  svg.append("text").attr("class", "m").attr("x", x(0.62)).attr("y", y(0.42) - 6).attr("transform", `rotate(45 ${x(0.62)} ${y(0.42) - 6})`).text("main sequence");
+  const jit = new Map(pts.map((p, i) => [p.id, ((i * 37) % 11 - 5) * 0.004]));
+  svg.append("g").selectAll("circle").data([...pts].sort((a, b) => b.loc - a.loc)).join("circle")
+    .attr("cx", p => x(Math.min(1, Math.max(0, p.i + jit.get(p.id))))).attr("cy", p => y(Math.min(1, Math.max(0, p.a - jit.get(p.id)))))
+    .attr("r", p => 3 + Math.sqrt(p.loc) / 9).style("fill", p => groupColor(groupOf(p.id))).attr("fill-opacity", 0.75).style("stroke", "var(--surface)").attr("stroke-width", 1.2)
+    .on("mousemove", (ev, p) => showTip(ev, `<b class="mono">${label(p.id)}</b><br>I ${f2(p.i)} (in ${p.ca}, out ${p.ce})<br>A ${f2(p.a)} (${p.ifaces} of ${p.types} types)<br>D ${f2(p.d)}`)).on("mouseleave", hideTip);
+  host.insertAdjacentHTML("beforeend", `<p class="note">${pts.length} of ${codePk.length} packages plotted; ${skipped} have no imports in or out, or no type declarations, so I or A is undefined.</p>`);
+}
+
+/* ---------- analysis & suggestions (article layout) ---------- */
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const go = (tab, text) => `<a href="#${tab}" data-go="${tab}">${text}</a>`;
+function miniBars(rows, { w = 520, lw = 150, fmtv = v => v, max } = {}) {
+  const rh = 20, h = rows.length * rh + 4, mx = max ?? (d3.max(rows, r => d3.sum(r.segs, s => s.v)) || 1);
+  const x = v => (w - lw - 120) * v / mx;
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img">${rows.map((r, i) => {
+    let acc = 0; const y = i * rh + 2, tot = d3.sum(r.segs, s => s.v);
+    const band = i % 2 === 0 ? `<rect x="0" y="${y - 1}" width="${w}" height="${rh}" rx="3" style="fill:var(--grid)" opacity="0.6"/>` : "";
+    const segs = r.segs.map(s => { const sx = lw + x(acc); acc += s.v; return s.v > 0 ? `<rect x="${sx}" y="${y + 3}" width="${Math.max(1, x(s.v) - 1.5)}" height="13" rx="3" style="fill:${s.fill}"><title>${esc(r.label)}: ${esc(s.name || "")} ${fmtv(s.v)}</title></rect>` : ""; }).join("");
+    return `${band}<text class="m strong" x="${lw - 8}" y="${y + 13}" text-anchor="end">${esc(r.label)}</text>${segs}<text class="m" x="${lw + x(tot) + 6}" y="${y + 13}">${r.note ?? fmtv(tot)}</text>`;
+  }).join("")}</svg>`;
+}
+function miniPips(items, n) {
+  const w = 520, lw = 230, rh = 24, h = items.length * rh + 22, x = i => lw + 14 + i * ((w - lw - 100) / (n - 1));
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img"><text class="m" x="${x(0)}" y="12" text-anchor="middle">best</text><text class="m" x="${x(n - 1)}" y="12" text-anchor="middle">worst</text>${items.map((it, r) => {
+    const y = 26 + r * rh;
+    const band = r % 2 === 0 ? `<rect x="0" y="${y - 12}" width="${w}" height="${rh}" rx="3" style="fill:var(--grid)" opacity="0.6"/>` : "";
+    return `${band}<text class="strong" x="${lw - 8}" y="${y + 4}" text-anchor="end">${esc(it.name)}</text>${d3.range(n).map(i => `<circle cx="${x(i)}" cy="${y}" r="${i === it.rank ? 7 : 4.5}" style="fill:${i === it.rank ? "var(--sel)" : "var(--other)"}"/>`).join("")}<text class="m" x="${w - 4}" y="${y + 4}" text-anchor="end">${esc(it.value)}</text>`;
+  }).join("")}</svg>`;
+}
+function miniDots(rows, { w = 520, lw = 150, fmtv = f2 } = {}) {
+  const rh = 20, h = rows.length * rh + 4, lo = d3.min(rows, r => r.v), hi = d3.max(rows, r => r.v);
+  const x = v => lw + 10 + (w - lw - 70) * (v - lo) / ((hi - lo) || 1);
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img">${rows.map((r, i) => {
+    const y = i * rh + 12;
+    const band = i % 2 === 0 ? `<rect x="0" y="${y - 10}" width="${w}" height="${rh}" rx="3" style="fill:var(--grid)" opacity="0.6"/>` : "";
+    return `${band}<text class="m ${r.hi ? "strong" : ""}" x="${lw - 8}" y="${y + 4}" text-anchor="end">${esc(r.label)}</text><line x1="${lw + 10}" x2="${x(r.v)}" y1="${y}" y2="${y}" style="stroke:var(--line)"/><circle cx="${x(r.v)}" cy="${y}" r="${r.hi ? 6.5 : 4.5}" style="fill:${r.hi ? "var(--sel)" : "var(--other)"}"/><text class="m" x="${x(r.v) + 10}" y="${y + 4}">${fmtv(r.v)}</text>`;
+  }).join("")}</svg>`;
+}
+const fig = (svg, caption) => `<figure class="mini"><div class="scroll">${svg}</div><figcaption>${caption}</figcaption></figure>`;
+const keyTxt = items => `<div class="legend">${items.map(([c, t]) => `<span><i class="sw" style="background:${c}"></i>${t}</span>`).join("")}</div>`;
+
+const fmtMeasure = k => MEASURES.find(c => c.key === k).f;
+function figRanks(F) {
+  const items = F.ranks.filter(r => r.rank != null && r.value != null).map(r => ({ name: r.name, rank: r.rank, value: fmtMeasure(r.key)(r.value), of: r.of }));
+  if (!items.length) return "";
+  return fig(miniPips(items, d3.max(items, i => i.of)), `${SUBJ}'s position (blue) among ${F.n_peers} comparable units on each measure. Details on the ${go("scorecard", "Scorecard")}.`);
+}
+function figShare(F) {
+  if (!F.share_rows.length) return "";
+  return fig(miniBars(F.share_rows.map(r => ({ label: short(r.b), segs: [{ v: r.s, fill: "var(--ramp-3)", name: "shared" }, { v: r.own, fill: "var(--ramp-1)", name: "own" }], note: pct(r.pct) + " shared" }))),
+    `${keyTxt([["var(--ramp-3)", "also imported by another binary"], ["var(--ramp-1)", "only this binary"]])}Packages each binary imports. See the ${go("forest", "Forest")} and ${go("matrix", "Binary × package")} tabs.`);
+}
+function figUse(F) {
+  const rows = F.binary_rows.filter(r => r.called != null);
+  if (!rows.length) return "";
+  return fig(miniBars(rows.map(r => ({ label: short(r.b), segs: [{ v: r.called, fill: "var(--sel)", name: "called" }, { v: r.init, fill: "var(--c4)", name: "init only" }, { v: r.gone, fill: "var(--other)", name: "eliminated" }], note: `${r.init} init only` }))),
+    `${keyTxt([["var(--sel)", "called"], ["var(--c4)", "linked, init only"], ["var(--other)", "eliminated by the linker"]])}What happens to each binary's imported packages once linked. From the cost table on the ${go("forest", "Forest")} tab.`);
+}
+function figHub(F) {
+  const a = F.hub;
+  if (!a) return "";
+  const nm = label(a.id).split("/").slice(-2).join("/");
+  const m = [["lines of code", a.loc, a.next_loc, "loc"], ["packages imported", a.fan_out, a.next_out, "fan_out"]];
+  if (D.churn.available) m.push([`commits, ${D.churn.months} months`, a.commits, a.next_churn, "commits"]);
+  const rows = m.filter(([, av, next]) => av > 0 && next).flatMap(([name, av, next, key]) => [
+    { label: `${name}: ${nm}`, segs: [{ v: 1, fill: "var(--c1)" }], note: fmt(av) },
+    { label: `next: ${label(next.id).split("/").slice(-2).join("/")}`, segs: [{ v: next[key] / av, fill: "var(--other)" }], note: fmt(next[key]) }]);
+  if (!rows.length) return "";
+  return fig(miniBars(rows, { lw: 250, w: 560, max: 1 }),
+    `<code>${label(a.id)}</code> against the runner-up on each measure. Explore it on ${go("overview", "Overview")}${D.churn.available ? ` and ${go("churn", "Size & churn")}` : ""}.`);
+}
+function figMisfit(F) {
+  if (!F.misfit.length) return "";
+  return fig(miniBars(F.misfit.map(p => ({ label: label(p.id), segs: [{ v: Math.round(p.fit * p.deg), fill: "var(--sel)", name: "in own directory" }, { v: p.deg - Math.round(p.fit * p.deg), fill: "var(--other)", name: "elsewhere" }], note: `${pct(p.fit)} at home` })), { lw: 190 }),
+    `${keyTxt([["var(--sel)", "import neighbours in its own directory"], ["var(--other)", "neighbours elsewhere"]])}From "packages least at home" on the ${go("scorecard", "Scorecard")}.`);
+}
+function figHidden(F) {
+  if (!F.hidden.length) return "";
+  return fig(miniBars(F.hidden.slice(0, 5).map(p => ({ label: `${p.a.split("/").pop()} ↔ ${p.b.split("/").pop()}`, segs: [{ v: p.n, fill: "var(--c2)" }], note: `${p.n} commits` })), { lw: 230 }),
+    `Package pairs that changed together with no import between them. Full list on ${go("churn", "Size & churn")}.`);
+}
+function figDepth(F) {
+  if (F.depth.length < 2) return "";
+  return fig(miniDots(F.depth), `Average directory depth of a package, per unit. The import side of this is on the ${go("bundle", "Directory vs dependency")} and ${go("dsm", "Dependency matrix")} tabs.`);
+}
+function figCore(F) {
+  if (!F.core.length) return "";
+  return fig(miniBars(F.core.slice(0, 10).map(([p, n]) => ({ label: label(p), segs: [{ v: n, fill: "var(--ramp-3)" }], note: `${n} binaries` })), { lw: 210, max: binIds.length }),
+    `Packages that ${F.core_min} or more binaries ${F.core_basis === "linker" ? "actually call, by the linker's account" : "import, directly or through others"}: the natural shared core.`);
+}
+function figDeep(F) {
+  if (!F.deepest.length) return "";
+  return fig(miniBars(F.deepest.map(p => ({ label: label(p.id).split("/").slice(-2).join("/"), segs: [{ v: p.d, fill: "var(--other)" }], note: `${p.d} levels` })), { lw: 210, max: d3.max(F.deepest, p => p.d) }),
+    `The most deeply nested packages. Full paths on the ${go("bundle", "Directory vs dependency")} tab.`);
+}
+const FIGS = { ranks: figRanks, share: figShare, use: figUse, hub: figHub, misfit: figMisfit, hidden: figHidden, depth: figDepth, core: figCore, deep: figDeep };
+const rich = s => String(s).replace(/\{\{go:(\w+)\|([^}]+)\}\}/g, (_, t, x) => go(t, x));
+function renderArticle(root, mode) {
+  const N = D.narrative[mode], F = D.facts;
+  const sec = s => `<section class="art-sec"><h2>${s.title}</h2>${(s.paras || []).map(p => `<p>${rich(p)}</p>`).join("")}${(s.figs || []).map(k => (FIGS[k] ? FIGS[k](F) : "")).join("")}</section>`;
+  const aside = N.aside ? `<aside class="art-aside"><h3>${N.aside.title}</h3><ul>${N.aside.items.map(i => `<li>${rich(i)}</li>`).join("")}</ul>${N.aside.next ? `<p>${rich(N.aside.next)}</p>` : ""}</aside>` : "";
+  root.innerHTML = `<div class="panel"><article class="art"><header class="art-head"><p class="eyebrow">${N.eyebrow || (mode === "analysis" ? "Analysis" : "Suggestions")}</p><h1 class="art-title">${N.title}</h1><p class="lede">${rich(N.lede)}</p></header>${N.sections.map(sec).join("")}${aside}</article></div>`;
+  root.onclick = e => {
+    const a = e.target.closest("a[data-go]"); if (!a) return;
+    e.preventDefault(); state.tab = a.dataset.go;
+    try { history.replaceState(null, "", "#" + state.tab); } catch (_) {}
+    rerender(); window.scrollTo({ top: 0 });
+  };
+}
+
+/* ---------- wiring ---------- */
+const CONTROL_TABS = {
+  binSel: ["forest", "matrix", "graph", "bundle", "churn"],
+  tSel: ["overview", "graph", "bundle"],
+  mockChk: ["overview", "matrix", "graph", "bundle", "churn"],
+};
+const renderers = { overview: renderOverview, analysis: root => renderArticle(root, "analysis"), suggestions: root => renderArticle(root, "suggestions"), scorecard: renderScorecard, forest: renderForest, dsm: renderDsm, matrix: renderMatrix, graph: renderGraph, bundle: renderBundle, churn: renderChurn };
+function rerender() {
+  for (const [id] of TABS) $("#view-" + id).hidden = id !== state.tab;
+  $("#tabs").querySelectorAll("button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === state.tab));
+  hideTip();
+  for (const [id, tabs] of Object.entries(CONTROL_TABS)) document.querySelector(`label[for="${id}"]`).hidden = !tabs.includes(state.tab) || (id === "binSel" && !HAS_BINS);
+  const host = $("#view-" + state.tab); host.innerHTML = "";
+  renderers[state.tab](host);
+}
+function init() {
+  $("#h1").textContent = D.meta.title;
+  $("#lede").textContent = `${SUBJ}: ${binIds.length ? binIds.length + " entry points, " : ""}${D.packages.filter(p => p.kind === "code").length} packages, ${D.edges.length} import edges. Built from the graphify graph${D.churn.available ? ` and ${D.churn.vcs} history since ${D.churn.after}` : ""}.`;
+  $("#tabs").innerHTML = TABS.map(([id, t]) => `<button role="tab" data-tab="${id}" aria-selected="false">${t}</button>`).join("");
+  $("#tabs").onclick = e => { const b = e.target.closest("button"); if (b) { state.tab = b.dataset.tab; try { history.replaceState(null, "", "#" + state.tab); } catch (_) {} rerender(); } };
+  $("#binSel").insertAdjacentHTML("beforeend", binIds.map(b => `<option value="${b}">${short(b)}</option>`).join(""));
+  $("#binSel").onchange = e => { state.binary = e.target.value; rerender(); };
+  $("#tSel").innerHTML = [2, 3, 4, 5, 6, 7].map(v => `<option value="${v}">${v}</option>`).join("");
+  $("#tSel").value = String(state.T); $("#tSel").onchange = e => { state.T = +e.target.value; rerender(); };
+  $("#mockChk").onchange = e => { state.mocks = e.target.checked; rerender(); };
+  const h = (location.hash || "").slice(1);
+  if (TABS.some(([id]) => id === h)) state.tab = h;
+  rerender();
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(rerender, 180); });
+}
+init();
+</script>

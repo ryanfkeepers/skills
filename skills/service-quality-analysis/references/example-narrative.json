@@ -1,0 +1,101 @@
+{
+  "analysis": {
+    "title": "Earn is not tangled where it looks tangled",
+    "lede": "The package graph inside the service is about as orderly as its sibling services. What is unusual is how the deployables are cut out of it: they share nearly everything, import much more than they run, and orbit one oversized HTTP package.",
+    "sections": [
+      {
+        "title": "The package graph is ordinary",
+        "paras": ["On the published measures the service holds its own among its five peers. Its directory modularity is the best of the group (Q 0.27, 18.6 standard deviations above random wiring) and its stability violations are the second lowest. It ranks last on ACD, edges per package and cross-subtree imports, but those three grow with module size and directory depth, and this module is three times larger than any peer. Details are on the {{go:scorecard|Scorecard}}."],
+        "figs": ["ranks"]
+      },
+      {
+        "title": "Ten binaries draw from one undivided pool",
+        "paras": ["Every entry point builds from one module, and almost nothing belongs to a single binary. earn-server shares 98% of the packages it imports with another binary; earn-scale and earn-query share all of theirs. Only earn-pdf-renderer keeps mostly to itself."],
+        "figs": ["share"]
+      },
+      {
+        "title": "Binaries import far more than they run",
+        "paras": ["Building each binary with the linker's dependency dump shows how much of the import graph is never exercised. Between 29% and 85% of a binary's import edges lead to code the program never reaches. earn-server links 16 packages it never calls, and earn-lifecycle links 13 of its 28."],
+        "figs": ["use"]
+      },
+      {
+        "title": "One package is the centre of gravity",
+        "paras": ["<code>internal/api/http</code> is the largest package, imports the most others, changes more often than any other package, and is linked into three binaries. When something in the service changes, it usually changes here."],
+        "figs": ["hub"]
+      },
+      {
+        "title": "Shared utilities sit wherever they landed",
+        "paras": ["The packages most at odds with their directory are the widely used ones: <code>models</code>, <code>telemetry</code> and <code>clients/workloadtenants</code>. Almost all of their import neighbours live elsewhere, which is expected for shared code, but nothing in the layout marks them as a shared layer."],
+        "figs": ["misfit"]
+      },
+      {
+        "title": "Some coupling never shows up as an import",
+        "paras": ["Several package pairs changed together at least three times with no import between them, most of them inside reporting. They most likely share a schema, generated code or a convention that the import graph cannot see, so any restructure based only on imports would separate them."],
+        "figs": ["hidden"]
+      },
+      {
+        "title": "The tree nests deeper than its grouping",
+        "paras": ["Top-level directories predict the imports well, but one level down the grouping stops working: splitting by immediate parent directory drops modularity from 0.27 to 0.04. Packages sit 3.7 levels deep on average, deeper than any peer, and 48% of imports cross four or more directory hops."],
+        "figs": ["depth"]
+      }
+    ],
+    "aside": {
+      "title": "How far to trust this",
+      "items": [
+        "The peer group is five modules. A rank is a comparison, not a grade.",
+        "\"Used\" comes from the linker. It can over-count, because interface methods are kept conservatively, and under-count, because calls hidden by inlining or routed through third-party code are not credited.",
+        "Distance from the main sequence is a weak signal for Go and propagation cost falls with module size, so neither drives a conclusion here."
+      ],
+      "next": "Next: {{go:suggestions|what to do about it}}."
+    }
+  },
+  "suggestions": {
+    "title": "Cut along the deployables, then shrink the hub",
+    "lede": "The {{go:analysis|analysis}} points away from a package-by-package cleanup and toward a different question: which code belongs to which binary. These steps follow from it, roughly in the order they pay off.",
+    "sections": [
+      {
+        "title": "Restructure around deployables, not packages",
+        "paras": ["Because the package graph already scores reasonably, polishing individual packages will barely move the numbers. Start by writing down, for each binary, the packages it actually calls; the cost table on the {{go:forest|Forest}} tab is that list."],
+        "figs": ["share"]
+      },
+      {
+        "title": "Name a shared core and give each binary its own subtree",
+        "paras": ["A handful of packages are called by four or more binaries. Those are the shared platform. Put them under one clearly named subtree, and move code that only one binary calls under a subtree for that binary, so the directory tree says who owns what."],
+        "figs": ["core"]
+      },
+      {
+        "title": "Split the wide packages each binary only half uses",
+        "paras": ["Init-only packages are the cheapest wins. earn-server carries 16 packages it never calls. Find the import that drags them in and split that package along the line between what earn-server uses and what its siblings use. Closures shrink without moving any business logic."],
+        "figs": ["use"]
+      },
+      {
+        "title": "Break up internal/api/http first",
+        "paras": ["As the largest, most connected and most frequently changed package, it is the single change with the biggest effect. Splitting it by route group, or by the binary that serves each route, reduces the change hotspot, the widest fan-out and the closures of three binaries at once."],
+        "figs": ["hub"]
+      },
+      {
+        "title": "Give shared utilities one home",
+        "paras": ["Move packages such as <code>models</code>, <code>telemetry</code> and <code>clients/workloadtenants</code> into the shared-core subtree. Their import pattern already says they are platform code; the layout should agree."],
+        "figs": ["misfit"]
+      },
+      {
+        "title": "Keep co-changing pairs together",
+        "paras": ["Before moving anything, check the co-change list on {{go:churn|Size & churn}}. Pairs like <code>reporting/store</code> and <code>reporting/store/postgres/sqlcgen</code> change together without an import edge. Keep each pair in the same subtree, or turn the shared contract into an explicit package both import."],
+        "figs": ["hidden"]
+      },
+      {
+        "title": "Flatten inside the top-level areas",
+        "paras": ["Keep the top-level areas, since they explain the imports well, and remove intermediate directories that group nothing. The deepest paths are the place to start."],
+        "figs": ["deep"]
+      }
+    ],
+    "aside": {
+      "title": "How to tell it worked",
+      "items": [
+        "Init-only and noise percentages on the {{go:forest|Forest}} cost table fall for every binary you touch.",
+        "Modularity by immediate parent directory rises toward the top-level figure on the {{go:scorecard|Scorecard}}.",
+        "Cross-subtree imports and average depth fall without NCCD rising."
+      ]
+    }
+  }
+}
