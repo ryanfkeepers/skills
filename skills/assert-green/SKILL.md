@@ -16,6 +16,32 @@ failed and why.
 
 ---
 
+## Phase 0 — Cached commands
+
+`$G` below is short for `python3 ${CLAUDE_SKILL_DIR}/scripts/greencache.py`.
+Write it out in full every time.
+
+Run `$G get` in the directory being asserted.
+
+- **`hit: true`** — run `commands.compile`, `commands.codegen`,
+  `commands.test`, `commands.lint` in order, under the same phase rules
+  below (halt on failure, lint auto-fix). An empty `codegen` list means
+  the codegen phase is skipped. Skip all discovery: no listing targets, no
+  reading the Makefile, no checking for indicator files.
+- **`hit: false`** — discover with the phase tables below, but take every
+  fact from `probe` rather than exploring: `files` (indicator files,
+  including ones at the repo root), `targets` (per task runner),
+  `matches` (targets that fit each phase's preferred names), `go_generate`,
+  and `aliases` (whether the `gt` and `lint` shell functions are defined).
+
+A cached command that fails for a reason other than the code (the command
+or target is missing, or the toolchain or environment changed) is stale:
+run `$G forget`, then rediscover from `$G probe`. A failing build, test,
+or lint is a real failure. Report it; never forget the cache because of
+one.
+
+---
+
 ## Phase 1 — Compile
 
 Verify code compiles.
@@ -28,8 +54,9 @@ Verify code compiles.
 | `Justfile` / `justfile` | `just build` |
 | `Taskfile.yml` / `Taskfile.yaml` | `task build` |
 
-List targets first (`make help`, `just --list`, `task --list`). If `build`
-target exists, use it — encodes project's exact config.
+Targets come from `probe`'s `targets` and `matches`. Don't list them
+yourself. If a `build` target exists, use it — encodes project's exact
+config.
 
 ### Language fallbacks (if no task runner build target)
 
@@ -125,8 +152,7 @@ If tests exit non-zero: **halt. Report failing tests and output.**
 
 ### Step 1 — Check task runners for a lint target
 
-List available targets (`make help`, `just --list`, `task --list`). If a
-`lint` target exists, use it:
+From `probe`'s `targets`: if a `lint` target exists, use it:
 
 | File | Command |
 |------|---------|
@@ -165,6 +191,21 @@ If lint passes after fix: record as `lint: <cmd> exit 0 (auto-fixed)`,
 continue to Reporting. If still non-zero after fix attempt: **halt.
 Report remaining lint output and what the fix attempt changed.**
 
+
+## Recording
+
+After a run where every phase passed and the commands were discovered (not
+cached), record them:
+
+```
+$G put --compile "<cmd>" [--codegen "<cmd>" ...] --test "<cmd>" --lint "<cmd>"
+```
+
+Repeat a flag for a phase that ran several commands, in run order. Omit
+`--codegen` when codegen was skipped. Record the command exactly as it
+ran, env prefixes included (`GOTOOLCHAIN=go1.26.10 go test -short ./...`).
+For lint, record the lint command, not the fix command. Never record after
+a failed phase.
 
 ## Reporting
 

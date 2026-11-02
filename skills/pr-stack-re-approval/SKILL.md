@@ -124,32 +124,49 @@ PR #<n> <title> -- all good, approved automatically. Moving on.
 ## Inputs
 
 - **PR URL** (required) -- `https://github.com/<owner>/<repo>/pull/<number>`
-  for any PR in the stack. Parse `<owner>`, `<repo>`, `<number>` up front.
+  for any PR in the stack.
 
-Get the user's login once: `gh api user --jq .login`. Every "the user's
-review" below means reviews and comments authored by that login.
+## GitHub access
+
+All GitHub reads and the approval go through one script. Do not write
+your own `gh`, `jq`, or helper scripts; the script already returns only
+the fields the checks need.
+
+`$P` is shorthand for `python3 ${CLAUDE_SKILL_DIR}/scripts/prstack.py`.
+Write it out in full in every command, because shell variables do not
+survive between calls.
+
+```
+$P stack <pr-url>
+$P state   -R <owner>/<repo> <n>
+$P changes -R <owner>/<repo> <n> <reviewed-oid> <head-oid> --base <base>
+$P read    -R <owner>/<repo> <ref> <path> --lines A-B
+$P approve -R <owner>/<repo> <n> <head-oid> [--body-file <file>]
+```
+
+Output is compact JSON (`read` prints numbered lines). Exit 1 prints
+`{"status":"error","message":...}`: that is an impassable problem for
+the PR. Call `gh` directly only for something no subcommand covers, and
+say so in the PR's block.
+
+"The user" below means the `login` that `state` returns.
 
 ## Step 1 -- Find the stack
 
 This step reads PR metadata only. Do not fetch diffs, reviews, or
-comments here.
+comments here. Run `$P stack <pr-url>` once. It walks down to the
+default branch and up through every open descendant, and returns `prs`
+(bottom to top, each with `state`, `parent` and `children`), `linear`
+(bottom up to and including the first branch point), `forks`,
+`ambiguous` (two open PRs share the parent branch), and `not_open`.
 
-```
-gh pr view <number> --json number,baseRefName,headRefName,state,isDraft,title,url
-```
-
-Walk down: find the open PR whose `headRefName` equals this PR's
-`baseRefName`, repeat until the base is the repo's default branch. Walk
-up: `gh pr list --base <headRefName> --state open --json number,headRefName,title,url`
-for each PR, repeat until none remain. Order bottom to top.
-
-If any branch point has two or more child PRs, the stack forks. Do not
-halt the run: record the fork, order the linear part up to the branch
-point, and process it. Ask the user which child path(s) to follow (a
-yellow block) only once the PR at the branch point is finished, then
-continue. Do the same when walking down finds two open PRs sharing a
-`headRefName`: process what is unambiguous, ask when that spot is
-reached. Skip merged and closed PRs; note them.
+A fork does not halt the run: process `linear`, then, once the PR at
+the branch point is finished, ask which child path(s) to follow (a
+yellow block) and continue along that path's `children`. For an
+`ambiguous` entry, process what is unambiguous and ask when that spot
+is reached. `not_open` lists merged or closed PRs anywhere in the
+stack. The walk continues past them, so the PRs above and below are
+still found. Note them in the stack table and skip them.
 
 Print the stack as a table (position, number, title, draft or not),
 marking any fork, then process PRs bottom to top, one at a time. A
@@ -158,49 +175,29 @@ first.
 
 ## Step 2 -- Load the review state of one PR
 
-```
-gh api graphql -f query='
-  query($owner:String!, $repo:String!, $number:Int!) {
-    repository(owner:$owner, name:$repo) {
-      pullRequest(number:$number) {
-        title body url headRefOid baseRefName mergeable
-        reviews(first:100) {
-          nodes { author { login } state submittedAt commit { oid } }
-        }
-        reviewThreads(first:100) {
-          nodes {
-            isResolved path line originalLine
-            comments(first:50) {
-              nodes { author { login } body url createdAt originalCommit { oid } }
-            }
-          }
-        }
-        comments(first:100) {
-          nodes { author { login } body url createdAt }
-        }
-      }
-    }
-  }' -f owner=<owner> -f repo=<repo> -F number=<number>
-```
-
-Paginate any connection that reports more pages.
+Run `$P state -R <owner>/<repo> <n>`. It paginates everything and has
+already retried an `UNKNOWN` merge state 3 times.
 
 - **Merge conflicts first** -- `mergeable` is `CONFLICTING`: a PR with
   conflicts is a non-starter. Print a red block ("merge conflicts
-  against `<baseRefName>`") and do not run Steps 3-5 on it. `UNKNOWN`
-  means GitHub has not computed it yet: re-query up to 3 times, a few
-  seconds apart; still `UNKNOWN` is an impassable problem.
-- **Last review** -- the user's most recent submitted review (any state).
-  Its `state` is the *prior verdict* (`APPROVED`, `CHANGES_REQUESTED`,
-  `COMMENTED`); its `commit.oid` is the *reviewed commit*.
-- If the user has no submitted review on this PR there is no baseline to
-  compare against. This is an impassable problem: print a red block
+  against `<base>`") and do not run Steps 3-5 on it. Still `UNKNOWN` is
+  an impassable problem.
+- **Last review** -- `prior_verdict` (`APPROVED`, `CHANGES_REQUESTED`,
+  `COMMENTED`, `DISMISSED`) and `reviewed_oid` come from the user's most
+  recent submitted review. `DISMISSED` usually means a push dismissed a
+  stale approval. The review's original verdict is lost, so Step 5
+  treats it as unsure.
+- `reviewed_oid` is `null`: the user has no submitted review, so there
+  is no baseline. This is an impassable problem: print a red block
   asking whether to skip the PR or stop, and do not run Steps 3-5 on it.
-- **User comments in scope** -- threads the user started in the last
-  review, plus any earlier user thread still unresolved, plus the user's
-  top-level PR comments. A thread's `isResolved` flag is set by whoever
-  clicked the button, so a resolved thread from the last review is still
-  checked against the code.
+- **User comments in scope** -- `threads` (the ones the user started in
+  the last review, `from_last_review: true`, plus earlier user threads
+  still unresolved), `top_level` (the user's PR comments), and
+  `last_review_body`. Each thread carries every reply, with `user:
+  false` on the author's. A thread's `resolved` flag is set by whoever
+  clicked the button, so a resolved thread from the last review is
+  still checked against the code. `outdated: true` means `line` is the
+  original line; find the code at head yourself.
 
 ## Step 3 -- Run the three checks
 
@@ -209,21 +206,35 @@ read of the changes serves all of them.
 
 ### Compute the changes since the last review
 
-If the reviewed commit equals `headRefOid`, nothing changed; checks 1
-and 3 pass trivially and only check 2 has work to do.
+Run `$P changes -R <owner>/<repo> <n> <reviewed_oid> <head> --base <base>`.
+It compares the PR's own diff at the reviewed commit with its own diff
+at head, so a rebase or a moved parent does not show up as change, and
+neither do line shifts. `unchanged: true` means checks 1 and 3 pass
+trivially and only check 2 has work to do. `link` is the URL to show the
+user.
 
-Otherwise diff the PR's own changes, not raw head-to-head. When the PR
-was rebased or its base moved (the parent PR changed), a head-to-head
-diff includes the parent's changes and drowns the PR's own. Get each
-side's PR-only diff (`merge-base...head`, via
-`gh api repos/<owner>/<repo>/compare/<base>...<head>`) for the reviewed
-commit and the current head, then compare those two diffs, ignoring
-line-number shifts. When the base did not move,
-`gh api repos/<owner>/<repo>/compare/<reviewed-oid>...<head-oid>` is
-enough.
+Each entry in `files` has a `path`, plus `renamed_from` when the file
+moved since the review (a move with no `hunks` is a pure rename).
+`header_changed` holds the git header when a mode bit, binary content,
+or empty file changed, alongside any hunks. Each hunk has a `kind`:
 
-The link to show the user is
-`https://github.com/<owner>/<repo>/pull/<number>/files/<reviewed-oid>..<head-oid>`.
+- `new` -- in the PR now, not at review. `lines` is the hunk at head.
+- `changed` -- edited since review. `delta` diffs the two versions of
+  the hunk. Its first column is review→head and the rest of the line is
+  the PR's own diff line, so `-+x` means "the PR used to add `x`" and
+  `++y` means "the PR now adds `y`".
+- `dropped` -- in the PR at review, gone now. `was` holds its changed
+  lines.
+
+`landed_in_base: true` on a `dropped` or `changed` hunk means the lines
+that left the PR are now in the base branch: a parent was squash-merged
+or rebased in. It is not a change by this PR, so it is insignificant.
+A `dropped` hunk without that flag is a revert, so treat it as
+significant. That holds even when the file's `in_head_diff` is `false`
+(the PR no longer touches the file at all).
+
+`generated_hint` flags lockfiles, mocks, snapshots, and `DO NOT EDIT`
+markers. It is only a hint: you still classify each hunk.
 
 Classify each changed hunk:
 
@@ -249,7 +260,8 @@ Unaddressed nits do not trip the check; count them and mention the
 count only inside a red or yellow block that is already being printed.
 
 For each significant comment, read the code at its location in the
-current head and decide:
+current head (`$P read -R <owner>/<repo> <head> <path> --lines A-B`, a
+window around the comment's line, never the whole file) and decide:
 
 - **Addressed** -- the current code does what the comment asked, or the
   concern no longer applies, and you can point at the lines.
@@ -323,30 +335,34 @@ approve in reply to a red or yellow block.
 | --- | --- | --- |
 | any | yes | Red block (Step 4). |
 | `CHANGES_REQUESTED` or `COMMENTED` | no | Yellow block; reason: your last review was changes-requested / comment-only. |
+| `DISMISSED` | no | Yellow block; reason: your last review was dismissed, so its original verdict is unknown. |
 | `APPROVED` | no | Approve, then green block. |
 
-Before the approval call, re-read `headRefOid` and `mergeable`
-(`gh pr view <number> --json headRefOid,mergeable`). If the head moved
-since you analyzed it, discard this PR's results and rerun Steps 2-5 on
-it. If it now conflicts, Step 2's conflict rule applies.
+To approve, run `$P approve -R <owner>/<repo> <n> <head>` with the
+`head` you analyzed. The script re-reads the PR, refuses if the head
+moved, and pins the approval to that commit. It sends no review body.
+If the user dictated message text, write exactly that text to a file
+and pass `--body-file <file>`.
 
-To approve, pin the approval to the commit you analyzed so a push that
-landed mid-run cannot be approved unseen:
+GitHub still counts an approval pinned to an older commit unless the
+repo dismisses stale approvals. A push that lands between the check and
+the approval therefore cannot be prevented, only detected: the script
+re-reads the head afterwards.
 
-```
-gh api repos/<owner>/<repo>/pulls/<number>/reviews \
-  -f event=APPROVE -f commit_id=<head-oid-analyzed>
-```
+- `approved` -- print the green block.
+- `approved_stale` (exit 3) -- the approval landed, but `head` moved
+  past `commit` during the call. Print a red block saying the approval
+  is on `commit`, not on the new `head`, and that the user may want to
+  dismiss it. Do not dismiss it yourself, and do not rerun the PR.
+- `head_moved` (exit 3) -- discard this PR's results and rerun Steps
+  2-5 on it.
+- `conflicting` (exit 3) -- Step 2's conflict rule applies.
+- `error` -- the PR may have been updated mid-run: rerun Steps 2-5 on
+  it from scratch, discarding every earlier result for it.
 
-Send no `body` field. If the user dictated message text, send exactly
-that as `body`.
-
-If the call fails (422 or any other error), the PR may have been
-updated mid-run: reload it and rerun Steps 2-5 on it from scratch,
-discarding every earlier result for it. Recheck at most once per PR. If
-the approval fails again, print a red block with the error text
-verbatim (own PR, branch protection, and the like do not clear on
-retry).
+Rerun at most once per PR. If the approval fails again, print a red
+block with `message` verbatim (own PR, branch protection, and the like
+do not clear on retry).
 
 After any outcome for this PR (approved, skipped, or halted and
 guided), continue to the next PR in the stack from Step 2.
@@ -354,7 +370,7 @@ guided), continue to the next PR in the stack from Step 2.
 ## Step 6 -- Summarize
 
 When the stack is done or the user stops you, print one table: PR,
-outcome (approved, skipped, halted, conflict, not reviewed before), and
+outcome (approved, approved stale, skipped, halted, conflict, not reviewed before), and
 the reason in a few words. When a lower PR was not approved (skipped,
 halted, or conflict), mark it so the user sees which upper PRs were
 handled on top of an unresolved parent. Then stop -- no offers, no next
