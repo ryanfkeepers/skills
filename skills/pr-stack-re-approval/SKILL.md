@@ -2,14 +2,16 @@
 name: pr-stack-re-approval
 description: >-
   Re-approve a stack of GitHub PRs the user already reviewed once. Given
-  one PR URL, finds the whole stack and, bottom to top, checks each PR
-  for significant changes since the user's last review, unaddressed user
-  comments, and changes unrelated to those comments or to the PR's
-  purpose. Halts with a report when any check trips; approves only when
-  the approval rules allow, and never leaves an approval message unless
-  the user dictates one. Use when the user pastes a PR URL and asks to
-  re-approve, reapprove, or sign off on a stack they already reviewed,
-  or invokes /pr-stack-re-approval.
+  one PR URL, lists the PRs in the stack (and nothing more up front) and,
+  bottom to top, handles each PR on its own: checks it for significant
+  changes since the user's last review, unaddressed user comments, and
+  changes unrelated to those comments or to the PR's purpose. Halts on a
+  PR with a report when any check trips, or asks the user for guidance
+  when that PR cannot be decided alone, then moves on to the next PR.
+  Approves only when the approval rules allow, and never leaves an
+  approval message unless the user dictates one. Use when the user
+  pastes a PR URL and asks to re-approve, reapprove, or sign off on a
+  stack they already reviewed, or invokes /pr-stack-re-approval.
 argument-hint: "<pr-url>"
 disable-model-invocation: true
 ---
@@ -38,6 +40,35 @@ Voice example (correct):
 > "Go ahead" accepts the findings. The user last requested changes on
 > this PR, so the agent asks "approve now?" as a separate question.
 
+## Working model
+
+Up front you know only *which PRs* are in the stack: number, title,
+branches, state. Do not read diffs, reviews, or comments for any PR
+until that PR's turn. There is no need to digest the stack's combined
+changes before starting.
+
+Each PR is a self-contained unit. Run Steps 2-5 to an outcome (approved,
+skipped, halted, not reviewed before) for one PR before loading anything
+for the next. Carry forward only the outcome, never the previous PR's
+diff.
+
+An **impassable problem** is anything that stops you deciding on *this*
+PR alone: a fork or ambiguous parent at a branch point, no baseline
+review, a base branch that is gone or unresolvable, a PR-only diff you
+cannot compute, a GitHub API failure on this PR. On one, stop work on
+that PR, state the problem and what you tried, and ask the user for
+guidance. Apply the guidance (or skip the PR if told to), then continue
+to the next PR.
+
+Ask about the Nth PR only once you have finished the N-1th. Never
+surface a question, forecast a problem, or request guidance about a
+later PR (or a fork above the current PR) while an earlier PR is still
+unfinished, even if you can already see the problem coming.
+
+A problem on one PR never blocks the PRs that can be handled. Any PR
+that can be handled individually must be. Stop the whole run only when
+the user says to.
+
 ## Inputs
 
 - **PR URL** (required) -- `https://github.com/<owner>/<repo>/pull/<number>`
@@ -48,6 +79,9 @@ review" below means reviews and comments authored by that login.
 
 ## Step 1 -- Find the stack
 
+This step reads PR metadata only. Do not fetch diffs, reviews, or
+comments here.
+
 ```
 gh pr view <number> --json number,baseRefName,headRefName,state,isDraft,title,url
 ```
@@ -57,11 +91,18 @@ Walk down: find the open PR whose `headRefName` equals this PR's
 up: `gh pr list --base <headRefName> --state open --json number,headRefName,title,url`
 for each PR, repeat until none remain. Order bottom to top.
 
-If any branch point has two or more child PRs, the stack forks -- halt
-and ask which path to follow. Skip merged and closed PRs; note them.
+If any branch point has two or more child PRs, the stack forks. Do not
+halt the run: record the fork, order the linear part up to the branch
+point, and process it. Ask the user which child path(s) to follow only
+once the PR at the branch point is finished, then continue. Do the same
+when walking down finds two open PRs sharing a `headRefName`: process
+what is unambiguous, ask when that spot is reached. Skip merged and closed PRs; note
+them.
+
 Print the stack as a table (position, number, title, draft or not),
-then process PRs bottom to top, one at a time. A lower PR's change can
-invalidate everything above it, so the bottom goes first.
+marking any fork, then process PRs bottom to top, one at a time. A
+lower PR's change can invalidate everything above it, so the bottom goes
+first.
 
 ## Step 2 -- Load the review state of one PR
 
@@ -96,8 +137,9 @@ Paginate any connection that reports more pages.
   Its `state` is the *prior verdict* (`APPROVED`, `CHANGES_REQUESTED`,
   `COMMENTED`); its `commit.oid` is the *reviewed commit*.
 - If the user has no submitted review on this PR there is no baseline to
-  compare against. Report that, ask whether to skip the PR or stop, and
-  do not run Steps 3-5 on it.
+  compare against. This is an impassable problem (see Working model):
+  report it, ask whether to skip the PR or stop, and do not run Steps
+  3-5 on it. If skipped, continue to the next PR.
 - **User comments in scope** -- threads the user started in the last
   review, plus any earlier user thread still unresolved, plus the user's
   top-level PR comments. A thread's `isResolved` flag is set by whoever
@@ -201,7 +243,8 @@ Counter-example (avoid -- dumping instead of reporting):
 
 A reply of "go ahead" (or equivalent) means the user accepts these
 findings for this PR. Continue to Step 5 for the same PR. Any other
-reply: do what the user says.
+reply: do what the user says; once that is done the PR is finished, so
+continue to the next PR from Step 2 unless the user said to stop.
 
 ## Step 5 -- Decide on approval
 
@@ -228,12 +271,15 @@ gh api repos/<owner>/<repo>/pulls/<number>/reviews \
 
 Send no `body` field. If the user dictated message text, send exactly
 that as `body`. If the call fails (own PR, stale commit, branch
-protection), report the error and halt.
+protection), report the error and ask the user for guidance.
 
-After approval, continue to the next PR in the stack from Step 2.
+After any outcome for this PR (approved, skipped, or halted and
+guided), continue to the next PR in the stack from Step 2.
 
 ## Step 6 -- Summarize
 
 When the stack is done or the user stops you, print one table: PR,
 outcome (approved, skipped, halted, not reviewed before), and the
-reason in a few words. Then stop -- no offers, no next steps.
+reason in a few words. When a lower PR was not approved (skipped or
+halted), mark it so the user sees which upper PRs were handled on top of
+an unresolved parent. Then stop -- no offers, no next steps.
