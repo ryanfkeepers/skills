@@ -3,15 +3,16 @@ name: pr-stack-re-approval
 description: >-
   Re-approve a stack of GitHub PRs the user already reviewed once. Given
   one PR URL, lists the PRs in the stack (and nothing more up front) and,
-  bottom to top, handles each PR on its own: checks it for significant
-  changes since the user's last review, unaddressed user comments, and
-  changes unrelated to those comments or to the PR's purpose. Halts on a
-  PR with a report when any check trips, or asks the user for guidance
-  when that PR cannot be decided alone, then moves on to the next PR.
-  Approves only when the approval rules allow, and never leaves an
-  approval message unless the user dictates one. Use when the user
-  pastes a PR URL and asks to re-approve, reapprove, or sign off on a
-  stack they already reviewed, or invokes /pr-stack-re-approval.
+  bottom to top, handles each PR on its own: checks it for merge
+  conflicts, significant changes since the user's last review,
+  unaddressed user comments, and changes unrelated to those comments or
+  to the PR's purpose. Speaks per PR only through one color-bounded
+  block: red (halting, needs review), yellow (unsure whether to approve),
+  or green (approved automatically). Approves only when the approval
+  rules allow, and never leaves an approval message unless the user
+  dictates one. Use when the user pastes a PR URL and asks to re-approve,
+  reapprove, or sign off on a stack they already reviewed, or invokes
+  /pr-stack-re-approval.
 argument-hint: "<pr-url>"
 disable-model-invocation: true
 ---
@@ -29,16 +30,16 @@ the user states the exact text to write -- then use that text verbatim as
 the review body and nothing else.
 
 **IMPORTANT:** Approval is the user's judgment, lent to you under rules.
-When a rule below says ask, a prior "go ahead" about findings does not
-count as an answer to the approval question.
+When a rule below says ask, only an explicit yes to *approve this PR*
+counts as an answer.
 
 Counter-example (avoid):
-> Findings show an unaddressed comment. User replies "go ahead". Agent
-> approves a PR the user had marked "changes requested".
+> A red block shows an unaddressed comment. User replies "go ahead".
+> Agent approves a PR the user had marked "changes requested".
 
 Voice example (correct):
-> "Go ahead" accepts the findings. The user last requested changes on
-> this PR, so the agent asks "approve now?" as a separate question.
+> "Go ahead" does not name an action. The agent re-asks: "Approve PR
+> #412, skip it, or stop?"
 
 ## Working model
 
@@ -48,17 +49,18 @@ until that PR's turn. There is no need to digest the stack's combined
 changes before starting.
 
 Each PR is a self-contained unit. Run Steps 2-5 to an outcome (approved,
-skipped, halted, not reviewed before) for one PR before loading anything
-for the next. Carry forward only the outcome, never the previous PR's
-diff.
+skipped, halted, conflict, not reviewed before) for one PR before
+loading anything for the next. Carry forward only the outcome, never the
+previous PR's diff.
 
 An **impassable problem** is anything that stops you deciding on *this*
-PR alone: a fork or ambiguous parent at a branch point, no baseline
-review, a base branch that is gone or unresolvable, a PR-only diff you
-cannot compute, a GitHub API failure on this PR. On one, stop work on
-that PR, state the problem and what you tried, and ask the user for
-guidance. Apply the guidance (or skip the PR if told to), then continue
-to the next PR.
+PR alone: no baseline review, a base branch that is gone or
+unresolvable, a PR-only diff you cannot compute, a GitHub API failure on
+this PR. On one, stop work on that PR and print a red block (see
+Output) stating the problem and what you tried. A fork or ambiguous
+parent at a branch point is a choice, not a problem: print a yellow
+block asking which path to follow. Apply the user's guidance (or skip
+the PR if told to), then continue to the next PR.
 
 Ask about the Nth PR only once you have finished the N-1th. Never
 surface a question, forecast a problem, or request guidance about a
@@ -68,6 +70,56 @@ unfinished, even if you can already see the problem coming.
 A problem on one PR never blocks the PRs that can be handled. Any PR
 that can be handled individually must be. Stop the whole run only when
 the user says to.
+
+## Output
+
+Print the stack table (Step 1) first and the summary table (Step 6)
+last. Between them, each PR produces exactly one of the three blocks
+below and nothing else. No progress narration, no per-step or per-check
+status, no "nothing changed" notes. If a sentence does not ask the user
+to review or decide something, do not print it.
+
+Counter-examples (avoid):
+> Phase 1 passed without issue, continuing to phase 2.
+
+> 4 commits since your review but nothing really changed.
+
+Copy the bars exactly as written; do not count or shorten them.
+
+**Red -- halting.** Any check tripped, a merge conflict, or an
+impassable problem. Must contain the PR URL, and the
+`files/<reviewed-oid>..<head-oid>` link when a diff was computed.
+
+```
+🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
+**Halting on PR #<n> -- <problem>.** <pr-url>
+<these changes> require your attention:
+<tables from Step 4>
+Approve PR #<n>, skip it, or stop?
+🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
+```
+
+For a merge conflict, the closing question drops "Approve": "Skip PR
+#<n>, or stop?"
+
+**Yellow -- unsure.** No check tripped but the Step 5 rules say ask, or
+a fork needs a choice. Must contain the PR URL.
+
+```
+🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨
+**PR #<n>** <pr-url>
+No changes require your attention, but I'm unsure if I should approve
+automatically because <reason>. Approve, or move to the next PR?
+🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨
+```
+
+**Green -- approved.** Only after a successful approval in Step 5.
+
+```
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+PR #<n> <title> -- all good, approved automatically. Moving on.
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```
 
 ## Inputs
 
@@ -93,11 +145,11 @@ for each PR, repeat until none remain. Order bottom to top.
 
 If any branch point has two or more child PRs, the stack forks. Do not
 halt the run: record the fork, order the linear part up to the branch
-point, and process it. Ask the user which child path(s) to follow only
-once the PR at the branch point is finished, then continue. Do the same
-when walking down finds two open PRs sharing a `headRefName`: process
-what is unambiguous, ask when that spot is reached. Skip merged and closed PRs; note
-them.
+point, and process it. Ask the user which child path(s) to follow (a
+yellow block) only once the PR at the branch point is finished, then
+continue. Do the same when walking down finds two open PRs sharing a
+`headRefName`: process what is unambiguous, ask when that spot is
+reached. Skip merged and closed PRs; note them.
 
 Print the stack as a table (position, number, title, draft or not),
 marking any fork, then process PRs bottom to top, one at a time. A
@@ -111,7 +163,7 @@ gh api graphql -f query='
   query($owner:String!, $repo:String!, $number:Int!) {
     repository(owner:$owner, name:$repo) {
       pullRequest(number:$number) {
-        title body headRefOid
+        title body url headRefOid baseRefName mergeable
         reviews(first:100) {
           nodes { author { login } state submittedAt commit { oid } }
         }
@@ -133,13 +185,17 @@ gh api graphql -f query='
 
 Paginate any connection that reports more pages.
 
+- **Merge conflicts first** -- `mergeable` is `CONFLICTING`: a PR with
+  conflicts is a non-starter. Print a red block ("merge conflicts
+  against `<baseRefName>`") and do not run Steps 3-5 on it. `UNKNOWN`
+  means GitHub has not computed it yet: re-query up to 3 times, a few
+  seconds apart; still `UNKNOWN` is an impassable problem.
 - **Last review** -- the user's most recent submitted review (any state).
   Its `state` is the *prior verdict* (`APPROVED`, `CHANGES_REQUESTED`,
   `COMMENTED`); its `commit.oid` is the *reviewed commit*.
 - If the user has no submitted review on this PR there is no baseline to
-  compare against. This is an impassable problem (see Working model):
-  report it, ask whether to skip the PR or stop, and do not run Steps
-  3-5 on it. If skipped, continue to the next PR.
+  compare against. This is an impassable problem: print a red block
+  asking whether to skip the PR or stop, and do not run Steps 3-5 on it.
 - **User comments in scope** -- threads the user started in the last
   review, plus any earlier user thread still unresolved, plus the user's
   top-level PR comments. A thread's `isResolved` flag is set by whoever
@@ -189,8 +245,8 @@ Any significant hunk trips this check.
 A user comment is *significant* when it asks for a change in behavior,
 logic, structure, or tests, or points out a defect. Praise, thanks,
 answered questions, and comments prefixed `nit` are not significant.
-Count unaddressed nits and mention the count in one line; they do not
-trip the check.
+Unaddressed nits do not trip the check; count them and mention the
+count only inside a red or yellow block that is already being printed.
 
 For each significant comment, read the code at its location in the
 current head and decide:
@@ -214,52 +270,65 @@ did not previously touch).
 
 ## Step 4 -- Report and halt if any check tripped
 
-If no check tripped, go to Step 5. Otherwise print one report for this
-PR and stop until the user replies:
+If no check tripped, go to Step 5. Otherwise print one red block for
+this PR and stop until the user replies. Inside the block:
 
 - Link to the changes since the last review (Check 1).
 - Table of not-addressed comments: `file:line` or `(top-level)`, the
   user's comment quoted verbatim, why it reads as not addressed (Check 2).
-- Table of significant changes unrelated to any comment: `file:line`,
-  one-line summary, whether it drifts from the PR's purpose and why
-  (Check 3).
+- Table of significant changes unrelated to any comment (Check 3):
+  `file:line` | before | after | outside the PR's purpose? why.
 
-When the Step 5 rules will require asking anyway (see below), end the
-report with that question so one reply covers both.
+Every description of a change since the last review states both
+behaviors: what the code did at the reviewed commit and what it does at
+head. "Refactored the exporter" or "touched `metrics.go`" is not a
+description.
 
 Voice example (correct):
-> PR #412 `dp-1234/retry-cap` -- you requested changes at `a1b2c3d`.
-> Changes since: https://github.com/o/r/pull/412/files/a1b2c3d..e4f5a6b
-> Not addressed (1): `retry.go:42` -- "increment on the failure path" --
-> code still increments in the success branch; author replied "intended".
-> Unrelated significant changes (1): `metrics.go:10-31` -- adds a new
-> exporter; outside the PR's retry-cap purpose.
-> "Go ahead" accepts these. I'll then ask separately whether to approve,
-> since your last review was changes-requested.
+
+```
+🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
+**Halting on PR #412 -- 1 unaddressed comment, 1 unrelated change.** https://github.com/o/r/pull/412
+Changes since your review at `a1b2c3d`: https://github.com/o/r/pull/412/files/a1b2c3d..e4f5a6b
+
+| Comment | Your comment | Why not addressed |
+| --- | --- | --- |
+| `retry.go:42` | "increment on the failure path" | still increments in the success branch; author replied "intended" |
+
+| Change | Before | After | Outside purpose? |
+| --- | --- | --- | --- |
+| `metrics.go:10-31` | no metrics exported | new Prometheus exporter on `:9090` | yes -- PR is a retry cap |
+
+You last requested changes on this PR. Approve PR #412, skip it, or stop?
+🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥
+```
 
 Counter-example (avoid -- dumping instead of reporting):
 > Pasting the whole diff, or listing every hunk including comment-only
 > ones.
 
-A reply of "go ahead" (or equivalent) means the user accepts these
-findings for this PR. Continue to Step 5 for the same PR. Any other
-reply: do what the user says; once that is done the PR is finished, so
-continue to the next PR from Step 2 unless the user said to stop.
+An explicit "approve" goes to the approval call in Step 5 (skip the
+decision table; the user has decided). "Skip" finishes the PR. Anything
+that does not name an action ("go ahead", "ok"): re-ask the question.
+Any other instruction: do what the user says; once that is done the PR
+is finished, so continue to the next PR from Step 2 unless the user said
+to stop.
 
 ## Step 5 -- Decide on approval
 
-Use the prior verdict from Step 2 and whether Check 1 found significant
-changes:
+Reached only when no check tripped, or when the user explicitly said
+approve in reply to a red or yellow block.
 
-| Prior verdict | Significant changes since | Action |
+| Prior verdict | Checks tripped | Action |
 | --- | --- | --- |
-| `CHANGES_REQUESTED` or `COMMENTED` | any | Ask before approving. Say plainly if the user had requested changes. |
-| `APPROVED` | yes | Ask what to do: approve, skip this PR, or stop. |
-| `APPROVED` | no | Approve, then move to the next PR. |
+| any | yes | Red block (Step 4). |
+| `CHANGES_REQUESTED` or `COMMENTED` | no | Yellow block; reason: your last review was changes-requested / comment-only. |
+| `APPROVED` | no | Approve, then green block. |
 
-"Ask" means a direct question and a wait. Only an explicit yes to
-*approve this PR* counts; silence, "go ahead" about findings, or
-approval of a different PR does not.
+Before the approval call, re-read `headRefOid` and `mergeable`
+(`gh pr view <number> --json headRefOid,mergeable`). If the head moved
+since you analyzed it, discard this PR's results and rerun Steps 2-5 on
+it. If it now conflicts, Step 2's conflict rule applies.
 
 To approve, pin the approval to the commit you analyzed so a push that
 landed mid-run cannot be approved unseen:
@@ -270,8 +339,14 @@ gh api repos/<owner>/<repo>/pulls/<number>/reviews \
 ```
 
 Send no `body` field. If the user dictated message text, send exactly
-that as `body`. If the call fails (own PR, stale commit, branch
-protection), report the error and ask the user for guidance.
+that as `body`.
+
+If the call fails (422 or any other error), the PR may have been
+updated mid-run: reload it and rerun Steps 2-5 on it from scratch,
+discarding every earlier result for it. Recheck at most once per PR. If
+the approval fails again, print a red block with the error text
+verbatim (own PR, branch protection, and the like do not clear on
+retry).
 
 After any outcome for this PR (approved, skipped, or halted and
 guided), continue to the next PR in the stack from Step 2.
@@ -279,7 +354,8 @@ guided), continue to the next PR in the stack from Step 2.
 ## Step 6 -- Summarize
 
 When the stack is done or the user stops you, print one table: PR,
-outcome (approved, skipped, halted, not reviewed before), and the
-reason in a few words. When a lower PR was not approved (skipped or
-halted), mark it so the user sees which upper PRs were handled on top of
-an unresolved parent. Then stop -- no offers, no next steps.
+outcome (approved, skipped, halted, conflict, not reviewed before), and
+the reason in a few words. When a lower PR was not approved (skipped,
+halted, or conflict), mark it so the user sees which upper PRs were
+handled on top of an unresolved parent. Then stop -- no offers, no next
+steps.
