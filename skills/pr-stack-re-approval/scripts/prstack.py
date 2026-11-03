@@ -175,8 +175,8 @@ def cmd_stack(gh, url):
 
 STATE_QUERY = """
 query($owner:String!, $repo:String!, $number:Int!,
-      $rAfter:String, $tAfter:String, $cAfter:String,
-      $wR:Boolean!, $wT:Boolean!, $wC:Boolean!) {
+      $rAfter:String, $tAfter:String, $cAfter:String, $dAfter:String,
+      $wR:Boolean!, $wT:Boolean!, $wC:Boolean!, $wD:Boolean!) {
   repository(owner:$owner, name:$repo) {
     pullRequest(number:$number) {
       title body url headRefOid baseRefName mergeable
@@ -198,6 +198,10 @@ query($owner:String!, $repo:String!, $number:Int!,
         pageInfo { hasNextPage endCursor }
         nodes { author { login } body url createdAt }
       }
+      timelineItems(first:100, after:$dAfter, itemTypes:[REVIEW_DISMISSED_EVENT]) @include(if:$wD) {
+        pageInfo { hasNextPage endCursor }
+        nodes { ... on ReviewDismissedEvent { previousReviewState review { id } } }
+      }
     }
   }
 }"""
@@ -215,7 +219,7 @@ query($id:ID!, $after:String) {
 }"""
 
 CONNECTIONS = (("reviews", "rAfter", "wR"), ("reviewThreads", "tAfter", "wT"),
-               ("comments", "cAfter", "wC"))
+               ("comments", "cAfter", "wC"), ("timelineItems", "dAfter", "wD"))
 
 
 def graphql(gh, query, variables):
@@ -283,6 +287,20 @@ def last_review(reviews, login):
     return max(mine, key=lambda r: r["submittedAt"], default=None)
 
 
+def original_verdict(review, dismissals):
+    """The verdict a dismissed review carried before GitHub overwrote it with DISMISSED.
+
+    Returns None when the dismissal event is missing, so the caller treats
+    the verdict as unknown rather than guessing.
+    """
+    if review["state"] != "DISMISSED":
+        return review["state"]
+    for event in dismissals:
+        if (event.get("review") or {}).get("id") == review["id"]:
+            return event["previousReviewState"]
+    return None
+
+
 def scoped_threads(threads, login, review_id):
     """Threads the user started in the last review, plus their unresolved older ones."""
     out = []
@@ -310,6 +328,7 @@ def cmd_state(gh, repo, number, sleep=time.sleep):
     login = gh(["api", "user", "--jq", ".login"]).strip()
     pr = fetch_pr(gh, repo, number)
     review = last_review(pr["reviews"], login)
+    verdict = review and original_verdict(review, pr["timelineItems"])
     out = {
         "login": login,
         "title": pr["title"],
@@ -318,7 +337,8 @@ def cmd_state(gh, repo, number, sleep=time.sleep):
         "head": pr["headRefOid"],
         "base": pr["baseRefName"],
         "mergeable": resolve_mergeable(gh, repo, number, pr["mergeable"], sleep),
-        "prior_verdict": review and review["state"],
+        "prior_verdict": review and (verdict or review["state"]),
+        "dismissed": bool(review) and review["state"] == "DISMISSED",
         "reviewed_oid": review and (review.get("commit") or {}).get("oid"),
         "last_review_body": review and review["body"],
         "threads": [],

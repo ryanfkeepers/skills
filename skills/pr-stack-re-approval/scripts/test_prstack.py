@@ -121,11 +121,12 @@ def thread(login, review_id, resolved, line=10, replies=()):
             "line": line, "originalLine": 7, "comments": page([first, *rest])}
 
 
-def pr_page(reviews, threads, comments, mergeable="MERGEABLE"):
+def pr_page(reviews, threads, comments, mergeable="MERGEABLE", dismissals=None):
     return {"data": {"repository": {"pullRequest": {
         "title": "t", "body": "d", "url": "u", "headRefOid": OID_B, "baseRefName": "main",
         "mergeable": mergeable, "reviews": reviews, "reviewThreads": threads,
-        "comments": comments}}}}
+        "comments": comments,
+        "timelineItems": dismissals if dismissals is not None else page([])}}}}
 
 
 def state_gh(pages, mergeable_after=None):
@@ -147,6 +148,27 @@ class StateTest(unittest.TestCase):
         out = prstack.cmd_state(state_gh([pr_page(reviews, page([]), page([]))]), REPO, 1)
         self.assertEqual(out["prior_verdict"], "APPROVED")
         self.assertEqual(out["reviewed_oid"], OID_B)
+
+    def test_dismissed_review_recovers_original_verdict(self):
+        for previous in ("APPROVED", "CHANGES_REQUESTED", "COMMENTED"):
+            reviews = page([review("R1", "me", "DISMISSED", "2026-01-01")])
+            events = page([{"previousReviewState": "APPROVED", "review": {"id": "other"}},
+                           {"previousReviewState": previous, "review": {"id": "R1"}}])
+            out = prstack.cmd_state(
+                state_gh([pr_page(reviews, page([]), page([]), dismissals=events)]), REPO, 1)
+            self.assertEqual(out["prior_verdict"], previous)
+            self.assertTrue(out["dismissed"])
+
+    def test_dismissed_review_without_event_stays_dismissed(self):
+        reviews = page([review("R1", "me", "DISMISSED", "2026-01-01")])
+        out = prstack.cmd_state(state_gh([pr_page(reviews, page([]), page([]))]), REPO, 1)
+        self.assertEqual(out["prior_verdict"], "DISMISSED")
+        self.assertTrue(out["dismissed"])
+
+    def test_live_review_is_not_flagged_dismissed(self):
+        reviews = page([review("R1", "me", "APPROVED", "2026-01-01")])
+        out = prstack.cmd_state(state_gh([pr_page(reviews, page([]), page([]))]), REPO, 1)
+        self.assertFalse(out["dismissed"])
 
     def test_no_baseline(self):
         reviews = page([review("R1", "bob", "APPROVED", "2026-01-01")])

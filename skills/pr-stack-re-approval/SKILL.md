@@ -184,9 +184,13 @@ already retried an `UNKNOWN` merge state 3 times.
   an impassable problem.
 - **Last review** -- `prior_verdict` (`APPROVED`, `CHANGES_REQUESTED`,
   `COMMENTED`, `DISMISSED`) and `reviewed_oid` come from the user's most
-  recent submitted review. `DISMISSED` usually means a push dismissed a
-  stale approval. The review's original verdict is lost, so Step 5
-  treats it as unsure.
+  recent submitted review. When that review was later dismissed (usually
+  a push dismissing a stale approval), `dismissed` is `true` and the
+  script has recovered its original verdict from the PR's dismissal history, so
+  `prior_verdict` is `APPROVED`, `CHANGES_REQUESTED`, or `COMMENTED` as
+  if it had never been dismissed. `prior_verdict` stays `DISMISSED` only
+  when the history has no record of the original verdict; Step 5 treats
+  that as neither an approval nor a block.
 - `reviewed_oid` is `null`: the user has no submitted review, so there
   is no baseline. This is an impassable problem: print a red block
   asking whether to skip the PR or stop, and do not run Steps 3-5 on it.
@@ -335,8 +339,13 @@ approve in reply to a red or yellow block.
 | --- | --- | --- |
 | any | yes | Red block (Step 4). |
 | `CHANGES_REQUESTED` or `COMMENTED` | no | Yellow block; reason: your last review was changes-requested / comment-only. |
-| `DISMISSED` | no | Yellow block; reason: your last review was dismissed, so its original verdict is unknown. |
-| `APPROVED` | no | Approve, then green block. |
+| `DISMISSED` | no | Yellow block; reason: your last review was dismissed and the PR history does not show its original verdict. |
+| `APPROVED` | no | Approve, then green block. This includes a dismissed approval (`dismissed: true`). |
+
+A dismissed review counts as whatever it was before the dismissal: a
+dismissed approval is a prior approval, and a dismissed
+changes-requested review is still a block (yellow, as in the
+`CHANGES_REQUESTED` row).
 
 To approve, run `$P approve -R <owner>/<repo> <n> <head>` with the
 `head` you analyzed. The script re-reads the PR, refuses if the head
