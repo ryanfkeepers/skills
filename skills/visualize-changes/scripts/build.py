@@ -32,10 +32,13 @@ import subprocess
 import sys
 import tempfile
 from collections import OrderedDict
+from html.parser import HTMLParser
 from pathlib import Path
 
+sys.dont_write_bytecode = True  # the skill runs inside the user's repo; keep __pycache__ out of their working copy
 sys.path.insert(0, str(Path(__file__).parent))
-import diffparse  # noqa: E402
+
+import flowkit  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 TEMPLATE = SKILL_DIR / "template.html"
@@ -44,13 +47,68 @@ MAX_OVERVIEW_SENTENCES = 4
 MAX_LEDE_CHARS = 180
 MAX_SIG_CHARS = 400
 DECL_WRAP_COLS = 80  # wider single-line declarations get their parameter list split, one per line
-MAX_DELTA_ROWS = 10
+MAX_ITEMS = 12
 MAX_EXPOSES = 8
+STRUCT_HIDE_OVER = 5  # an existing struct with more properties than this shows only its changed ones
 MAX_DECL_LINES = 20
 MAX_LINE_CHARS = 280
 
 MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"  # pinned; jsDelivr is on the Artifact CSP allowlist
 STATES = {"add": "new", "mod": "changed", "del": "removed", "same": "unchanged"}
+MAX_WALK_STEPS = 16
+MAX_WALK_WHAT = 160
+DIAGRAM_MESSAGES = 8
+MESSAGE_LINE = re.compile(r"^\s*[\w.]+\s*--?>>?[+-]?\s*[\w.]+\s*:", re.MULTILINE)
+BRANCHING_LINE = re.compile(r"^\s*(alt|opt|else)\b", re.MULTILINE)
+ITEM_STATES = {"add": "new", "mod": "changed", "del": "removed", "legacy": "legacy handling"}
+ICON_ATTRS = 'viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"'
+ICON_LEGEND = f'<svg {ICON_ATTRS}><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
+ICON_THEME = f'<svg {ICON_ATTRS}><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>'
+ICON_EYE = f'<svg {ICON_ATTRS}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+ICON_WIDTH = f'<svg {ICON_ATTRS}><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>'
+PREF_MENUS = [
+    ("theme", "Theme", "Match your system, or force light or dark", ICON_THEME,
+     [("auto", "Match system"), ("light", "Light"), ("dark", "Dark")]),
+    ("palette", "Colorblind palette", "Recolors new, changed and removed", ICON_EYE,
+     [("default", "None"), ("protanopia", "Protanopia"), ("deuteranopia", "Deuteranopia"), ("tritanopia", "Tritanopia")]),
+    ("width", "Page width", "How wide the page draws in the window", ICON_WIDTH,
+     [("auto", "Auto")] + [(str(w), f"{w}%") for w in range(10, 101, 10)]),
+]
+LEGEND = [
+    ("States", [
+        ('<i class="sw add"></i>', "new, also a new package in the tree"),
+        ('<i class="sw mod"></i>', "changed"),
+        ('<i class="sw del"></i>', "removed"),
+        ('<span class="vc-badge legacy">legacy</span>', "legacy handling: how existing data or clients are still treated"),
+        ('<span class="vc-was-demo">was</span>', "the previous behavior of a changed item, under a rule"),
+    ]),
+    ("Failure models", [
+        ('<span class="vc-item-key if">IF:</span>', "the condition that fails"),
+        ('<span class="vc-item-key then">THEN:</span>', "the failure stops the operation"),
+        ('<span class="vc-item-key then cont">THEN:</span>', "the failure is handled and processing continues"),
+    ]),
+    ("Flows", [
+        ('<span class="vc-step term sw-pill"></span>', "entry or exit"),
+        ('<svg class="sw-dia" viewBox="0 0 28 16" aria-hidden="true"><polygon points="14,1 27,8 14,15 1,8"/></svg>', "a decision; each answer is a branch"),
+        ('<i class="sw alt"></i>', "an alternate or fallback path"),
+        ('<span class="sw-glyph">&#9632;</span>', "the path ends here"),
+        ('<span class="sw-glyph err">&#10005;</span>', "the path ends in an error"),
+        ('<span class="sw-glyph">&#8595;</span>', "the path continues to the next step"),
+        ('<span class="sw-glyph warn">&#9888;</span>', "a condition on a step, with its outcome"),
+    ]),
+    ("Walkthrough", [
+        ('<span class="vc-wt-key-step">3</span>', "a step; click any step to jump to it"),
+        ('<span class="vc-wt-key-box ok">ok</span>', "the ok path, drawn in its own box"),
+        ('<span class="vc-wt-key-box failure">&#10005; failure</span>', "the failure path, drawn in its own box"),
+        ('<span class="sw-glyph">&#9632;</span>', "a path ends here; otherwise it rejoins"),
+    ]),
+    ("Sequence diagrams", [
+        ('<i class="sw span"></i>', "a dotted box marks a new, changed or removed span"),
+    ]),
+]
+GRACEFUL = re.compile(r"\b(logged|dropped|swallow\w*|ignored|skipped|left out|not returned|retried|retries|counted)\b", re.IGNORECASE)
+STOPS = re.compile(r"\b([45]\d\d|rejected|fails? the run|does not start|to the caller|aborts?)\b", re.IGNORECASE)
+
 PKG_STATES = {"add": "new", "mod": "changed", "del": "removed", "test": "tests", "doc": "docs only"}
 MAX_LANDED_CHARS = 120
 TEST_PATH = re.compile(
@@ -75,7 +133,7 @@ WORKTREE = "WORKTREE"  # git only: the working tree, including uncommitted and u
 
 
 def run(cmd, root, check=True, env=None):
-    res = subprocess.run(cmd, capture_output=True, text=True, cwd=root, env=env)
+    res = subprocess.run(cmd, check=False, capture_output=True, encoding="utf-8", errors="replace", cwd=root, env=env)
     if check and res.returncode != 0:
         raise SpecError(f"{' '.join(cmd)} failed:\n{res.stderr.strip()}")
     return res
@@ -197,7 +255,7 @@ def open_repo(path, rev_from, rev_to):
                      (GitRepo, ["git", "-C", path, "rev-parse", "--show-toplevel"])):
         if not shutil.which(cmd[0]):
             continue
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, check=False, capture_output=True, text=True)
         if res.returncode == 0:
             return cls(res.stdout.strip(), rev_from or cls.DEFAULT_FROM, rev_to or cls.DEFAULT_TO)
     raise SystemExit(f"not a jj or git repo: {path}")
@@ -225,7 +283,17 @@ def pkg_matches(pkg_path, pattern):
 
 
 def slug_ok(key):
-    return bool(re.fullmatch(r"[a-z0-9][a-z0-9_.~-]*", key))
+    return bool(re.fullmatch(r"[a-z0-9][a-z0-9_-]*", key))
+
+
+def title_slug(title):
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "walkthrough"
+
+
+def require_state(state, where):
+    if state not in STATES:
+        raise SpecError(f"{where}: state must be one of {list(STATES)}")
+    return state
 
 
 def has_word(text, word):
@@ -305,14 +373,46 @@ def soft_breaks(ident):
     return re.sub(r"(?<=[_./])", "<wbr>", out)
 
 
-def strip_scripts(fragment):
-    cleaned = re.sub(r"<script\b.*?</script\s*>", "", fragment, flags=re.S | re.I)
-    return cleaned, cleaned != fragment
+ACTIVE_TAGS = ("script", "style", "iframe", "object", "embed", "base", "meta", "link", "form")
+ACTIVE_TAG = re.compile(rf"<\s*({'|'.join(ACTIVE_TAGS)})\b", re.IGNORECASE)
+URL_ATTRS = {"href", "src", "action", "formaction", "xlink:href", "values", "from", "to"}
+
+
+class ActiveMarkupFinder(HTMLParser):
+    """Finds the first active tag or attribute; parsing keeps a quoted '>' from hiding the rest of a tag."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.found = None
+
+    def handle_starttag(self, tag, attrs):
+        if self.found:
+            return
+        if tag in ACTIVE_TAGS:
+            self.found = f"<{tag}>"
+            return
+        for name, value in attrs:
+            # attribute values arrive entity-decoded; browsers also drop control chars before reading a URL scheme
+            scheme = re.sub(r"[\x00-\x20]", "", value or "").lower()
+            if name.startswith("on") or (name in URL_ATTRS and "javascript:" in scheme):
+                self.found = f"<{tag} {name}=>"
+                return
+
+    handle_startendtag = handle_starttag
+
+
+def active_markup(fragment):
+    m = ACTIVE_TAG.search(fragment)
+    if m:
+        return m.group(0)
+    finder = ActiveMarkupFinder()
+    finder.feed(fragment)
+    finder.close()
+    return finder.found
 
 
 FROM_HEADS = re.compile(r"\b(before|was|old|from|previous(ly)?|prior|current)\b")
 TO_HEADS = re.compile(r"\b(after|now|new|to|proposed)\b")
-NONE_VALUES = {"", "n/a", "na", "none", "null", "-", "—"}
 
 
 def cell_text(cell):
@@ -324,28 +424,23 @@ def from_to_table(fragment):
 
     That is a table with separate from and to columns, or one whose cells hold "x → y".
     """
-    for table in re.findall(r"<table\b.*?</table\s*>", fragment, flags=re.S | re.I):
-        rows = re.findall(r"<tr\b.*?</tr\s*>", table, flags=re.S | re.I)
+    for table in re.findall(r"<table\b.*?</table\s*>", fragment, flags=re.DOTALL | re.IGNORECASE):
+        rows = re.findall(r"<tr\b.*?</tr\s*>", table, flags=re.DOTALL | re.IGNORECASE)
         if not rows:
             continue
-        head = [cell_text(c) for c in re.findall(r"<t[hd]\b[^>]*>(.*?)</t[hd]\s*>", rows[0], flags=re.S | re.I)]
+        head = [cell_text(c) for c in re.findall(r"<t[hd]\b[^>]*>(.*?)</t[hd]\s*>", rows[0], flags=re.DOTALL | re.IGNORECASE)]
         froms = {i for i, h in enumerate(head) if FROM_HEADS.search(h)}
         tos = {i for i, h in enumerate(head) if TO_HEADS.search(h)}
-        cells = re.findall(r"<td\b[^>]*>(.*?)</td\s*>", table, flags=re.S | re.I)
+        cells = re.findall(r"<td\b[^>]*>(.*?)</td\s*>", table, flags=re.DOTALL | re.IGNORECASE)
         if any(i != j for i in froms for j in tos) or any(re.search(r"→|&rarr;| -> ", c) for c in cells):
             return " | ".join(head)
     return None
 
 
-def go_owner(text, ident):
-    """Find what a Go identifier hangs off: ("struct", "client") for a method or field, ("interface", "Store")."""
-    if not text:
-        return None
-    m = re.search(rf"^func\s*\(\s*\w*\s*\*?\s*([A-Za-z_]\w*)(?:\[[^\]]*\])?\s*\)\s*{re.escape(ident)}\s*[\[(]", text, flags=re.M)
-    if m:
-        return ("method on", m.group(1))
-    current = None
-    for line in text.splitlines():
+def go_field_owners(text, ident):
+    """Every struct or interface in the text that declares ident as a member, in source order."""
+    owners, current = [], None
+    for line in (text or "").splitlines():
         t = re.match(r"^type\s+([A-Za-z_]\w*)(?:\[[^\]]*\])?\s+(struct|interface)\s*\{", line)
         if t:
             current = (t.group(2), t.group(1))
@@ -354,11 +449,114 @@ def go_owner(text, ident):
             current = None
             continue
         if current and re.match(rf"^\s+{re.escape(ident)}(\s|\(|$)", line):
-            return ("method of" if current[0] == "interface" and "(" in line else "field of", f"{current[0]} {current[1]}")
-    return None
+            kind = "method of" if current[0] == "interface" and "(" in line else "field of"
+            owners.append((kind, f"{current[0]} {current[1]}"))
+    return owners
 
 
-CODE_LANGS = {".go": "go", ".ts": "ts", ".tsx": "ts", ".js": "ts", ".jsx": "ts", ".mjs": "ts", ".py": "py"}
+def go_owner(text, ident, prefer=None):
+    """Find what a Go identifier hangs off: ("struct", "client") for a method or field, ("interface", "Store").
+
+    When several types declare ident, the one named prefer wins; otherwise the first in the file.
+    """
+    if not text:
+        return None
+    m = re.search(rf"^func\s*\(\s*\w*\s*\*?\s*([A-Za-z_]\w*)(?:\[[^\]]*\])?\s*\)\s*{re.escape(ident)}\s*[\[(]", text, flags=re.MULTILINE)
+    if m:
+        return ("method on", m.group(1))
+    owners = go_field_owners(text, ident)
+    preferred = [o for o in owners if o[1].split(" ", 1)[1] == prefer]
+    return (preferred or owners or [None])[0]
+
+
+GO_BRACE_NOISE = re.compile(r'"(?:\\.|[^"\\])*"|`[^`]*`|//.*')
+
+
+def declares_go_type(text, name):
+    return bool(text) and re.search(rf"^\s*(?:type\s+)?{re.escape(name)}(?:\[[^\]]*\])?\s+struct\b", text, flags=re.MULTILINE) is not None
+
+
+def go_struct_fields(text, name):
+    """Entries of `type name struct { ... }` with spacing normalized, or None when the struct isn't in the text.
+
+    An entry is one field; a field that opens a nested block spans several lines, re-indented by depth.
+    """
+    if not text:
+        return None
+    if re.search(rf"^type\s+{re.escape(name)}(?:\[[^\]]*\])?\s+struct\s*\{{\s*\}}", text, flags=re.MULTILINE):
+        return []
+    lines = text.splitlines()
+    head = re.compile(rf"^type\s+{re.escape(name)}(?:\[[^\]]*\])?\s+struct\s*\{{\s*(//.*)?$")
+    start = next((i for i, line in enumerate(lines) if head.match(line)), None)
+    if start is None:
+        return None
+    entries, cur, depth = [], [], 0
+    for line in lines[start + 1:]:
+        s = re.sub(r"\s+", " ", line.strip())
+        if depth == 0 and s.startswith("}"):
+            break
+        if not s or (not cur and s.startswith("//")):
+            continue
+        lead = 1 if s.startswith("}") else 0
+        depth -= lead
+        cur.append("\t" * depth + s if cur else s)
+        braces = GO_BRACE_NOISE.sub("", s)
+        depth += braces.count("{") - (braces.count("}") - lead)
+        if depth == 0:
+            entries.append("\n".join(cur))
+            cur = []
+    return entries
+
+
+def struct_entry_key(entry):
+    return entry.split("\n", 1)[0].split(" ", 1)[0]
+
+
+def struct_items(before, after):
+    """Align field entries: ("same", e) | ("add", e) | ("del", e) | ("mod", old, new), in source order."""
+    before, after = before or [], after or []
+    items = []
+    sm = difflib.SequenceMatcher(a=before, b=after, autojunk=False)
+    for op, i1, i2, j1, j2 in sm.get_opcodes():
+        if op == "equal":
+            items += [("same", e) for e in before[i1:i2]]
+            continue
+        old = {struct_entry_key(e): e for e in before[i1:i2]}
+        paired = set()
+        news = []
+        for e in after[j1:j2]:
+            k = struct_entry_key(e)
+            if k in old:
+                paired.add(k)
+                news.append(("mod", old[k], e))
+            else:
+                news.append(("add", e))
+        items += [("del", e) for e in before[i1:i2] if struct_entry_key(e) not in paired]
+        items += news
+    return items
+
+
+def field_html(entry):
+    """Highlight one field entry as it would sit in a struct body, one string per line."""
+    return [h for h in highlight("\n" + _indent(entry), "go").lstrip("\n").split("\n")]
+
+
+def _indent(entry):
+    return "\n".join("\t" + line for line in entry.split("\n"))
+
+
+def struct_item_html(item):
+    kind = item[0]
+    if kind == "same":
+        return field_html(item[1])
+    if kind == "mod":
+        left, right = highlight_diff("\n" + _indent(item[1]), "\n" + _indent(item[2]), "go")
+        return left.lstrip("\n").split("\n") + right.lstrip("\n").split("\n")
+    tag = "ins" if kind == "add" else "del"
+    return [f"<{tag}>{line}</{tag}>" for line in field_html(item[1])]
+
+
+CODE_LANGS ={".go": "go", ".ts": "ts", ".tsx": "ts", ".js": "ts", ".jsx": "ts", ".mjs": "ts", ".py": "py"}
 KEYWORDS = {
     "go": "break case chan const continue default defer else fallthrough for func go goto if import interface map "
           "package range return select struct switch type var",
@@ -383,7 +581,7 @@ LEX = {
         r"|(?P<word>[A-Za-z_$][\w$]*)"
         r"|(?P<sp>\s+)"
         r"|(?P<p>.)",
-        re.S,
+        re.DOTALL,
     )
     for lang in ("go", "ts", "py", "other")
 }
@@ -402,7 +600,7 @@ def lex(code, lang):
         if kind == "word":
             nxt = next((t for k, t in raw[i + 1:] if k != "sp"), "")
             prev = raw[i - 1] if i else ("sp", "\n")
-            line_start = i == 0 or (prev[0] == "sp" and "\n" in prev[1])
+            line_start = i == 0 or (prev[0] == "sp" and ("\n" in prev[1] or i == 1))
             if lang == "go" and line_start and nxt not in ("(", "") and text not in kws:
                 cls = ""  # struct field or interface embed name: plain, its type carries the color
             elif text in kws:
@@ -431,6 +629,12 @@ def highlight(code, lang):
 
 def highlight_diff(a, b, lang):
     """Highlighted before/after with changed tokens wrapped in del/ins."""
+    if "\n" in a or "\n" in b:
+        return diff_lines(a, b, lang)
+    return diff_tokens(a, b, lang)
+
+
+def diff_tokens(a, b, lang):
     ta, tb = lex(a, lang), lex(b, lang)
     left, right = [], []
     sm = difflib.SequenceMatcher(a=[t for _, t in ta], b=[t for _, t in tb], autojunk=False)
@@ -447,12 +651,45 @@ def highlight_diff(a, b, lang):
     return "".join(left), "".join(right)
 
 
+def mark_line(line, lang, tag):
+    """Wrap a whole line, from its first non-space character, so its indentation is never highlighted."""
+    body = line.lstrip()
+    if not body:
+        return line
+    return f"{line[:len(line) - len(body)]}<{tag}>{highlight(body, lang)}</{tag}>"
+
+
+def diff_lines(a, b, lang):
+    """Line-aware diff for multi-line declarations: a line on one side only is marked whole, a changed line pair token by token."""
+    la, lb = a.split("\n"), b.split("\n")
+    left, right = [], []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=la, b=lb, autojunk=False).get_opcodes():
+        if op == "equal":
+            left += [highlight(line, lang) for line in la[i1:i2]]
+            right += [highlight(line, lang) for line in lb[j1:j2]]
+            continue
+        old, new = la[i1:i2], lb[j1:j2]
+        for k in range(max(len(old), len(new))):
+            x = old[k] if k < len(old) else None
+            y = new[k] if k < len(new) else None
+            if x is not None and y is not None and difflib.SequenceMatcher(a=x, b=y).ratio() >= 0.5:
+                lx, ry = diff_tokens(x, y, lang)
+                left.append(lx)
+                right.append(ry)
+                continue
+            if x is not None:
+                left.append(mark_line(x, lang, "del"))
+            if y is not None:
+                right.append(mark_line(y, lang, "ins"))
+    return "\n".join(left), "\n".join(right)
+
+
 # ---------------------------------------------------------------- packages
 
 class Package:
     def __init__(self, path):
         self.path = path  # directory with trailing slash, "" for repo root
-        self.files = []
+        self.paths = []
         self.state = "mod"
 
     @property
@@ -460,17 +697,21 @@ class Package:
         return self.path or "(root)/"
 
 
+def package_paths(f):
+    """A rename also lands in its old directory, classified by its old path."""
+    paths = [f.old_path, f.path] if f.status == "renamed" else [f.path]
+    return [(os.path.dirname(p), p) for p in paths if not NON_DESIGN_PATH.search(p)]
+
+
 def collect_packages(files, repo):
     pkgs = OrderedDict()
-    for path, f in files.items():
-        if NON_DESIGN_PATH.search(path):
-            continue
-        d = os.path.dirname(path)
-        pkgs.setdefault(d, Package(d + "/" if d else "")).files.append(f)
+    for f in files.values():
+        for d, path in package_paths(f):
+            pkgs.setdefault(d, Package(d + "/" if d else "")).paths.append(path)
     for d, p in pkgs.items():
-        if all(TEST_PATH.search(f.path) for f in p.files):
+        if all(TEST_PATH.search(path) for path in p.paths):
             p.state = "test"
-        elif all(DOC_PATH.search(f.path) for f in p.files):
+        elif all(DOC_PATH.search(path) for path in p.paths):
             p.state = "doc"
         elif d not in repo.dirs("before"):
             p.state = "add"
@@ -489,7 +730,8 @@ class Builder:
         self.pkgs = collect_packages(files, repo)
         self.owners = {k.rstrip("*").rstrip("/"): v for k, v in (spec.get("owners") or {}).items()}
         self.warnings = []
-        self.tab_pkgs = {}
+        self.tab_pkgs = {"overview": set()}
+        self.block_ids = {}
 
     def warn(self, msg):
         self.warnings.append(msg)
@@ -520,7 +762,7 @@ class Builder:
         for t in tabs:
             key = t.get("key", "")
             if not slug_ok(key):
-                raise SpecError(f"tab key {key!r} must be a lowercase slug (a-z 0-9 - _ . ~)")
+                raise SpecError(f"tab key {key!r} must be a lowercase slug (a-z 0-9 - _)")
             if key in seen:
                 raise SpecError(f"duplicate tab key {key!r}")
             seen.add(key)
@@ -530,9 +772,8 @@ class Builder:
                 self.warn(f"tab {key!r} lede is over {MAX_LEDE_CHARS} chars; keep it to one sentence")
             if not t.get("blocks"):
                 raise SpecError(f"tab {key!r} has no blocks")
-            for gone in ("decisions", "questions"):
-                if gone in t:
-                    raise SpecError(f"tab {key!r}: {gone!r} is not supported; the page shows the design, the room weighs it")
+            if "questions" in t:
+                raise SpecError(f"tab {key!r}: 'questions' is not supported; the page shows the design, the room weighs it")
 
     def reject_multiline(self, node, where):
         """Code belongs nowhere on this page; multi-line strings are how it sneaks in."""
@@ -566,7 +807,7 @@ class Builder:
 
     @staticmethod
     def check_html_code(fragment, where):
-        for m in re.finditer(r"<(pre|code)\b[^>]*>(.*?)</\1\s*>", fragment, flags=re.S | re.I):
+        for m in re.finditer(r"<(pre|code)\b[^>]*>(.*?)</\1\s*>", fragment, flags=re.DOTALL | re.IGNORECASE):
             if "\n" in m.group(2).strip() or "<br" in m.group(2).lower():
                 raise SpecError(f"{where}: html block contains a multi-line <{m.group(1)}>; this page shows no code blocks")
 
@@ -621,20 +862,42 @@ class Builder:
     def render_header(self):
         s = self.spec
         eyebrow = esc(s.get("eyebrow") or self.revs_label())
-        legend = "".join(f'<span><i class="{c}"></i>{PKG_STATES[c]}</span>' for c in ("add", "mod", "del"))
-        prefs = (
-            '<div class="vc-prefs" hidden>'
-            '<label for="vc-theme">Theme</label><select id="vc-theme"><option value="auto">Match system</option>'
-            '<option value="light">Light</option><option value="dark">Dark</option></select>'
-            '<label for="vc-palette">Colorblind</label><select id="vc-palette"><option value="default">None</option>'
-            '<option value="protanopia">Protanopia</option><option value="deuteranopia">Deuteranopia</option>'
-            '<option value="tritanopia">Tritanopia</option></select>'
-            "</div>"
-        )
+        buttons = [self.icon_button("legend", "Legend", ICON_LEGEND, popup="vc-legend-pop")]
+        menus = []
+        for key, title, subtitle, icon, options in PREF_MENUS:
+            buttons.append(self.icon_button(key, title, icon, popup=f"vc-menu-{key}", menu=True))
+            items = "".join(
+                f'<button type="button" role="menuitemradio" aria-checked="false" data-value="{value}" tabindex="-1">'
+                f'<span>{esc(label)}</span><span class="vc-menu-check" aria-hidden="true">&#10003;</span></button>'
+                for value, label in options
+            )
+            menus.append(
+                f'<div class="vc-menu" id="vc-menu-{key}" data-key="{key}" role="menu" aria-labelledby="vc-btn-{key}" hidden>'
+                f'<div class="vc-menu-head"><strong>{esc(title)}</strong><span>{esc(subtitle)}</span></div>'
+                f'<div class="vc-menu-list">{items}</div></div>'
+            )
         return (
-            f'<header class="vc-head"><div class="vc-eyebrow">{eyebrow}</div><h1>{esc(s["title"])}</h1>'
-            f'<div class="vc-headbar"><div class="vc-legend" aria-label="Color key">{legend}</div>{prefs}</div></header>'
+            f'<header class="vc-head"><div class="vc-eyebrow">{eyebrow}</div>'
+            f'<div class="vc-titlebar"><h1>{esc(s["title"])}</h1>'
+            f'<div class="vc-controls"><div class="vc-prefs" hidden>{"".join(buttons)}</div>'
+            f'{"".join(menus)}{self.render_legend()}</div></div></header>'
         )
+
+    @staticmethod
+    def icon_button(key, title, icon, popup, menu=False):
+        haspopup = ' aria-haspopup="menu"' if menu else ""
+        return (
+            f'<button type="button" class="vc-icon-btn" id="vc-btn-{key}" data-title="{esc(title)}" aria-label="{esc(title)}" title="{esc(title)}"'
+            f'{haspopup} aria-expanded="false" aria-controls="{popup}">{icon}</button>'
+        )
+
+    @staticmethod
+    def render_legend():
+        rows = []
+        for title, entries in LEGEND:
+            items = "".join(f'<li><span class="vc-key">{swatch}</span><span>{esc(text)}</span></li>' for swatch, text in entries)
+            rows.append(f'<section><h4>{esc(title)}</h4><ul>{items}</ul></section>')
+        return f'<div class="vc-legend-pop" id="vc-legend-pop" role="dialog" aria-label="Legend" hidden>{"".join(rows)}</div>'
 
     def revs_label(self):
         return f"{self.repo.name} · {self.repo.single_id(self.repo.rev_from)} → {self.repo.single_id(self.repo.rev_to)}"
@@ -673,17 +936,36 @@ class Builder:
         return (
             f'<section class="vc-panel" id="vc-p-{key}" aria-labelledby="vc-t-{key}">'
             f'<div class="vc-panel-head"><h2>{esc(t["title"])}</h2>{lede}</div>'
-            f"{blocks}{self.render_tree(key)}</section>"
+            f"{self.render_decisions(key)}{blocks}{self.render_failures(key)}{self.render_tree(key)}{self.render_etc(key)}</section>"
         )
 
     def render_block(self, tab, b):
         kind = b.get("type")
         fn = getattr(self, f"block_{kind}", None) if kind else None
         if fn is None:
-            raise SpecError(f"tab {tab!r}: unknown block type {kind!r} (diagram, boundaries, delta, html)")
+            raise SpecError(f"tab {tab!r}: unknown block type {kind!r} (diagram, walkthrough, boundaries, html)")
         title = f"<h3>{esc(b['title'])}</h3>" if b.get("title") else ""
         caption = f'<p class="vc-caption">{esc(b["caption"])}</p>' if b.get("caption") else ""
-        return f'<section class="vc-block vc-block-{kind}">{title}{fn(tab, b)}{caption}</section>'
+        return f'<section class="vc-block vc-block-{kind}"{self.block_link(tab, b)}>{title}{fn(tab, b)}{caption}</section>'
+
+    def block_link(self, tab, b):
+        """Attributes that make a titled walkthrough linkable as #<tab>/<block> (and #<tab>/<block>--fullscreen)."""
+        if b.get("type") != "walkthrough":
+            return ""
+        if not b.get("title"):
+            self.warn(f"tab {tab!r}: a walkthrough without a 'title' cannot be linked or opened full window from a link")
+            return ""
+        used = self.block_ids.setdefault(tab, set())
+        base = slug = title_slug(b["title"])
+        if slug in used:
+            self.warn(f"tab {tab!r}: walkthrough title {b['title']!r} gives the link name {slug!r} another walkthrough already has; give it a distinct title")
+        n = 1
+        while slug in used:
+            n += 1
+            slug = f"{base}-{n}"
+        used.add(slug)
+        # "--" never occurs in a title slug, so tab + "--" + slug names one walkthrough even when tab keys contain "-"
+        return f' id="vc-b-{tab}--{slug}" data-tab="{tab}" data-block="{slug}" data-title="{esc(b["title"])}"'
 
     # ---- where it lands: directory tree from the repo root
 
@@ -727,9 +1009,10 @@ class Builder:
             pkg = self.pkg_by_path(p)
             if pkg.state not in ("test", "doc") and p.strip("/") not in self.landed:
                 self.warn(f"tab {tab!r}: no 'landed' sentence for {pkg.label}; say in one line what landed there")
-        root_cls = f" vc-pkg {root_pkg.state}" if root_pkg else ""
+        root_cls = f"vc-dir vc-pkg {root_pkg.state}" if root_pkg else "vc-dir"
         root = (
-            f'<span class="vc-dir{root_cls}">{esc(self.repo.name)}/</span>{self.owner_tag("")}'
+            self.dir_label(f"{self.repo.name}/", root_cls, "", bool(tree))
+            + self.owner_tag("")
             + (self.landed_tag("") if root_pkg else "")
             + self.tree_ul(tree)
         )
@@ -749,10 +1032,17 @@ class Builder:
             cls = f"vc-dir vc-pkg {pkg.state}" if pkg else "vc-dir"
             title = f' title="{esc(PKG_STATES[pkg.state])}"' if pkg else ""
             items.append(
-                f'<li><span class="{cls}"{title}>{esc(seg)}/</span>{self.owner_tag(node["_path"])}'
+                f'<li>{self.dir_label(f"{seg}/", cls, title, bool(node["_children"]))}{self.owner_tag(node["_path"])}'
                 f'{self.landed_tag(node["_path"]) if pkg else ""}{self.tree_ul(node["_children"])}</li>'
             )
         return f'<ul>{"".join(items)}</ul>'
+
+    @staticmethod
+    def dir_label(text, cls, title, expandable):
+        """A directory name; one with children toggles its subtree when clicked (the page script handles it)."""
+        if not expandable:
+            return f'<span class="{cls}"{title}>{esc(text)}</span>'
+        return f'<span class="{cls} vc-toggle" role="button" tabindex="0" aria-expanded="true"{title}>{esc(text)}</span>'
 
     def landed_tag(self, path):
         text = self.landed.get(path)
@@ -779,6 +1069,14 @@ class Builder:
                     f"tab {tab!r}: diagram blocks are for sequenceDiagram only; draw flows as an html block "
                     "with the flow kit (references/blocks.md)"
                 )
+        for side in ("before", "after"):
+            self.check_spans(tab, b.get(side) or "")
+        messages = len(MESSAGE_LINE.findall(b["after"]))
+        if messages > DIAGRAM_MESSAGES or BRANCHING_LINE.search(b["after"]):
+            self.warn(
+                f"tab {tab!r}: this diagram has {messages} messages or branches (alt/opt/else); "
+                "use a walkthrough block for long or branching interactions"
+            )
         used = set()
         after = self.mermaid(b["after"], used)
         if not b.get("before"):
@@ -793,6 +1091,17 @@ class Builder:
         )
 
     @staticmethod
+    def check_spans(tab, src):
+        if re.search(r"^\s*Note\s+(over|left of|right of)\b[^:\n]*:\s*(new|changed|removed)\s*$", src, flags=re.MULTILINE | re.IGNORECASE):
+            raise SpecError(f"tab {tab!r}: mark a new, changed, or removed span with 'rect new' ... 'end', not a Note")
+        for m in re.finditer(r"^\s*rect\b(.*)$", src, flags=re.MULTILINE):
+            if m.group(1).strip() not in ("new", "changed", "removed"):
+                raise SpecError(
+                    f"tab {tab!r}: 'rect{m.group(1)}' sets its own color; use 'rect new', 'rect changed' or 'rect removed' "
+                    "so the theme and color-blind palettes apply"
+                )
+
+    @staticmethod
     def mermaid(src, used):
         return f'<pre class="vc-mermaid">{esc(src.strip(chr(10)), quote=False)}</pre>'
 
@@ -801,59 +1110,206 @@ class Builder:
         # one color key lives in the page header; blocks don't restate it
         return ""
 
+    # ---- blocks: walkthrough
+
+    def block_walkthrough(self, tab, b):
+        where = f"tab {tab!r} walkthrough"
+        lanes = b.get("lanes")
+        if not isinstance(lanes, list) or len(lanes) < 2 or not all(isinstance(x, str) and x.strip() for x in lanes) or len(set(lanes)) != len(lanes):
+            raise SpecError(f"{where}: 'lanes' needs at least two unique participant names")
+        segments = b.get("segments")
+        if not isinstance(segments, list) or not segments:
+            raise SpecError(f"{where}: needs 'segments', each {{steps}} or {{split}}")
+        data, longest = {"lanes": lanes, "segments": []}, 0
+        for i, sg in enumerate(segments):
+            at = f"{where} segments[{i}]"
+            if not isinstance(sg, dict) or ("steps" in sg) == ("split" in sg) or set(sg) - {"steps", "split"}:
+                raise SpecError(f"{at}: use exactly one of 'steps' or 'split'")
+            if "steps" in sg:
+                steps = self.walk_steps(at, lanes, sg["steps"])
+                data["segments"].append({"steps": steps})
+                longest += len(steps)
+                continue
+            branches = self.walk_split(at, lanes, sg["split"])
+            data["segments"].append({"split": branches})
+            longest += max(len(br["steps"]) for br in branches)
+            if all(br.get("ends") for br in branches) and i < len(segments) - 1:
+                self.warn(f"{at}: every branch ends, but a segment follows it; that segment is unreachable")
+        if longest > MAX_WALK_STEPS:
+            self.warn(f"{where}: {longest} steps on the longest path; over {MAX_WALK_STEPS} reads as a log, split the flow")
+        payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+        return (
+            f'<div class="vc-wt"><script type="application/json" class="vc-wt-data">{payload}</script>'
+            f'{self.walk_static(data)}</div>'
+        )
+
+    def walk_steps(self, where, lanes, steps):
+        if not isinstance(steps, list) or not steps:
+            raise SpecError(f"{where}: 'steps' must be a non-empty list")
+        out = []
+        for k, st in enumerate(steps):
+            at = f"{where} step {k + 1}"
+            if not isinstance(st, dict):
+                raise SpecError(f"{at}: must be an object")
+            extra = set(st) - {"from", "to", "label", "what", "detail", "state", "ret", "tasks"}
+            if extra:
+                raise SpecError(f"{at}: unknown field(s) {sorted(extra)}")
+            for key in ("from", "to"):
+                if st.get(key) not in lanes:
+                    raise SpecError(f"{at}: {key!r} must be one of the lanes {lanes}; got {st.get(key)!r}")
+            for key in ("label", "what"):
+                if not isinstance(st.get(key), str) or not st[key].strip():
+                    raise SpecError(f"{at}: needs a non-empty {key!r}")
+            if "detail" in st and not isinstance(st["detail"], str):
+                raise SpecError(f"{at}: 'detail' must be a string")
+            if st.get("state") not in (None, "add", "mod", "del"):
+                raise SpecError(f"{at}: state must be one of ['add', 'mod', 'del']")
+            if len(st["what"]) > MAX_WALK_WHAT:
+                self.warn(f"{at}: 'what' is {len(st['what'])} chars; keep it to one sentence")
+            kind = "self" if st["from"] == st["to"] else "ret" if st.get("ret") else ""
+            out.append({
+                "f": lanes.index(st["from"]), "t": lanes.index(st["to"]), "label": st["label"], "what": st["what"],
+                "detail": st.get("detail", ""), "state": st.get("state") or "", "kind": kind,
+                "tasks": self.walk_tasks(at, st.get("tasks")),
+            })
+        return out
+
+    def walk_tasks(self, where, tasks):
+        """Consecutive calls between the same two lanes drawn as one step, each listed in the step's panel."""
+        if tasks is None:
+            return []
+        if not isinstance(tasks, list) or not tasks:
+            raise SpecError(f"{where}: 'tasks' must be a non-empty list of {{label, what, detail?}}")
+        out = []
+        for j, tk in enumerate(tasks):
+            at = f"{where} task {j + 1}"
+            if not isinstance(tk, dict) or set(tk) - {"label", "what", "detail"}:
+                raise SpecError(f"{at}: must be an object with only label, what and detail")
+            for key in ("label", "what"):
+                if not isinstance(tk.get(key), str) or not tk[key].strip():
+                    raise SpecError(f"{at}: needs a non-empty {key!r}")
+            if "detail" in tk and not isinstance(tk["detail"], str):
+                raise SpecError(f"{at}: 'detail' must be a string")
+            out.append({"label": tk["label"], "what": tk["what"], "detail": tk.get("detail", "")})
+        return out
+
+    def walk_split(self, where, lanes, split):
+        if not isinstance(split, list) or len(split) < 2:
+            raise SpecError(f"{where}: a split needs at least two branches")
+        seen, out = set(), []
+        for j, br in enumerate(split):
+            at = f"{where} branch {j + 1}"
+            if not isinstance(br, dict):
+                raise SpecError(f"{at}: must be an object")
+            extra = set(br) - {"key", "label", "kind", "ends", "steps"}
+            if extra:
+                raise SpecError(f"{at}: unknown field(s) {sorted(extra)}")
+            key = br.get("key")
+            if not isinstance(key, str) or not slug_ok(key) or key in seen:
+                raise SpecError(f"{at}: needs a unique lowercase 'key'")
+            seen.add(key)
+            if not isinstance(br.get("label"), str) or not br["label"].strip():
+                raise SpecError(f"{at}: needs a 'label'")
+            if br.get("kind") not in ("ok", "failure"):
+                raise SpecError(f"{at}: kind must be 'ok' or 'failure'")
+            if "ends" in br and not isinstance(br["ends"], bool):
+                raise SpecError(f"{at}: 'ends' must be true or false")
+            out.append({
+                "key": key, "label": br["label"], "kind": br["kind"], "ends": bool(br.get("ends")),
+                "steps": self.walk_steps(at, lanes, br.get("steps")),
+            })
+        if not any(br["kind"] == "ok" for br in out):
+            self.warn(f"{where}: a split with no 'ok' branch; name the path the flow normally takes")
+        return out
+
+    def walk_static(self, data):
+        """Every step as a plain list: what the standalone page shows before (or without) its script."""
+        lanes = data["lanes"]
+
+        def steps(items):
+            lis = "".join(
+                f'<li><strong>{esc(s["label"])}</strong> ({esc(lanes[s["f"]])} → {esc(lanes[s["t"]])}): {esc(s["what"])}'
+                + (f' <em>{STATES[s["state"]]}</em>' if s["state"] else "")
+                + (
+                    "<ol>" + "".join(f'<li><strong>{esc(t["label"])}</strong>: {esc(t["what"])}</li>' for t in s["tasks"]) + "</ol>"
+                    if s["tasks"] else ""
+                )
+                + "</li>"
+                for s in items
+            )
+            return f"<ol>{lis}</ol>"
+
+        parts = []
+        for sg in data["segments"]:
+            if "steps" in sg:
+                parts.append(steps(sg["steps"]))
+                continue
+            alts = "".join(
+                f'<li><strong>{esc(br["label"])}</strong>{" (ends the flow)" if br["ends"] else ""}{steps(br["steps"])}</li>'
+                for br in sg["split"]
+            )
+            parts.append(f"<ul>{alts}</ul>")
+        return f'<div class="vc-wt-static">{"".join(parts)}</div>'
+
     # ---- blocks: boundaries
 
     def block_boundaries(self, tab, b):
         bounds = b.get("boundaries") or []
         if not bounds:
             raise SpecError(f"tab {tab!r}: boundaries block needs 'boundaries'")
-        ids, nodes, labels, rows = {}, {}, {}, []
-        checked = {}
-        for i, bd in enumerate(bounds):
-            bid = bd.get("id")
-            if not bid or bid in ids:
-                raise SpecError(f"tab {tab!r}: each boundary needs a unique 'id' (got {bid!r})")
-            ids[bid] = i
-            labels[bid] = bd.get("label") or bid
-            where = f"tab {tab!r} boundary {bid!r}"
+        for gone in ("links", "map"):
+            if gone in b or any(gone in bd for bd in bounds):
+                raise SpecError(
+                    f"tab {tab!r}: boundaries has no {gone!r}; it shows only the exposed surface. "
+                    "Draw calls between boundaries as a diagram block"
+                )
+        rows, structs = [], OrderedDict()
+        for bd in bounds:
+            where = f"tab {tab!r} boundary {bd.get('id') or bd.get('label')!r}"
             for pat in bd.get("paths", []):
                 self.claim(tab, pat, where)
             exposes = bd.get("exposes") or []
             if len(exposes) > MAX_EXPOSES:
-                self.warn(f"{where}: {len(exposes)} exposed artifacts; show the ones this change touches or callers rely on")
-            for j, art in enumerate(exposes):
+                self.warn(f"{where}: {len(exposes)} exposed artifacts; show the ones this change touches")
+            for art in exposes:
                 state, owner = self.check_artifact(tab, art, where)
-                key = f"{bid}.{art.get('id') or art['name']}"
-                if key in nodes:
-                    raise SpecError(f"{where}: two artifacts resolve to {key!r}; give one an 'id' so links can tell them apart")
-                nodes[key] = (i, j)
-                checked[(i, j)] = (state, owner)
-                if state != "same":  # unchanged artifacts give the map context but aren't part of the surface delta
-                    d = os.path.dirname(art.get("file", ""))
+                if state == "same":  # unchanged artifacts are not part of the surface delta
+                    continue
+                d = os.path.dirname(art["file"])
+                struct = self.go_struct_name(art, owner)
+                if not struct:
                     rows.append((d, self.surface_row(art, state, owner, f"{where} {art['name']!r}")))
+                    continue
+                key = (art["file"], struct)
+                if key not in structs:
+                    structs[key] = {"before_file": art.get("before_file", art["file"]), "arts": []}
+                    rows.append((d, key))
+                structs[key]["arts"].append((art, state, owner, f"{where} {art['name']!r}"))
+        return self.surface_cards([(d, self.resolve_row(r, structs)) for d, r in rows])
 
-        incoming = {}  # (i, j or None) -> [(from label, link label, state)]
-        for ln in b.get("links") or []:
-            src, dst = ln.get("from"), ln.get("to")
-            for ref in (src, dst):
-                if ref not in ids and ref not in nodes:
-                    raise SpecError(
-                        f"tab {tab!r}: link endpoint {ref!r} is not a boundary id or 'boundary.artifact'. Known: "
-                        + ", ".join(list(ids) + list(nodes))
-                    )
-            target = nodes[dst] if dst in nodes else (ids[dst], None)
-            src_label = labels[src.split(".")[0]] if src in nodes else labels[src]
-            if src in nodes:
-                bi, aj = nodes[src]
-                src_label += "." + (bounds[bi]["exposes"][aj]["name"].split(".")[-1])
-            incoming.setdefault(target, []).append((src_label, ln.get("label", ""), ln.get("state", "same")))
+    @staticmethod
+    def go_struct_name(art, owner):
+        """The Go struct an artifact is, or is a field of; None for anything else."""
+        if not art["file"].endswith(".go") or art.get("match"):
+            return None
+        if art.get("kind") == "struct":
+            return art["name"].split(".")[-1]
+        if owner and owner[0] == "field of" and owner[1].startswith("struct "):
+            return owner[1].split(" ", 1)[1]
+        return None
 
-        if b.get("map", True):
-            cards = [self.boundary_card(i, bd, checked, incoming) for i, bd in enumerate(bounds)]
-            graph = f'<div class="vc-bmap">{"<span class=\"vc-bmap-arrow\" aria-hidden=\"true\">→</span>".join(cards)}</div>'
-        else:
-            graph = ""
-        return graph + self.surface_cards(rows)
+    def resolve_row(self, row, structs):
+        if isinstance(row, str):
+            return row
+        file, name = row
+        group = structs[row]
+        html_row = self.struct_row(file, name, group["before_file"])
+        if html_row == "":
+            self.warn(f"{file}: struct {name!r} is listed as changed but its fields are identical before and after")
+        if html_row is not None:
+            return html_row
+        # struct declaration not parseable on either side: fall back to each artifact's own declaration
+        return "".join(self.surface_row(art, state, owner, where) for art, state, owner, where in group["arts"])
 
     @staticmethod
     def surface_cards(rows):
@@ -861,39 +1317,13 @@ class Builder:
             return ""
         by_dir = OrderedDict()
         for d, row in rows:
-            by_dir.setdefault(d, []).append(row)
+            if row:
+                by_dir.setdefault(d, []).append(row)
         cards = "".join(
             f'<div class="vc-scard"><div class="vc-scard-head"><code>{esc(d)}/</code></div>{"".join(rs)}</div>'
             for d, rs in by_dir.items()
         )
-        return f'<div class="vc-surface"><h4 class="vc-h">Exposed surface</h4>{cards}</div>'
-
-    def boundary_card(self, i, bd, checked, incoming):
-        """One boundary: what it is, what it exposes (with state and what hangs off what), and who calls in."""
-        def calls(key):
-            items = incoming.get(key) or []
-            return "".join(
-                f'<div class="vc-bcall {st}"><span class="vc-arrow">←</span> <strong>{soft_breaks(frm)}</strong>'
-                + (f" · {esc(lbl)}" if lbl else "") + "</div>"
-                for frm, lbl, st in items
-            )
-        meta = " · ".join(x for x in (bd.get("kind"), bd.get("owner")) if x)
-        state = bd.get("state", "")
-        arts = []
-        for j, art in enumerate(bd.get("exposes") or []):
-            st, owner = checked[(i, j)]
-            hang = f'<span class="vc-bhang">{esc(owner[0])} {esc(owner[1])}</span>' if owner else (
-                f'<span class="vc-bhang">{esc(art["kind"])}</span>' if art.get("kind") else "")
-            arts.append(
-                f'<div class="vc-bart {st}"><code>{soft_breaks(art["name"].split(".")[-1])}</code>{hang}{calls((i, j))}</div>'
-            )
-        body = "".join(arts)
-        return (
-            f'<div class="vc-bcard {state}{" vc-bcard-ext" if not arts else ""}">'
-            f'<div class="vc-bcard-head"><strong>{soft_breaks(bd.get("label") or bd["id"])}</strong>'
-            + (f'<span class="vc-bmeta">{esc(meta)}</span>' if meta else "")
-            + f"</div>{calls((i, None))}{body}</div>"
-        )
+        return f'<div class="vc-surface"><h4 class="vc-h">Exposed surface</h4>{cards}</div>' if cards else ""
 
     def check_artifact(self, tab, art, where):
         name, path = art.get("name"), art.get("file")
@@ -901,6 +1331,8 @@ class Builder:
             raise SpecError(f"{where}: each exposed artifact needs 'name' and 'file'")
         where = f"{where} artifact {name!r}"
         self.claim_file(tab, path)
+        if art.get("before_file"):
+            self.claim_file(tab, art["before_file"])
         token = art.get("match") or name.split(".")[-1]
         before = self.repo.text("before", art.get("before_file", path))
         after = self.repo.text("after", path)
@@ -910,21 +1342,60 @@ class Builder:
         if not in_before and not in_after:
             raise SpecError(f"{where}: {token!r} does not appear in {path} before or after (set 'match' for endpoints/events)")
         derived = "add" if not in_before else "del" if not in_after else "mod"
-        state = art.get("state", derived)
-        if state not in STATES:
-            raise SpecError(f"{where}: state must be one of {list(STATES)}")
+        state = require_state(art.get("state", derived), where)
         if state != derived and not (derived == "mod" and state == "same"):
             self.warn(f"{where}: state {state!r} but the code says {derived!r}")
         owner = None
         if art.get("on"):
             owner = tuple(art["on"].split(" ", 1)) if " " in art["on"] else ("on", art["on"])
         elif path.endswith(".go") and not art.get("match"):
-            owner = go_owner(after if in_after else before, token)
+            prefer = name.split(".")[0] if "." in name else None
+            text = after if in_after else before
+            owner = go_owner(text, token, prefer) or (in_before and go_owner(before, token, prefer)) or None
+            owners = {o[1] for o in go_field_owners(text, token)}
+            if len(owners) > 1 and (prefer is None or f"struct {prefer}" not in owners):
+                self.warn(f"{where}: {token!r} is declared by {len(owners)} types in {path}; name it Type.{token}")
             if not owner and "." in name:
                 owner = ("on", name.split(".")[0])
         if path.endswith(".go") and not art.get("match") and token[:1].islower():
             self.warn(f"{where}: unexported Go name; boundaries show only what the package exposes")
         return state, owner
+
+    def struct_row(self, file, name, before_file):
+        """The whole struct, with changed fields marked in place; "" when nothing differs, None when unparseable.
+
+        An existing struct with more than STRUCT_HIDE_OVER properties shows only what changed.
+        """
+        before_text, after_text = self.repo.text("before", before_file), self.repo.text("after", file)
+        before, after = go_struct_fields(before_text, name), go_struct_fields(after_text, name)
+        if before is None and after is None:
+            return None
+        if (before is None and declares_go_type(before_text, name)) or (after is None and declares_go_type(after_text, name)):
+            return None
+        state = "add" if before is None else "del" if after is None else "mod"
+        if state != "mod":
+            items = [("same", e) for e in (after if after is not None else before)]
+            changed = items
+        else:
+            items = struct_items(before, after)
+            changed = [it for it in items if it[0] != "same"]
+            if not changed:
+                return ""
+        hidden = 0
+        if state == "mod" and len(before) > STRUCT_HIDE_OVER:
+            hidden = len(items) - len(changed)
+            items = changed
+        lines = [highlight(f"type {name} struct {{", "go")]
+        if hidden:
+            lines.append(f'\t<span class="tk-com">// {hidden} {"property" if hidden == 1 else "properties"} hidden</span>')
+        for item in items:
+            lines.extend(struct_item_html(item))
+        lines.append("}")
+        return (
+            f'<div class="vc-srow {state}"><span class="vc-badge {state}">{STATES[state]}</span>'
+            f'<span class="vc-skind">struct <code>{esc(name)}</code></span>'
+            f'<div class="vc-decl"><pre class="vc-code">{chr(10).join(lines)}</pre></div></div>'
+        )
 
     def surface_row(self, art, state, owner, where):
         """One row: state, what kind of thing it is (and what it hangs off), its highlighted declaration."""
@@ -946,7 +1417,7 @@ class Builder:
             bh, ah = highlight_diff(b, a, lang)
             multi = "\n" in b or "\n" in a
             body = (
-                f'<pre class="vc-code vc-was">{bh}</pre><span class="vc-arrow">{"↓" if multi else "→"}</span><pre class="vc-code">{ah}</pre>'
+                f'<pre class="vc-code vc-code-before">{bh}</pre><span class="vc-arrow">{"↓" if multi else "→"}</span><pre class="vc-code">{ah}</pre>'
             )
             body = f'<div class="vc-decl{" vc-decl-multi" if multi else ""}">{body}</div>'
         else:
@@ -961,67 +1432,153 @@ class Builder:
             f'<span class="vc-skind">{what}</span>{body}</div>'
         )
 
-    # ---- blocks: delta, note, html
+    # ---- tab sections: key decisions, failure models, etc
+
+    def check_items(self, tab, field, required):
+        items = next(t for t in self.spec["tabs"] if t["key"] == tab).get(field) or []
+        if len(items) > MAX_ITEMS:
+            self.warn(f"tab {tab!r}: {len(items)} {field}; keep the ones a reader needs to understand the behavior")
+        failures = field == "failures"
+        allowed = set(required) | {"state", "was"} | ({"continues"} if failures else set())
+        for i, it in enumerate(items):
+            where = f"tab {tab!r} {field}[{i}]"
+            if not isinstance(it, dict):
+                raise SpecError(f"{where}: must be an object with {', '.join(required)}")
+            for k in required:
+                if not isinstance(it.get(k), str) or not it[k].strip():
+                    raise SpecError(f"{where}: needs a non-empty {k!r}")
+            extra = set(it) - allowed
+            if extra:
+                raise SpecError(f"{where}: unknown field(s) {sorted(extra)}; allowed: {', '.join(sorted(allowed))}")
+            if "state" in it and it["state"] not in ITEM_STATES:
+                raise SpecError(f"{where}: state must be one of {list(ITEM_STATES)}")
+            if it.get("was") and it.get("state") != "mod":
+                raise SpecError(f"{where}: 'was' only goes with state 'mod'")
+            if it.get("state") == "mod" and not it.get("was"):
+                raise SpecError(
+                    f"{where}: a changed item must say what it was; if you cannot state the old behavior from the base "
+                    "revision, it is new: use state 'add'"
+                )
+            if failures:
+                self.check_failure(where, it)
+            elif isinstance(it.get("was", ""), dict):
+                raise SpecError(f"{where}: a decision's 'was' is one short phrase, not an object")
+            elif it.get("was") and it["was"].strip().lower() == it["statement"].strip().lower():
+                raise SpecError(f"{where}: 'was' repeats the statement; say what the behavior used to be")
+        return items
+
+    def check_failure(self, where, it):
+        was = it.get("was")
+        if was is not None and not isinstance(was, dict):
+            raise SpecError(f"{where}: a failure's 'was' is {{cause, result}} with the old IF and THEN, not a string")
+        if isinstance(was, dict):
+            extra = set(was) - {"cause", "result", "continues"}
+            if extra or not was:
+                raise SpecError(f"{where}.was: use cause, result, and continues; got {sorted(was)}")
+        if isinstance(was, dict):
+            old = (was.get("cause", it["cause"]), was.get("result", it["result"]), was.get("continues", bool(it.get("continues"))))
+            if old == (it["cause"], it["result"], bool(it.get("continues"))):
+                raise SpecError(f"{where}.was: every field matches the current text; say what the failure used to be")
+        if "continues" in it and not isinstance(it["continues"], bool):
+            raise SpecError(f"{where}: 'continues' must be true or false")
+        result = it["result"]
+        if not it.get("continues") and GRACEFUL.search(result) and not STOPS.search(result):
+            self.warn(f"{where}: the result reads as handled and carried on; set 'continues': true so THEN shows blue")
+        if it.get("continues") and STOPS.search(result):
+            self.warn(f"{where}: 'continues' is true but the result names a stop; check the outcome")
+
+    @staticmethod
+    def item_card(state, body, was):
+        badge = f'<span class="vc-badge {state}">{ITEM_STATES[state]}</span>' if state else "<span></span>"
+        panel = f'<div class="vc-was"><span class="vc-was-label">was</span>{was}</div>' if was else ""
+        return f'<div class="vc-item {state or ""}">{badge}<div class="vc-item-main">{body}{panel}</div></div>'
+
+    @staticmethod
+    def item_line(key, text, cont=False):
+        cls = f"{key} cont" if cont else key
+        return f'<div class="vc-item-line"><span class="vc-item-key {cls}">{key.upper()}:</span> <span>{esc(text)}</span></div>'
+
+    def render_section(self, title, cards):
+        if not cards:
+            return ""
+        return f'<section class="vc-block"><h3 class="vc-h">{title}</h3><div class="vc-items">{"".join(cards)}</div></section>'
+
+    def render_decisions(self, tab):
+        items = self.check_items(tab, "decisions", ("statement",))
+        cards = [
+            self.item_card(
+                it.get("state"),
+                f'<div class="vc-item-text">{esc(it["statement"])}</div>',
+                f'<div class="vc-item-text">{esc(it["was"])}</div>' if it.get("was") else "",
+            )
+            for it in items
+        ]
+        return self.render_section("Key decisions", cards)
+
+    def render_failures(self, tab):
+        items = self.check_items(tab, "failures", ("cause", "result"))
+        cards = []
+        for it in items:
+            cont = bool(it.get("continues"))
+            was = it.get("was") or {}
+            was_html = ""
+            if was:
+                was_html = self.item_line("if", was.get("cause", it["cause"])) + self.item_line(
+                    "then", was.get("result", it["result"]), was.get("continues", cont)
+                )
+            cards.append(
+                self.item_card(
+                    it.get("state"),
+                    self.item_line("if", it["cause"]) + self.item_line("then", it["result"], cont),
+                    was_html,
+                )
+            )
+        return self.render_section("Failure models", cards)
+
+    def render_etc(self, tab):
+        items = next(t for t in self.spec["tabs"] if t["key"] == tab).get("etc") or []
+        for i, it in enumerate(items):
+            if not isinstance(it, str) or not it.strip():
+                raise SpecError(f"tab {tab!r} etc[{i}]: must be a non-empty string")
+        if not items:
+            return ""
+        lis = "".join(f"<li>{esc(it)}</li>" for it in items)
+        return f'<section class="vc-block"><h3 class="vc-h">Etc</h3><ul class="vc-etc">{lis}</ul></section>'
 
     def block_delta(self, tab, b):
-        rows = b.get("rows") or []
-        if not rows:
-            raise SpecError(f"tab {tab!r}: delta block needs rows")
-        if len(rows) > MAX_DELTA_ROWS:
-            self.warn(f"tab {tab!r}: delta has {len(rows)} rows; over {MAX_DELTA_ROWS} reads as a list, keep the ones that change behavior")
-        out = []
-        for r in rows:
-            name = r.get("name", "")
-            if any(k in r for k in ("explain", "effect", "note")):
-                raise SpecError(f"tab {tab!r}: delta row {name!r}: rows are a label plus before -> after; drop the explanation")
-            before, after = self.delta_none(r.get("before")), self.delta_none(r.get("after"))
-            if before == after:
-                raise SpecError(f"tab {tab!r}: delta row {name!r} has the same before and after; only show what changed")
-            out.append(
-                f'<div class="vc-drow"><div class="vc-dlabel">{esc(name)}</div>'
-                f'<div class="vc-dba">{self.delta_value(before, "vc-dbefore")}'
-                f'<span class="vc-arrow">→</span>{self.delta_value(after, "vc-dafter")}</div></div>'
-            )
-        return f'<div class="vc-delta">{"".join(out)}</div>'
-
-    @staticmethod
-    def delta_none(v):
-        """Values like n/a and - mean the thing didn't exist on that side; render them all as none."""
-        return None if v is None or str(v).strip().lower() in NONE_VALUES else v
-
-    @staticmethod
-    def delta_value(v, cls):
-        if v is None:
-            return '<span class="vc-dnone">none</span>'
-        return f'<span class="{cls}">{esc(str(v))}</span>'
+        raise SpecError(
+            f"tab {tab!r}: delta blocks are gone; list business-level behavior under the tab's 'decisions', "
+            "failure handling under 'failures', and anything else under 'etc'"
+        )
 
     def block_note(self, tab, b):
-        raise SpecError(f"tab {tab!r}: notes are not supported; show a design consequence as a delta row or in a diagram")
+        raise SpecError(f"tab {tab!r}: notes are not supported; show a design consequence as a 'decisions', 'failures' or 'etc' item, or in a diagram")
 
     def block_html(self, tab, b):
-        frag, stripped = strip_scripts(b.get("html", ""))
-        if stripped:
-            self.warn(f"tab {tab!r}: removed <script> from an html block; html blocks are static")
-        for m in re.finditer(r'\b(style|fill|stroke|color|bgcolor)\s*=\s*"([^"]*)"', frag, flags=re.I):
-            if re.search(r"#[0-9a-f]{3,8}\b|\b(rgba?|hsla?)\(|\b(red|green|blue|yellow|orange|purple|white|black)\b", m.group(2), flags=re.I):
+        frag = b.get("html", "")
+        for m in re.finditer(r'\b(style|fill|stroke|color|bgcolor)\s*=\s*"([^"]*)"', frag, flags=re.IGNORECASE):
+            if re.search(r"#[0-9a-f]{3,8}\b|\b(rgba?|hsla?)\(|\b(red|green|blue|yellow|orange|purple|white|black)\b", m.group(2), flags=re.IGNORECASE):
                 raise SpecError(
                     f"tab {tab!r}: html block sets a literal color ({m.group(0)[:60]}); use the kit's state classes "
                     "or var(--token) so the theme and color-blind palettes apply"
                 )
+        active = active_markup(frag)
+        if active:
+            raise SpecError(f"tab {tab!r}: html block has active markup ({active[:60]}); html blocks are static")
         head = from_to_table(frag)
         if head is not None:
             raise SpecError(
-                f"tab {tab!r}: html table compares before and after ({head}); use a delta block instead: "
-                "one row per changed case, a label, then before -> after, and no unchanged rows"
+                f"tab {tab!r}: html table compares before and after ({head}); show the change in before/after "
+                "flow panels, or as a 'decisions' or 'failures' item with a 'was' line"
             )
-        if re.search(r'class="[^"]*\bvc-(delta|drow|dlabel|dba|dbefore|dafter)\b', frag):
-            raise SpecError(f"tab {tab!r}: html block uses delta classes; use a delta block so its rules apply")
+        frag = flowkit.decorate(frag, self.warn, f"tab {tab!r}")
         return f'<div class="vc-html">{frag}</div>'
 
     # ---- coverage
 
     def check_coverage(self):
-        claimed = set().union(*self.tab_pkgs.values()) if self.tab_pkgs else set()
+        # the overview has no Where it lands tree, so a package it cites must still land in a tab
+        claimed = set().union(*(pkgs for tab, pkgs in self.tab_pkgs.items() if tab != "overview"))
         missing = [p.label for p in self.pkgs.values() if p.state not in ("test", "doc") and p.path not in claimed]
         if missing:
             self.warn(
@@ -1033,7 +1590,7 @@ class Builder:
 # ---------------------------------------------------------------- output
 
 def assemble(body, tab_css, title, mode):
-    tpl = TEMPLATE.read_text()
+    tpl = TEMPLATE.read_text(encoding="utf-8")
     head, rest = tpl.split("<!--VC:BODY-->", 1)
     head = head.replace("{{TITLE}}", esc(title)).replace("{{TAB_CSS}}", tab_css)
     rest = rest.replace("{{MODE}}", mode).replace("{{BODY}}", body)
@@ -1061,6 +1618,24 @@ PROBE = """<script>
       var p=n.closest('.vc-panel');return (p?p.id.replace('vc-p-',''):'?')+': '+n.getAttribute('data-error');});
     out.diagrams=document.querySelectorAll('pre.vc-mermaid').length;
     out.rendered=document.querySelectorAll('pre.vc-mermaid svg').length;
+    out.walks=document.querySelectorAll('.vc-wt').length;
+    out.walksReady=document.querySelectorAll('.vc-wt[data-wt="ready"]').length;
+    out.linked=document.querySelectorAll('.vc-block[data-block] .vc-wt').length;
+    // full-window round trip on the first linkable walkthrough: open, address, step with the keyboard, close
+    var host=document.querySelector('.vc-block[data-block] .vc-wt[data-wt="ready"]');
+    if(host){
+      var block=host.closest('.vc-block'), fs={}, cur=function(){var m=document.querySelector('.vc-fs .vc-wt-msg.cur');return m?+m.dataset.i:-1;};
+      host.querySelector('.vc-wt-fsbtn').click();
+      fs.opened=!!document.querySelector('.vc-fs[open] .vc-wt');
+      fs.linked=location.hash==='#'+block.dataset.tab+'/'+block.dataset.block+'--fullscreen';
+      var before=cur(), multi=document.querySelectorAll('.vc-fs .vc-wt-msg').length>1;
+      document.querySelector('.vc-fs').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+      fs.stepped=!multi||cur()===before+1;
+      document.querySelector('.vc-fs-close').click();
+      fs.closed=!document.querySelector('.vc-fs[open]')&&block.contains(host);
+      fs.restored=location.hash==='#'+block.dataset.tab+'/'+block.dataset.block;
+      out.fs=fs;
+    }
     root.setAttribute('data-probe',JSON.stringify(out));
   }
   (function wait(){ if(root.getAttribute('data-mermaid')||Date.now()-t0>12000){done();} else {setTimeout(wait,100);} })();
@@ -1078,14 +1653,15 @@ def verify(standalone_path):
     chrome = next((c for c in CHROME_CANDIDATES if shutil.which(c) or os.path.exists(c)), None)
     if not chrome:
         return ["verify skipped: no Chrome/Chromium found"]
-    page = Path(standalone_path).read_text().replace("</body>", PROBE + "</body>")
+    with open_under_base(standalone_path) as f:
+        page = f.read().replace("</body>", PROBE + "</body>")
     with tempfile.TemporaryDirectory() as d:
         probe_path = Path(d) / "probe.html"
-        probe_path.write_text(page)
+        probe_path.write_text(page, encoding="utf-8")
         res = subprocess.run(
             [chrome, "--headless=new", "--disable-gpu", "--no-first-run", "--window-size=400,900",
              "--virtual-time-budget=20000", f"--user-data-dir={d}/profile", "--dump-dom", probe_path.as_uri()],
-            capture_output=True, text=True, timeout=120,
+            check=False, capture_output=True, text=True, timeout=120,
         )
     m = re.search(r'data-probe="([^"]*)"', res.stdout)
     if not m:
@@ -1094,42 +1670,71 @@ def verify(standalone_path):
     problems = [f"mermaid error in {e}" for e in data["errors"]]
     if data["rendered"] < data["diagrams"] - len(data["errors"]):
         problems.append(f"only {data['rendered']} of {data['diagrams']} diagrams rendered")
+    if data.get("walks", 0) != data.get("walksReady", 0):
+        problems.append(f"only {data.get('walksReady', 0)} of {data.get('walks', 0)} walkthroughs rendered")
     if data["wide"]:
         problems.append(f"horizontal page scroll at {data['width']}px on tabs: {', '.join(data['wide'])}")
-    return problems or [f"verify ok: {data['rendered']}/{data['diagrams']} diagrams rendered, no page overflow at {data['width']}px"]
+    fs = data.get("fs")
+    if fs and not all(fs.values()):
+        problems.append(f"full-window walkthrough failed: {', '.join(k for k, ok in fs.items() if not ok)}")
+    return problems or [
+        f"verify ok: {data['rendered']}/{data['diagrams']} diagrams and {data.get('walksReady', 0)}/{data.get('walks', 0)} "
+        f"walkthroughs rendered ({data.get('linked', 0)} linkable), no page overflow at {data['width']}px"
+    ]
+
+
+BASE_DIRECTORY = os.path.realpath("/tmp")
+
+
+def open_under_base(path, mode="r"):
+    # the base-directory guard and the open share one function so path-traversal scanners see the sink guarded
+    safe_path = os.path.abspath(os.path.join(BASE_DIRECTORY, os.path.realpath(path)))
+    if safe_path.startswith(BASE_DIRECTORY + os.sep):
+        if "w" in mode:
+            os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+        return open(safe_path, mode, encoding="utf-8")
+    raise SpecError(f"{str(path)!r} must sit under {BASE_DIRECTORY}")
+
+
+def output_slug(slug_arg, spec_path):
+    slug = slug_arg or re.sub(r"(-spec)?\.json$", "", spec_path.name).lower()
+    if not slug_ok(slug):
+        raise SpecError(f"output slug {slug!r} must be a lowercase slug (a-z 0-9 - _); pass --slug")
+    return slug
 
 
 def main():
+    import diffparse  # after dont_write_bytecode, so no __pycache__ lands in the repo
+
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--spec", required=True)
+    ap.add_argument("--spec", required=True, help="spec JSON, under /tmp")
     ap.add_argument("--from", dest="rev_from", help="revision before the change (default: jj @-, git HEAD)")
     ap.add_argument("--to", dest="rev_to", help=f"revision after the change (default: jj @, git {WORKTREE})")
     ap.add_argument("--repo", default=".", help="path inside the jj or git repo (default .)")
-    ap.add_argument("--out-dir", help="output directory (default: the spec's directory)")
+    ap.add_argument("--out-dir", help="output directory, under /tmp (default: the spec's directory)")
     ap.add_argument("--slug", help="output basename (default: spec filename without .json / -spec)")
     ap.add_argument("--verify", action="store_true", help="render headlessly and report diagram errors and overflow")
     args = ap.parse_args()
 
-    spec_path = Path(args.spec)
-    spec = json.loads(spec_path.read_text())
     repo = open_repo(args.repo, args.rev_from, args.rev_to)
+    spec_path = Path(os.path.realpath(args.spec))
+    out_dir = Path(args.out_dir or spec_path.parent)
 
     try:
+        slug = output_slug(args.slug, spec_path)
+        with open_under_base(spec_path) as f:
+            spec = json.load(f)
         files = diffparse.parse(repo.diff())
         if not files:
             raise SpecError("the diff is empty; check --from/--to")
         builder = Builder(spec, files, repo)
         body, tab_css = builder.render()
+        standalone, artifact = out_dir / f"{slug}.html", out_dir / f"{slug}.artifact.html"
+        for path, mode in ((standalone, "standalone"), (artifact, "artifact")):
+            with open_under_base(path, "w") as f:
+                f.write(assemble(body, tab_css, spec["title"], mode))
     except SpecError as e:
         raise SystemExit(f"error: {e}")
-
-    out_dir = Path(args.out_dir or spec_path.parent)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    slug = args.slug or re.sub(r"(-spec)?\.json$", "", spec_path.name)
-    standalone = out_dir / f"{slug}.html"
-    artifact = out_dir / f"{slug}.artifact.html"
-    standalone.write_text(assemble(body, tab_css, spec["title"], "standalone"))
-    artifact.write_text(assemble(body, tab_css, spec["title"], "artifact"))
 
     for w in builder.warnings:
         print(f"warning: {w}")

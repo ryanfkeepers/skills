@@ -25,18 +25,18 @@ something they can point at and argue over.
 
 That sets what belongs on the page:
 - **Yes:** how the flow works, what each boundary (package, API, layer,
-  service) exposes and who uses it, where code lives and who owns it, which
-  contracts changed shape, and which behaviors and values changed.
+  service) exposes, where code lives and who owns it, which contracts changed
+  shape, the business-level decisions the application now makes, and how it
+  fails.
 - **No:** code bodies, diff hunks, file inventories, line counts, internal
-  helpers and unexported details, tests and mocks, bug reports, decision
-  write-ups, notes, discussion questions. The room weighs the design; the
+  helpers and unexported details, tests and mocks, bug reports, notes,
+  discussion questions. The room weighs the design; the
   page shows it. Anyone who wants lines opens the PR. A wall of code on a shared
   screen ends the design conversation and starts a line review, which is not
   what this meeting is for.
 
 The page shell is fixed. `template.html` and `scripts/build.py` own layout,
-theming, tabs, the boundary map, the exposed surface, the trees, and both
-output formats. Your job is the content: finding the design topics and
+theming, tabs, the exposed surface, the trees, and both output formats. Your job is the content: finding the design topics and
 drawing each one so the room gets it in one look. You decide what each
 picture looks like, composed from the template's flow kit, with
 related facts shown together. A reader should be able to trace one request
@@ -103,10 +103,14 @@ questions for the change:
   that change?
 - Where are the boundaries (package, API, layer, service)? For each, what
   does it expose to the outside, and which of those exposed artifacts did
-  the change add, remove, or reshape? Who calls them?
+  the change add, remove, or reshape?
+- Which business-level behaviors does the application now guarantee at its
+  major interfaces and across layer boundaries?
+- What can go wrong, and where does each failure end up (returned to the
+  caller as an error, logged and dropped, retried)?
 - Which packages and domains does it touch? Who owns them (CODEOWNERS,
   module boundaries)? Did anything move across a boundary?
-- Which values changed: config, flags, defaults, status codes, limits, schema?
+- Which values changed: config, flags, defaults, limits, schema?
 
 You read code to answer those questions; the reader gets only the answers.
 For a large change, delegate the surrounding-code reads to an Explore
@@ -134,34 +138,83 @@ Typically 2–5.
 
 | the room asks | block |
 |---|---|
-| what happens, in what order, and where does it branch? | `html` flow (before/after panels, steps, branches, ladders) |
-| what does each boundary expose, who uses it, what changed shape? | `boundaries` |
-| who calls whom, in what order over time? | `diagram` (sequenceDiagram; the only Mermaid allowed) |
+| who calls whom in a short, linear interaction (8 messages or fewer)? | `diagram` (sequenceDiagram) |
+| who calls whom in a long interaction, or one with an ok/failure branch? | `walkthrough` (lanes revealed step by step, paths you can click) |
+| what happens, in what order, and where does it branch? | `html` flow (before/after panels, steps, `vc-decision` diamonds with branches, ladders) |
+| what does each boundary expose, and what changed shape? | `boundaries` (the exposed surface only) |
 | how are the layers or the data shaped? | `html` (layer stack, payload shape, state matrix) |
-| which values or rules changed? | `delta`, never an html table |
+| how is the application expected to behave? | the tab's `decisions` |
+| what happens when things go wrong? | the tab's `failures` |
+| anything else worth a line? | the tab's `etc` |
 | where does it live, who owns it, what landed there? | automatic tree at the end of each tab: owners from `owners`, one line per package from `landed` |
 
-There are no notes and no decision write-ups. Show a design consequence as
-a delta row or in a picture. Never list what is out of scope or what stayed
-the same.
+A tab renders in this order: lede, Key decisions, blocks, Failure models,
+Where it lands, Etc. A section with no items is left out. Key decisions are the
+reader's entry point, directly under the lede: write them first and keep them
+short, and let the blocks that follow explain them.
+
+**Key decisions** are business-level statements about how the application
+behaves, at its major interfaces and across layer boundaries: "returns all
+reports ordered by name", "a one-off report is named after its run's title".
+Code-level statements ("returns struct foo", "calls Validate") are not
+decisions, and neither is every function juncture. A changed decision carries
+a `was` line (shown in a "was" panel); a changed item with no `was` is a
+build error, because if you cannot say what it was, it is new. Statements about how existing data or
+clients are still handled (a backfill, an old shape the code tolerates) take
+`state: "legacy"` and read "legacy handling", not "new".
+
+**Failure models** show how the system behaves when things go wrong, as two
+lines: `IF:` the cause, `THEN:` the expected final result ("returned to the
+caller as 404", "logged and dropped"). Write `cause` so it completes "IF:"
+and `result` so it completes "THEN:". Cover every failure path, but batch
+them: a `Validate()` with ten checks is one failure, "the report must be
+valid". Set `continues: true` when the failure is handled and processing
+carries on (swallowed, logged and dropped, left out, retried); THEN then shows
+blue instead of red. A changed failure carries `was: {cause?, result?}` with
+the old IF and THEN; a failure whose behavior did not change is not listed as
+changed.
+
+**Etc** takes anything that is neither a decision nor a failure.
+
+There are no notes, no write-ups of alternatives, and no discussion
+questions. Never list what is out of scope or what stayed the same.
 
 Colors mean the same thing everywhere: new, changed, and removed (dashed).
-The page header keys them once, next to a theme picker (matches the OS by
-default) and a colorblind picker (protanopia, deuteranopia, tritanopia)
-that restyle every diagram, tree, and table. Never name colors in text or
+The page header holds four icon buttons: Legend (the full key), Theme
+(matches the OS by default), Colorblind palette (protanopia, deuteranopia,
+tritanopia), and Page width (Auto, or 10% to 100% of the window). The last
+three open a short menu with a subtitle; the choices restyle every diagram,
+tree, and table and are remembered. Diagrams open full window on click, and
+walkthroughs have a Fullscreen button; both views have their own Width picker.
+In a full-window walkthrough, left and right step and up and down switch
+branches. A titled walkthrough has its own link (`#<tab>/<block>`, plus
+`--fullscreen` to open it full window), so give each one a distinct title.
+Never name colors in text or
 captions ("the green node"); say "new", "changed", "removed" instead, so the
 words stay true under every palette.
 
-`boundaries` is the centerpiece of most tabs. It puts the boundaries, the
-artifacts they expose, the calls between them, and the changed signatures
-in one picture. List only what a boundary offers the outside: exported or
-public types, interfaces, functions, fields, endpoints, events, config.
+`boundaries` lists what each boundary offers the outside: exported or public
+types, interfaces, functions, fields, endpoints, events, config. It renders
+only the exposed surface, one card per directory, so it ties to the tree.
 Name artifacts by their declared identifier (`AuthorizeEntities`, not an
 invented `Client.AuthorizeEntities`); the build detects what a Go method or
-field hangs off and shows it beside the name, and the exposed-surface rows
-show each artifact's directory so it ties to the tree. Internal helpers,
-unexported consts, and private functions stay off it. If
-internal behavior drives the design, show it in an `html` flow instead.
+field hangs off and shows it beside the name. A Go struct always shows as the
+whole struct: list its changed fields (or the struct) and the build reads the
+declaration from the code. The one exception is an existing struct with more
+than five properties that is being modified; it shows its changes inside the
+struct braces under a `// N properties hidden` comment. Internal helpers,
+unexported consts, and private functions stay off it. If internal behavior
+drives the design, show it in an `html` flow instead.
+
+**Show interactions as sequence diagrams or walkthroughs.** Who calls whom,
+across the interfaces a request touches, is a `diagram` when it is short and
+linear (8 messages or fewer, no branch), and a `walkthrough` when it is longer
+or has an ok/failure branch. In a `diagram`, mark a new, changed, or removed
+span with a `rect new` / `rect changed` / `rect removed` block, never a Note.
+A `walkthrough` marks a step `add`, `mod`, or `del` instead. List the shared
+steps first, then a `split` of named branches: `ok` and `failure` paths, each
+ending the flow (`ends: true`) or rejoining the steps that follow. Where the
+split is in the middle, put the steps after it in the next segment.
 
 **Draw flows as HTML, not Mermaid.** Mermaid flowcharts read poorly on a
 shared screen. Compose flows from the flow kit in `references/blocks.md`:
@@ -169,9 +222,16 @@ before and after panels side by side, each a column of steps with arrows;
 a step is a box with one line saying what happens and an optional detail
 line with the one fact that changed; branches sit side by side, with the
 fallback path dashed; ladders, retries, and tiers are rows of a label chip
-plus a step, joined by labeled arrows. Mark only what the change touched as
-new, changed, or removed, and keep before and after structurally parallel.
-Study the example in `references/blocks.md` before your first one.
+plus a step, joined by labeled arrows. **Every condition is a diamond.** A
+`vc-decision` holds the question, and the branches that follow carry the
+answers; never put "if", "when", or "for condition" in a step or a branch
+title. Mark only what the change touched as new, changed, or removed, and keep
+before and after structurally parallel. End a branch with a `term` pill when
+it stops there (■, or ✕ with `err` for an error) and leave it open when it
+continues; the page draws open branches joining below the fork. Put a
+condition that changes the path but not the step's one fact in a `vc-aside`,
+never in `vc-detail`. Study the example in
+`references/blocks.md` before your first one.
 
 Use what the topic needs. One rich picture beats six thin ones.
 
@@ -179,11 +239,12 @@ Use what the topic needs. One rich picture beats six thin ones.
 that already existed, the room needs the old shape next to the new one:
 - changed flow → `html` before/after panels (`vc-ba`), with changed steps
   `mod`, new ones `add`, removed ones `del`;
-- changed interaction → `diagram` sequence pair, same participants;
+- changed short interaction → `diagram` sequence pair, same participants; a
+  long or branching one → a `walkthrough` with `state` on its steps;
 - changed contract → `boundaries` artifact marked changed, with
-  `sig.before`/`sig.after`; removed artifacts and calls stay on the map,
-  dashed;
-- changed value → `delta` row.
+  `sig.before`/`sig.after`; a struct shows whole with its changed fields marked;
+- changed behavior or value → a `decisions`, `failures`, or `etc` item, with
+  a `was` line (required when the item is changed).
 
 Pure additions show only the new shape.
 
@@ -196,13 +257,13 @@ Pure additions show only the new shape.
 - **Lede:** one sentence per tab.
 - **Landed lines:** one line per package in the tree saying what landed
   there ("client and helpers for org-permission auth checks").
-- **Delta rows:** a label naming the situation in words, then before →
-  after as short phrases, not tokens. No explanation line, and no rows where
-  nothing changed.
+- **Decisions and failures:** one short statement each, in present tense, for
+  the behavior after the change. A failure is a cause and a result.
 - **Declarations (`sig`):** copy them as written in the code at the
   revision, trimmed to exported members; never paraphrase a signature. Give
   a func or method on one line, joined if the source wraps it; the build
-  re-wraps wide ones one parameter per line.
+  re-wraps wide ones one parameter per line. Go structs need no `sig`: the
+  build reads them from the code.
 - No paragraphs anywhere else. If a topic needs a paragraph, draw it instead.
 
 ### 6. Write the spec and build
@@ -212,7 +273,8 @@ the flow kit with a worked example, and the sequence-diagram conventions.
 
 Save the spec as `<workdir>/<slug>.json`. `<workdir>` is the session's
 scratchpad directory, or `/tmp/visualize-changes/` if there is none; `<slug>`
-is a short kebab name for the change. Then:
+is a short kebab name for the change. `build.py` reads and writes only under
+`/tmp`. Then:
 
 ```bash
 python3 ${CLAUDE_SKILL_DIR}/scripts/build.py --spec <workdir>/<slug>.json \

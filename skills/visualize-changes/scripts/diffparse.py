@@ -6,7 +6,25 @@ builder can render ownership maps and diff slices from the real diff text.
 import re
 from collections import OrderedDict
 
-_DIFF_HEADER = re.compile(r"^diff --git a/(.*) b/(.*)$")
+_DIFF_HEADER = re.compile(r'^diff --git (?:"a/((?:[^"\\]|\\.)*)"|a/(.*)) (?:"b/((?:[^"\\]|\\.)*)"|b/(.*))$')
+_C_ESCAPES = {b"a": b"\a", b"b": b"\b", b"t": b"\t", b"n": b"\n", b"v": b"\v", b"f": b"\f", b"r": b"\r"}
+
+
+def _unquote(token):
+    """Decode a git C-quoted path; octal escapes are raw UTF-8 bytes, not code points."""
+    if len(token) < 2 or token[0] != '"' or token[-1] != '"':
+        return token
+    raw = token[1:-1].encode("utf-8")
+    decoded = re.sub(
+        rb"\\([0-3][0-7]{2}|.)",
+        lambda m: bytes([int(m.group(1), 8)]) if len(m.group(1)) == 3 else _C_ESCAPES.get(m.group(1), m.group(1)),
+        raw,
+    )
+    return decoded.decode("utf-8", errors="replace")
+
+
+def _header_path(quoted, plain):
+    return plain if quoted is None else _unquote(f'"{quoted}"')
 
 
 class FileDiff:
@@ -37,7 +55,7 @@ def parse(diff_text):
     for line in diff_text.splitlines():
         m = _DIFF_HEADER.match(line)
         if m:
-            cur = FileDiff(path=m.group(2), old_path=m.group(1))
+            cur = FileDiff(path=_header_path(m.group(3), m.group(4)), old_path=_header_path(m.group(1), m.group(2)))
             files[cur.path] = cur
             hunk = None
             continue
@@ -73,10 +91,10 @@ def _parse_header_line(cur, line):
         cur.status = "deleted"
     elif line.startswith("rename from "):
         cur.status = "renamed"
-        cur.old_path = line[len("rename from "):]
+        cur.old_path = _unquote(line[len("rename from "):])
     elif line.startswith("rename to "):
-        cur.path = line[len("rename to "):]
-    elif line.startswith("Binary files") or line.startswith("GIT binary patch"):
+        cur.path = _unquote(line[len("rename to "):])
+    elif line.startswith(("Binary files", "GIT binary patch")):
         cur.binary = True
 
 

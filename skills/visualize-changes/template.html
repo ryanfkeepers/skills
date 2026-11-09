@@ -13,6 +13,7 @@
   --add: #1d7a43;  --add-bg: #e5f4ea;
   --del: #b4281c;  --del-bg: #fce9e7;
   --mod: #8a5a00;  --mod-bg: #fbf0d4;
+  --cont: #1f5fbf;
   --code-kw: #8a3ffc; --code-ty: #0e6f7a; --code-fn: #1f5fbf; --code-str: #1d7a43; --code-num: #a04c00; --code-com: #6b7785;
   /* the viewer's own monospace font for every role: whatever they read code in all day */
   --font-display: monospace;
@@ -31,7 +32,7 @@
   :root:not([data-theme="light"]) {
     --bg: #0b0f14; --surface: #11161b; --sunken: #161c22; --ink: #d5cfc7; --muted: #bab0a4;
     --line: #776e62; --accent: #5fbfc9; --accent-soft: #163236;
-    --add: #71df9a; --add-bg: #0f261a; --del: #ff8274; --del-bg: #3b1915; --mod: #faca5c; --mod-bg: #2a210a;
+    --add: #71df9a; --add-bg: #0f261a; --del: #ff8274; --del-bg: #3b1915; --mod: #faca5c; --mod-bg: #2a210a; --cont: #82aaff;
     --add-line: color-mix(in srgb, var(--add) 55%, var(--bg));
     --mod-line: color-mix(in srgb, var(--mod) 55%, var(--bg));
     --del-line: color-mix(in srgb, var(--del) 55%, var(--bg));
@@ -42,7 +43,7 @@
 :root[data-theme="dark"] {
   --bg: #0b0f14; --surface: #11161b; --sunken: #161c22; --ink: #d5cfc7; --muted: #bab0a4;
   --line: #776e62; --accent: #5fbfc9; --accent-soft: #163236;
-  --add: #71df9a; --add-bg: #0f261a; --del: #ff8274; --del-bg: #3b1915; --mod: #faca5c; --mod-bg: #2a210a;
+  --add: #71df9a; --add-bg: #0f261a; --del: #ff8274; --del-bg: #3b1915; --mod: #faca5c; --mod-bg: #2a210a; --cont: #82aaff;
   --add-line: color-mix(in srgb, var(--add) 55%, var(--bg));
   --mod-line: color-mix(in srgb, var(--mod) 55%, var(--bg));
   --del-line: color-mix(in srgb, var(--del) 55%, var(--bg));
@@ -62,8 +63,8 @@
 :root[data-palette="rg"][data-theme="dark"] { --add: #6cb2f5; --add-bg: #10263f; --mod: #e08fd0; --mod-bg: #35182f; --del: #f3a052; --del-bg: #3a2410; }
 :root[data-palette="by"][data-theme="dark"] { --add: #58a6ff; --add-bg: #0f2541; --mod: #d4a72c; --mod-bg: #33290c; --del: #ff7b72; --del-bg: #3d1a1a; }
 
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0); line-height: 1.5; }
-.vc { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0); line-height: 1.5; }
+.vc { box-sizing: border-box; max-width: var(--vc-width, 1240px); margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; }
 .vc *, .vc *::before, .vc *::after { box-sizing: border-box; }
 .vc h1, .vc h2, .vc h3 { text-wrap: balance; margin: 0; }
 .vc code, .vc .vc-mono { font-family: var(--font-mono); font-size: 0.92em; }
@@ -72,14 +73,48 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-head { display: grid; gap: 6px; padding-block-end: 20px; }
 .vc-eyebrow { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); overflow-wrap: anywhere; }
 .vc-head h1 { font-family: var(--font-display); font-weight: 600; color: var(--ink); font-size: var(--step-3); line-height: 1.1; letter-spacing: -0.01em; }
-.vc-headbar { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; justify-content: space-between; margin-block-start: 6px; }
-.vc-prefs { display: grid; grid-auto-flow: column; grid-template-rows: 2rem; align-items: center; column-gap: 8px;
-  font-size: var(--step--1); line-height: 1; color: var(--muted); }
-.vc-prefs label { display: flex; align-items: center; height: 100%; }
-.vc-prefs select { height: 100%; margin-inline-end: 12px; font: inherit; line-height: 1; color: var(--ink);
-  background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
-.vc-prefs select:last-child { margin-inline-end: 0; }
-.vc-prefs select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vc-titlebar { position: relative; display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; justify-content: space-between; }
+/* popups anchor to the whole title row, so they stay on screen when the buttons wrap under a long title */
+.vc-controls { position: static; }
+.vc-icon-btn { display: inline-grid; place-items: center; width: 2rem; height: 2rem; padding: 0; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.vc-icon-btn:hover, .vc-icon-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.vc-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vc-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; width: min(300px, calc(100vw - 32px)); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); overflow: hidden; }
+.vc-menu[hidden] { display: none; }
+.vc-menu-head { display: grid; gap: 2px; padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
+.vc-menu-head strong { font-size: var(--step--1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; }
+.vc-menu-head span { font-size: 0.8125rem; color: var(--muted); }
+.vc-menu-list { display: grid; max-height: min(50vh, 340px); overflow-y: auto; padding: 4px; }
+.vc-menu-list button { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 10px; font: inherit; font-size: var(--step--1);
+  color: var(--ink); background: none; border: 0; border-radius: 4px; cursor: pointer; text-align: left; }
+.vc-menu-list button:hover, .vc-menu-list button:focus-visible { background: var(--sunken); outline: none; }
+.vc-menu-list button[aria-checked="true"] { color: var(--accent); font-weight: 600; }
+.vc-menu-check { visibility: hidden; }
+.vc-menu-list button[aria-checked="true"] .vc-menu-check { visibility: visible; }
+.vc-legend-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; width: min(440px, calc(100vw - 32px)); max-height: 70vh; overflow-y: auto;
+  padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+.vc-legend-pop[hidden] { display: none; }
+.vc-legend-pop section + section { margin-top: 12px; }
+.vc-legend-pop h4 { margin: 0 0 6px; font-size: var(--step--1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.vc-legend-pop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--step--1); }
+.vc-legend-pop li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 10px; align-items: center; }
+.vc-key { display: inline-flex; align-items: center; }
+.vc-key .sw { display: inline-block; width: 28px; height: 14px; border-radius: 3px; border: 2px solid var(--line); }
+.vc-key .sw.add { border-color: var(--add-line); background: var(--add-bg); }
+.vc-key .sw.mod { border-color: var(--mod-line); background: var(--mod-bg); }
+.vc-key .sw.del { border-color: var(--del-line); border-style: dashed; }
+.vc-key .sw.alt { border-style: dashed; background: transparent; }
+.vc-key .sw.span { border-style: dotted; border-color: var(--mod-line); background: var(--mod-bg); }
+.vc-key .sw-pill { width: 40px; height: 16px; padding: 0; border-radius: 999px; }
+.vc-key .sw-dia { width: 28px; height: 16px; }
+.vc-key .sw-dia polygon { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.vc-key .sw-glyph { font-size: 1.1rem; line-height: 1; color: var(--muted); }
+.vc-key .sw-glyph.err { color: var(--del); } .vc-key .sw-glyph.warn { color: var(--mod); }
+.vc-was-demo { position: relative; display: inline-block; width: 52px; height: 14px; margin-top: 7px; font-size: 0; border-top: 1px solid var(--mod-line); }
+.vc-was-demo::before { content: "was"; position: absolute; top: -9px; left: 8px; padding: 0 6px; font-size: 0.75rem; font-weight: 600; line-height: 1.4; color: var(--mod); background: var(--surface); }
+.vc-prefs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 /* tabs: radio inputs drive panels so the page works without JS */
 .vc-radio { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
@@ -122,6 +157,11 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-tree ul > li { position: relative; }
 .vc-tree ul > li::before { content: ""; position: absolute; inset-inline-start: -16px; top: 0.85em; width: 12px; border-top: 1px solid var(--line); }
 .vc-dir { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink); white-space: nowrap; }
+.vc-toggle { cursor: pointer; user-select: none; }
+.vc-toggle::before { content: "\25BE"; display: inline-block; width: 1em; color: var(--muted); }
+.vc-tree li.collapsed > .vc-toggle::before { content: "\25B8"; }
+.vc-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.vc-tree li.collapsed > ul { display: none; }
 .vc-owner { margin-inline-start: 10px; font-size: var(--step--1); color: var(--accent); }
 .vc-landed { display: block; margin: 1px 0 4px 2px; font-size: var(--step--1); color: var(--muted); white-space: normal; }
 .vc-pkg { display: inline-block; font-family: var(--font-mono); font-size: var(--step--1); padding: 0 8px; border-radius: 4px; border: 1px solid var(--line);
@@ -131,19 +171,13 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-pkg.del { border-color: var(--del-line); border-style: dashed; color: var(--del); text-decoration: line-through; }
 .vc-pkg.test, .vc-pkg.doc { color: var(--muted); border-style: dotted; background: none; }
 
-/* legend + pills */
-.vc-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--step--1); color: var(--muted); }
-.vc-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.vc-legend i { width: 14px; height: 10px; border-radius: 2px; border: 2px solid var(--line); }
-.vc-legend .add { border-color: var(--add-line); background: var(--add-bg); }
-.vc-legend .mod { border-color: var(--mod-line); background: var(--mod-bg); }
-.vc-legend .del { border-color: var(--del-line); border-style: dashed; }
-.vc-legend .test, .vc-legend .doc { border-style: dotted; }
+/* pills */
 .vc-pill, .vc-badge { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 0.8125rem; font-weight: 500; white-space: nowrap;
   background: var(--sunken); color: var(--muted); }
 .vc-pill.add, .vc-badge.add { color: var(--add); background: var(--add-bg); }
 .vc-pill.del, .vc-badge.del { color: var(--del); background: var(--del-bg); }
 .vc-pill.mod, .vc-badge.mod { color: var(--mod); background: var(--mod-bg); }
+.vc-badge.legacy { color: var(--muted); background: var(--sunken); }
 .vc-badge.flag { color: var(--del); background: var(--del-bg); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; }
 .vc-kind { font-size: var(--step--1); color: var(--muted); }
 
@@ -160,19 +194,22 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-diagram { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; overflow-x: auto; }
 .vc-diagram pre.vc-mermaid { margin: 0; background: none; text-align: center; white-space: pre; color: var(--muted); font-family: var(--font-mono); }
 .vc-diagram pre.vc-mermaid svg { max-width: 100%; height: auto; }
-/* full-window view of a sequence diagram: click (or Enter) on a diagram, Escape or click to close */
+/* full-window view (diagrams and walkthroughs): click or Enter on a diagram, or the walkthrough's Fullscreen button; Escape closes */
 .vc-diagram:has(svg) { cursor: zoom-in; }
 .vc-diagram:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.vc-zoom { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; }
-.vc-zoom::backdrop { background: color-mix(in srgb, var(--bg) 92%, transparent); }
-.vc-zoom-body { box-sizing: border-box; width: 100%; height: 100%; display: grid; place-items: center; padding: 48px 24px 24px;
-  background: var(--bg); cursor: zoom-out; }
-.vc-zoom-body svg { width: 100% !important; height: 100% !important; max-width: none !important; }
-.vc-zoom-title { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); left: 24px; right: 110px; font-size: var(--step--1);
-  font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.vc-zoom-close { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 16px; font: inherit; font-size: var(--step--1);
-  color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
-.vc-zoom-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vc-fs { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; color: var(--ink); }
+.vc-fs::backdrop { background: color-mix(in srgb, var(--bg) 92%, transparent); }
+.vc-fs-frame { box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100%; height: 100%; background: var(--bg); }
+.vc-fs-bar { display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px 24px; border-bottom: 1px solid var(--line); }
+.vc-fs-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--step--1); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.vc-fs-bar label { font-size: var(--step--1); color: var(--muted); }
+.vc-fs-bar select, .vc-fs-close { font: inherit; font-size: var(--step--1); height: 2rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 4px; padding: 0 10px; cursor: pointer; }
+.vc-fs-bar select:focus-visible, .vc-fs-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vc-fs-body { overflow: auto; padding: 24px; cursor: zoom-out; }
+.vc-fs-content { width: var(--fs-width, 100%); margin-inline: auto; cursor: default; }
+.vc-fs-content > svg { display: block; width: 100% !important; height: auto !important; max-width: none !important; }
 .vc-mermaid-error { text-align: left !important; color: var(--del) !important; }
 
 /* boundaries: exposed surface, one card per directory */
@@ -191,46 +228,31 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-code { margin: 0; font-family: var(--font-mono); font-size: var(--step--1); line-height: 1.55; white-space: pre; overflow-x: auto;
   max-width: 100%; color: var(--ink); tab-size: 4; }
 .vc-decl-multi .vc-code { padding: 8px 10px; background: var(--sunken); border-radius: 4px; }
-.vc-code.vc-was { opacity: 0.75; }
+.vc-code.vc-code-before { opacity: 0.75; }
 .vc-code del { color: var(--del); background: var(--del-bg); text-decoration: line-through; border-radius: 2px; }
 .vc-code ins { background: var(--add-bg); text-decoration: none; border-radius: 2px; box-shadow: inset 0 -2px 0 var(--add); }
 .tk-kw { color: var(--code-kw); } .tk-ty { color: var(--code-ty); } .tk-fn { color: var(--code-fn); }
 .tk-str { color: var(--code-str); } .tk-num { color: var(--code-num); } .tk-com { color: var(--code-com); font-style: italic; }
 @media (max-width: 820px) { .vc-srow { grid-template-columns: auto minmax(0, 1fr); } .vc-srow > .vc-decl { grid-column: 1 / -1; } }
 
-/* delta: one changed scenario per row: label, then before -> after */
-.vc-delta { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
-.vc-drow { display: grid; gap: 4px; padding: 12px 16px; }
-.vc-drow + .vc-drow { border-top: 1px solid var(--line); }
-.vc-dlabel { font-size: var(--step--1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-.vc-dba { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
-.vc-dbefore { color: var(--del); }
-.vc-dafter { color: var(--add); }
-.vc-dnone { color: var(--muted); }
-
-/* boundary map: one card per boundary, in flow order; artifacts inside; incoming calls under their target */
-.vc-bmap { display: flex; flex-wrap: nowrap; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 2px; }
-.vc-bcard { flex: 1 1 0; min-width: 165px; overflow-wrap: anywhere; display: grid; gap: 8px; align-content: start; padding: 14px 16px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
-.vc-bcard-ext { flex: 0 1 160px; min-width: 120px; align-self: center; background: transparent; border-style: dashed; }
-.vc-bcard.add { border-color: var(--add-line); } .vc-bcard.mod { border-color: var(--mod-line); }
-.vc-bcard.del { border-color: var(--del-line); border-style: dashed; }
-.vc-bcard-head { display: grid; gap: 1px; }
-.vc-bcard-head strong { font-weight: 600; }
-.vc-bmeta { font-size: var(--step--1); color: var(--muted); }
-.vc-bart { display: grid; gap: 2px; min-width: 0; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
-.vc-bart code { font-size: var(--step--1); overflow-wrap: break-word; }
-.vc-bart.add { border-color: var(--add-line); background: var(--add-bg); } .vc-bart.add code { color: var(--add); }
-.vc-bart.mod { border-color: var(--mod-line); background: var(--mod-bg); } .vc-bart.mod code { color: var(--mod); }
-.vc-bart.del { border-color: var(--del-line); border-style: dashed; } .vc-bart.del code { color: var(--del); text-decoration: line-through; }
-.vc-bhang { font-size: 0.8125rem; color: var(--muted); }
-.vc-bcall { font-size: 0.8125rem; color: var(--muted); }
-.vc-bcall strong { font-weight: 600; color: var(--ink); }
-.vc-bcall.add strong, .vc-bcall.add .vc-arrow { color: var(--add); }
-.vc-bcall.mod strong, .vc-bcall.mod .vc-arrow { color: var(--mod); }
-.vc-bcall.del { text-decoration: line-through; } .vc-bcall.del strong { color: var(--del); }
-.vc-bmap-arrow { flex: none; align-self: center; color: var(--muted); font-size: 1.4rem; line-height: 1; }
-@media (max-width: 760px) { .vc-bmap { flex-direction: column; overflow-x: visible; } .vc-bmap-arrow { transform: rotate(90deg); align-self: center; } .vc-bcard, .vc-bcard-ext { flex: none; } }
+/* key decisions and failure models: one statement per row, with an optional state badge and "was" panel */
+.vc-items { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.vc-item { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 4px 16px; align-items: start; padding: 12px 16px; }
+.vc-item + .vc-item { border-top: 1px solid var(--line); }
+.vc-item > .vc-badge { justify-self: start; margin-top: 2px; }
+.vc-item-main { display: grid; gap: 3px; min-width: 0; }
+.vc-item.del .vc-item-text { color: var(--muted); text-decoration: line-through; }
+.vc-item-line { display: grid; grid-template-columns: 5ch minmax(0, 1fr); column-gap: 0.6em; }
+.vc-item-key { font-weight: 700; }
+.vc-item-key.if { color: var(--mod); }
+.vc-item-key.then { color: var(--del); }
+.vc-item-key.then.cont { color: var(--cont); }
+.vc-was { position: relative; display: grid; gap: 3px; margin-block-start: 16px; padding-top: 10px; border-top: 1px solid var(--mod-line); }
+.vc-was-label { position: absolute; top: -9px; left: 14px; padding: 0 8px; font-size: 0.75rem; font-weight: 600; line-height: 1.4;
+  color: var(--mod); background: var(--surface); }
+.vc-etc { margin: 0; padding: 12px 16px 12px calc(16px + 1.2em); background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); display: grid; gap: 4px; color: var(--muted); }
+@media (max-width: 820px) { .vc-item { grid-template-columns: minmax(0, 1fr); } }
 
 /* flow kit for html blocks: before/after panels, steps with automatic arrows, branches, ladders */
 .vc-ba { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -255,8 +277,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-edge.add strong { color: var(--add); } .vc-edge.mod strong { color: var(--mod); } .vc-edge.del strong { color: var(--del); }
 
 .vc-step { display: grid; gap: 3px; padding: 12px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
-.vc-step.term { border-radius: 999px; padding-inline: 20px; }
+.vc-step.term { border-radius: 1.5rem; padding-inline: 20px; }
 .vc-detail { font-size: var(--step--1); color: var(--muted); }
+.vc-step, .vc-detail, .vc-branch, .vc-branch p, .vc-aside, .vc-aside-if, .vc-aside-then { overflow-wrap: break-word; }
 .vc-step.add { border-color: var(--add-line); background: var(--add-bg); } .vc-step.add .vc-detail { color: var(--add); font-weight: 500; }
 .vc-step.mod { border-color: var(--mod-line); background: var(--mod-bg); } .vc-step.mod .vc-detail { color: var(--mod); font-weight: 500; }
 .vc-step.del { border-color: var(--del-line); border-style: dashed; background: transparent; color: var(--muted); }
@@ -270,6 +293,144 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 .vc-branch.add .vc-branch-title { color: var(--add); } .vc-branch.mod .vc-branch-title { color: var(--mod); }
 .vc-branch p { margin: 0; color: var(--muted); font-size: var(--step--1); }
 .vc-branch ul { margin: 0; padding-inline-start: 1.2em; color: var(--muted); font-size: var(--step--1); display: grid; gap: 2px; }
+
+/* decision: a diamond holding the question, then a fork of labeled branches */
+.vc-decision { position: relative; isolation: isolate; display: grid; place-items: center; text-align: center; width: min(100%, 380px);
+  min-height: 112px; margin-inline: auto; padding: 30px 72px; font-weight: 500; }
+.vc-decision > .vc-dia { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; overflow: visible; }
+.vc-dia polygon { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.vc-decision.add .vc-dia polygon { fill: var(--add-bg); stroke: var(--add-line); }
+.vc-decision.mod .vc-dia polygon { fill: var(--mod-bg); stroke: var(--mod-line); }
+.vc-decision.del .vc-dia polygon { fill: transparent; stroke: var(--del-line); stroke-dasharray: 5 4; }
+.vc-flow > .vc-decision:has(+ .vc-branches.fork)::after { content: ""; bottom: -14px; height: 14px; width: 0; border-left: 1px solid var(--line); font-size: 0; }
+.vc-branches.fork { grid-auto-flow: column; grid-template-columns: var(--cols, none); grid-auto-columns: minmax(0, 1fr); align-items: stretch; margin-top: -14px; padding-top: 16px; }
+.vc-branches.fork:has(> .vc-branch > .vc-join) { padding-bottom: 20px; }
+.vc-branches.fork > .vc-branch { position: relative; }
+.vc-branches.fork > .vc-branch::before { content: ""; position: absolute; top: -16px; left: -7px; right: -7px; height: 16px; border-top: 1px solid var(--line); }
+.vc-branches.fork > .vc-branch:first-child::before { left: 50%; }
+.vc-branches.fork > .vc-branch:last-child::before { right: 50%; }
+.vc-branches.fork > .vc-branch:only-child::before { display: none; }
+.vc-branches.fork > .vc-branch::after { content: ""; position: absolute; top: -16px; left: 50%; height: 16px; border-left: 1px solid var(--line); }
+@media (max-width: 760px) {
+  .vc-branches.fork { grid-auto-flow: row; grid-template-columns: none; grid-auto-columns: auto; }
+  .vc-branches.fork > .vc-branch::before { display: none; }
+}
+
+/* ends and continues: a branch that ends is capped and joins nothing; one that continues joins the bar under the fork */
+.vc-flow > .vc-branches.all-end::after { content: none; }
+.vc-branch.is-end { border-bottom: 3px solid var(--muted); }
+.vc-join { position: absolute; left: -7px; right: -7px; bottom: -20px; height: 20px; pointer-events: none; }
+.vc-join.v::before { content: ""; position: absolute; left: 50%; top: 0; height: 10px; border-left: 1px solid var(--line); }
+.vc-join.hf::after, .vc-join.hl::after, .vc-join.hr::after { content: ""; position: absolute; left: 0; right: 0; top: 10px; border-top: 1px solid var(--line); }
+.vc-join.hl::after { right: 50%; } .vc-join.hr::after { left: 50%; }
+.vc-step.term.end { display: block; }
+.vc-step.term.end::before { content: "\25A0"; margin-inline-end: 0.6em; color: var(--muted); }
+.vc-step.term.end.err::before { content: "\2715"; color: var(--del); }
+.vc-step.term.end .vc-detail { display: block; }
+@media (max-width: 760px) { .vc-join { display: none; } }
+
+/* asides: a condition on a step and what happens when it holds */
+.vc-aside { display: block; margin-top: 6px; padding: 4px 8px; border-left: 3px solid var(--line); background: var(--sunken); border-radius: 0 4px 4px 0;
+  font-size: var(--step--1); color: var(--ink); }
+.vc-aside::before { content: "\26A0"; margin-inline-end: 0.5em; color: var(--mod); }
+.vc-aside-if::before { content: "IF "; font-weight: 700; color: var(--mod); }
+.vc-aside-then { margin-inline-start: 0.6em; }
+.vc-aside-then::before { content: "THEN "; font-weight: 700; color: var(--del); }
+.vc-aside-then.cont::before { color: var(--cont); }
+.vc-asides summary { margin-top: 6px; cursor: pointer; font-size: var(--step--1); color: var(--muted); }
+.vc-asides summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* walkthrough: lanes revealed step by step, with a clickable track of steps and paths */
+.vc-wt { position: relative; min-width: 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.vc-wt-fsbtn { position: absolute; top: 12px; right: 12px; font: inherit; font-size: 0.85rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.vc-wt-fsbtn:hover { border-color: var(--accent); }
+.vc-wt-fsbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vc-wt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vc-wt-static { color: var(--muted); font-size: var(--step--1); }
+.vc-wt-static ol, .vc-wt-static ul { margin: 4px 0; padding-inline-start: 1.4em; }
+.vc-wt-ctl { display: flex; gap: 8px; margin-bottom: 4px; }
+.vc-wt-ctl button, .vc-wt-choose button { font: inherit; font-size: 0.9rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+.vc-wt-ctl button:hover:not(:disabled), .vc-wt-choose button:hover { border-color: var(--accent); }
+.vc-wt-ctl button:disabled { opacity: 0.4; cursor: default; }
+.vc-wt-ctl button:focus-visible, .vc-wt-choose button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vc-wt-track { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 0; margin-block: 14px; }
+.vc-wt-seg { position: relative; display: inline-flex; align-items: center; gap: 4px; padding-left: 26px; }
+.vc-wt-seg:first-child { padding-left: 0; }
+.vc-wt-seg:not(:first-child)::before { content: "\2192"; position: absolute; left: 4px; top: calc(var(--lc) - 11px); color: var(--muted); font-size: 1rem; line-height: 1; }
+.vc-wt-seg.unreach { opacity: 0.5; }
+.vc-wt-seg.unreach .vc-wt-dot { border-style: dashed; }
+.vc-wt-split { position: relative; display: grid; gap: 4px; padding: 0 14px; min-width: 0; }
+.vc-wt-split::before { content: ""; position: absolute; left: 4px; top: 16px; height: calc((var(--rows) - 1) * 36px); border-left: 2px solid var(--line); }
+.vc-wt-rejoin { position: absolute; right: 4px; width: 0; border-right: 2px solid var(--line); }
+.vc-wt-branch { position: relative; display: flex; align-items: center; gap: 4px; height: 32px; margin-left: 4px; padding: 0 4px; border-radius: 6px; opacity: 0.6; }
+.vc-wt-branch::before { content: ""; position: absolute; left: -10px; top: 16px; width: 10px; border-top: 2px solid var(--line); }
+.vc-wt-branch.sel { opacity: 1; background: var(--sunken); }
+.vc-wt-bl { min-width: 7.4em; white-space: nowrap; font-size: 0.72rem; font-weight: 600; color: var(--accent); }
+.vc-wt-branch.failure .vc-wt-bl { color: var(--del); }
+.vc-wt-tnote { margin-left: 4px; white-space: nowrap; font-size: 0.72rem; color: var(--muted); }
+.vc-wt-tnote.err { color: var(--del); }
+.vc-wt-tline { flex: 1; min-width: 14px; margin-right: -18px; align-self: center; border-top: 2px solid var(--line); }
+.vc-wt-dot { font: inherit; font-size: 0.8rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  min-width: 30px; height: 28px; padding: 0 6px; cursor: pointer; }
+.vc-wt-dot:hover { border-color: var(--accent); }
+.vc-wt-dot[aria-current="step"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.vc-wt-dot.done { color: var(--muted); }
+.vc-wt-dot.pk-ok { border-bottom: 2px solid var(--accent); } .vc-wt-dot.pk-failure { border-bottom: 2px solid var(--del); }
+.vc-wt-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vc-wt-scroll { overflow-x: auto; }
+.vc-wt-lanes { min-width: calc(var(--n) * 96px); }
+.vc-wt-head { display: grid; gap: 6px; text-align: center; }
+.vc-wt-head span { padding: 8px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--sunken); font-size: 0.85rem; overflow-wrap: anywhere; }
+.vc-wt-head.dense span { font-size: 0.72rem; padding: 6px 2px; }
+.vc-wt-head span.active { border-color: var(--accent); background: var(--accent-soft); }
+.vc-wt-body { position: relative; margin-top: 4px; }
+.vc-wt-msg { position: relative; height: 42px; cursor: pointer; transition: opacity 0.15s; }
+.vc-wt-msg.dim { opacity: 0.38; }
+.vc-wt-msg.hidden { visibility: hidden; }
+.vc-wt-n { position: absolute; top: 4px; left: 4px; font-size: 0.72rem; color: var(--muted); }
+.vc-wt-lbl { position: absolute; top: 4px; max-width: 100%; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem;
+  text-align: center; background: var(--surface); border-radius: 3px; transform: translateX(-50%); }
+.vc-wt-arrow { position: absolute; top: 32px; height: 0; border-top: 2px solid var(--ink); }
+.vc-wt-arrow::after { content: ""; position: absolute; top: -5px; border: 4px solid transparent; }
+.vc-wt-msg.r .vc-wt-arrow::after { right: -2px; border-left: 7px solid var(--ink); }
+.vc-wt-msg.l .vc-wt-arrow::after { left: -2px; border-right: 7px solid var(--ink); }
+.vc-wt-msg.ret .vc-wt-arrow { border-top-style: dashed; }
+.vc-wt-msg.self .vc-wt-arrow { top: 28px; height: 8px; border: 2px solid var(--ink); border-left: 0; border-radius: 0 8px 8px 0; }
+.vc-wt-msg.st-add .vc-wt-lbl { color: var(--add); } .vc-wt-msg.st-mod .vc-wt-lbl { color: var(--mod); }
+.vc-wt-msg.st-del .vc-wt-lbl { color: var(--del); text-decoration: line-through; } .vc-wt-msg.st-del .vc-wt-arrow { border-top-style: dashed; }
+.vc-wt-msg.cur .vc-wt-arrow { border-color: var(--accent); }
+.vc-wt-msg.cur.r .vc-wt-arrow::after { border-left-color: var(--accent); } .vc-wt-msg.cur.l .vc-wt-arrow::after { border-right-color: var(--accent); }
+.vc-wt-msg.cur .vc-wt-lbl { color: var(--accent); font-weight: 600; background: var(--accent-soft); }
+.vc-wt-box { position: relative; margin: 18px 0 6px; padding-top: 8px; border: 1.5px dotted var(--accent); border-radius: 8px; }
+.vc-wt-box.failure { border-color: var(--del); }
+.vc-wt-box.hidden { visibility: hidden; }
+.vc-wt-plabel { position: absolute; top: -11px; left: 14px; padding: 0 8px; font-size: 0.78rem; font-weight: 600; color: var(--accent); background: var(--surface); border-radius: 4px; }
+.vc-wt-box.failure > .vc-wt-plabel { color: var(--del); }
+.vc-wt-detail { margin-block: 4px 14px; padding: 12px 14px; min-height: 5.2em; background: var(--sunken); border-radius: 6px; }
+.vc-wt-detail strong { display: block; font-size: 1.05rem; }
+.vc-wt-detail small { display: block; margin-top: 2px; color: var(--muted); overflow-wrap: anywhere; }
+.vc-wt-tasks { margin: 8px 0 0; padding-inline-start: 1.6em; display: grid; gap: 6px; }
+.vc-wt-tasks li strong { display: inline; font-size: inherit; }
+.vc-wt-tasks li small { display: block; margin-top: 1px; }
+.vc-anchor { margin-inline-start: 10px; color: var(--muted); text-decoration: none; font-weight: 400; font-size: 0.8em; opacity: 0; }
+.vc-block h3:hover .vc-anchor, .vc-anchor:focus-visible { opacity: 1; }
+.vc-anchor.copied { opacity: 1; color: var(--add); }
+.vc-anchor-msg { margin-inline-start: 10px; font-size: var(--step--1); font-weight: 400; color: var(--muted); user-select: all; }
+.vc-anchor-msg:empty { display: none; }
+.vc-block { scroll-margin-top: calc(var(--tabbar-h, 48px) + 12px); }
+.vc-wt-why { margin-top: 6px; }
+.vc-wt-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.vc-wt-pnote { margin-top: 6px; font-size: 0.85rem; color: var(--muted); }
+.vc-wt-choose { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.85rem; color: var(--muted); }
+.vc-wt-choose button { font-size: 0.85rem; padding: 2px 10px; }
+.vc-wt-choose button.sel.ok { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.vc-wt-choose button.sel.failure { border-color: var(--del); color: var(--del); background: var(--del-bg); }
+.vc-wt-key-step { display: inline-block; min-width: 30px; padding: 3px 6px; text-align: center; font-size: 0.8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.vc-wt-key-box { display: inline-block; padding: 2px 8px; font-size: 0.72rem; font-weight: 600; color: var(--accent); border: 1.5px dotted var(--accent); border-radius: 6px; white-space: nowrap; }
+.vc-wt-key-box.failure { color: var(--del); border-color: var(--del); }
+@media (max-width: 760px) { .vc-wt { padding: 12px; } }
 
 .vc-rung { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 12px; align-items: center; }
 .vc-chip { display: inline-block; font-family: var(--font-mono); font-size: var(--step--1); padding: 2px 10px; border-radius: 4px;
@@ -315,7 +476,33 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
     var r = document.getElementById("vc-t-" + key);
     if (r) { r.checked = true; }
   }
-  try { if (location.hash.length > 1) { select(location.hash.slice(1)); } } catch (e) {}
+  // Links: #<tab>, #<tab>/<block> (a titled walkthrough), and either with a "--fullscreen" suffix that opens that walkthrough
+  // full window. The suffix is the part of the address a hosted page can pass on, so ?fullscreen=true is only a mirror of it.
+  var FS_SUFFIX = "--fullscreen";
+  function hashState() {
+    var h = (location.hash || "").replace(/^#/, "");
+    try { h = decodeURIComponent(h); } catch (e) {}
+    var on = h.slice(-FS_SUFFIX.length) === FS_SUFFIX;
+    var path = (on ? h.slice(0, -FS_SUFFIX.length) : h).split("/");
+    return { tab: path[0], block: path[1] || null, fs: on };
+  }
+  function blockEl(tab, block) { return block ? document.getElementById("vc-b-" + tab + "--" + block) : null; }
+  var tabbar = root.querySelector(".vc-tabs"), touched = false, scrollTarget = null;
+  ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (n) { window.addEventListener(n, function () { touched = true; }, { passive: true }); });
+  function scrollToTarget() { if (scrollTarget && scrollTarget.isConnected) { scrollTarget.scrollIntoView({ block: "start" }); } }
+  // The page scrolls to a linked block when the link's tab or block changes, not when only the --fullscreen suffix comes or goes.
+  var lastRoute = null;
+  function route() {
+    var st = hashState();
+    if (!st.tab) { return; }
+    var at = st.tab + (st.block ? "/" + st.block : "");
+    select(st.tab);
+    root.style.setProperty("--tabbar-h", tabbar.offsetHeight + "px");
+    scrollTarget = blockEl(st.tab, st.block);
+    if (at !== lastRoute) { lastRoute = at; scrollToTarget(); }
+  }
+  try { route(); } catch (e) {}
+  window.addEventListener("load", function () { if (!touched) { scrollToTarget(); } });
   radios.forEach(function (r) {
     r.addEventListener("change", function () {
       try { history.replaceState(null, "", "#" + r.value); } catch (e) {}
@@ -323,30 +510,113 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
     });
   });
 
-  // Theme and color-blind palette: match the OS by default, remember an explicit choice per viewer.
+  // Directory trees: click (or Enter / Space on) a directory name to fold its subtree.
+  function toggleDir(el) {
+    var li = el.closest("li");
+    var collapsed = li.classList.toggle("collapsed");
+    el.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+  root.querySelectorAll(".vc-tree").forEach(function (tree) {
+    tree.addEventListener("click", function (e) {
+      var el = e.target.closest(".vc-toggle");
+      if (el) { toggleDir(el); }
+    });
+    tree.addEventListener("keydown", function (e) {
+      var el = e.target.closest(".vc-toggle");
+      if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleDir(el); }
+    });
+  });
+
+  // Header buttons: Legend, Theme, Colorblind palette, Page width. Theme and palette follow the OS by default; every explicit choice is remembered per viewer.
   function load(k) { try { return localStorage.getItem("vc-" + k); } catch (e) { return null; } }
   function save(k, v) { try { localStorage.setItem("vc-" + k, v); } catch (e) {} }
-  var themeSel = document.getElementById("vc-theme"), palSel = document.getElementById("vc-palette");
   // protanopia and deuteranopia are both red-green deficiencies and share a palette
   var PALETTES = { protanopia: "rg", deuteranopia: "rg", tritanopia: "by" };
   var LEGACY = { rg: "deuteranopia", by: "tritanopia" };
-  function applyPrefs(theme, palette) {
-    if (theme === "light" || theme === "dark") { doc.setAttribute("data-theme", theme); }
-    else if (theme === "auto") { doc.removeAttribute("data-theme"); }
-    if (PALETTES[palette]) { doc.setAttribute("data-palette", PALETTES[palette]); }
-    else { doc.removeAttribute("data-palette"); }
+  function applyPrefs() {
+    if (state.theme === "light" || state.theme === "dark") { doc.setAttribute("data-theme", state.theme); } else { doc.removeAttribute("data-theme"); }
+    if (PALETTES[state.palette]) { doc.setAttribute("data-palette", PALETTES[state.palette]); } else { doc.removeAttribute("data-palette"); }
+    if (state.width === "auto") { root.style.removeProperty("--vc-width"); } else { root.style.setProperty("--vc-width", state.width + "%"); }
   }
-  var theme = load("theme"), palette = load("palette") || "default";
-  palette = LEGACY[palette] || palette;
-  applyPrefs(theme, palette);
-  themeSel.value = theme || (doc.getAttribute("data-theme") || "auto");
-  palSel.value = palette;
+  var VALID = {
+    theme: function (v) { return v === "auto" || v === "light" || v === "dark"; },
+    palette: function (v) { return v === "default" || !!PALETTES[v]; },
+    width: function (v) { return /^(auto|[1-9]0|100)$/.test(v || ""); }
+  };
+  var state = { theme: load("theme"), palette: load("palette") || "default", width: load("width") };
+  state.palette = LEGACY[state.palette] || state.palette;
+  Object.keys(VALID).forEach(function (k) { if (!VALID[k](state[k])) { state[k] = k === "palette" ? "default" : "auto"; } });
+  applyPrefs();
   root.querySelector(".vc-prefs").hidden = false;
-  themeSel.addEventListener("change", function () { save("theme", themeSel.value); applyPrefs(themeSel.value, palSel.value); renderAll(); });
-  palSel.addEventListener("change", function () { save("palette", palSel.value); applyPrefs(themeSel.value, palSel.value); renderAll(); });
+
+  var legendBtn = document.getElementById("vc-btn-legend"), legendPop = document.getElementById("vc-legend-pop");
+  var popups = [{ key: "legend", btn: legendBtn, panel: legendPop }];
+  root.querySelectorAll(".vc-menu").forEach(function (menu) {
+    popups.push({ key: menu.dataset.key, btn: document.getElementById("vc-btn-" + menu.dataset.key), panel: menu, menu: true });
+  });
+  function popupFor(key) { return popups.filter(function (p) { return p.key === key; })[0]; }
+  function closePopups(except) {
+    popups.forEach(function (p) {
+      if (p.key === except) { return; }
+      p.panel.hidden = true;
+      p.btn.setAttribute("aria-expanded", "false");
+    });
+  }
+  function markMenus() {
+    popups.forEach(function (p) {
+      if (!p.menu) { return; }
+      var label = "";
+      p.panel.querySelectorAll('[role="menuitemradio"]').forEach(function (it) {
+        var on = it.dataset.value === state[p.key];
+        it.setAttribute("aria-checked", on ? "true" : "false");
+        if (on) { label = it.firstChild.textContent; }
+      });
+      p.btn.title = p.btn.getAttribute("aria-label") + ": " + label;
+    });
+  }
+  function openPopup(p) {
+    closePopups(p.key);
+    p.panel.hidden = false;
+    p.btn.setAttribute("aria-expanded", "true");
+    if (p.menu) { (p.panel.querySelector('[aria-checked="true"]') || p.panel.querySelector('[role="menuitemradio"]')).focus(); }
+  }
+  popups.forEach(function (p) {
+    p.btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (p.panel.hidden) { openPopup(p); } else { closePopups(); }
+    });
+    if (p.menu) {
+      p.panel.addEventListener("click", function (e) {
+        var it = e.target.closest('[role="menuitemradio"]');
+        if (!it) { return; }
+        state[p.key] = it.dataset.value;
+        save(p.key, state[p.key]);
+        applyPrefs();
+        markMenus();
+        closePopups();
+        p.btn.focus();
+        if (p.key === "theme" || p.key === "palette") { renderAll(); }
+      });
+      p.panel.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp") { return; }
+        var items = Array.prototype.slice.call(p.panel.querySelectorAll('[role="menuitemradio"]'));
+        var at = items.indexOf(document.activeElement);
+        items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+        e.preventDefault();
+      });
+    }
+  });
+  document.addEventListener("click", function (e) {
+    popups.forEach(function (p) { if (!p.panel.hidden && !p.panel.contains(e.target)) { closePopups(); } });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") { return; }
+    popups.forEach(function (p) { if (!p.panel.hidden) { closePopups(); p.btn.focus(); } });
+  });
+  markMenus();
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-      if (themeSel.value === "auto") { renderAll(); }
+      if (state.theme === "auto") { renderAll(); }
     });
   }
 
@@ -373,6 +643,47 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
       }
     });
   }
+  // `rect new|changed|removed` spans: tinted from the current palette, then outlined and labeled once drawn.
+  var SPAN_TOKENS = { new: "--add", changed: "--mod", removed: "--del" };
+  function rgbOf(css, name) {
+    var m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(tok(css, name + "-bg"));
+    if (!m) { return "rgba(128, 128, 128, 0.15)"; }
+    var h = m[1].length === 3 ? m[1].replace(/./g, "$&$&") : m[1];
+    return "rgb(" + [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }).join(", ") + ")";
+  }
+  function spanFills(css) {
+    var fills = {};
+    Object.keys(SPAN_TOKENS).forEach(function (k) { fills[k] = rgbOf(css, SPAN_TOKENS[k]); });
+    return fills;
+  }
+  function withSpanColors(src, fills) {
+    return src.replace(/^(\s*)rect\s+(new|changed|removed)\s*$/gm, function (_, ind, st) { return ind + "rect " + fills[st]; });
+  }
+  function decorateSpans(svg, fills) {
+    var ns = "http://www.w3.org/2000/svg";
+    svg.style.overflow = "visible";
+    Object.keys(fills).forEach(function (state) {
+      var want = fills[state].replace(/\s+/g, "");
+      svg.querySelectorAll("rect").forEach(function (r) {
+        if ((r.getAttribute("fill") || "").replace(/\s+/g, "") !== want) { return; }
+        var tone = SPAN_TOKENS[state];
+        r.style.stroke = "var(" + tone + "-line)";
+        r.style.strokeWidth = "1.5";
+        r.style.strokeDasharray = "2 4";
+        var x = parseFloat(r.getAttribute("x")), y = parseFloat(r.getAttribute("y"));
+        var chip = document.createElementNS(ns, "rect");
+        chip.setAttribute("x", x + 10); chip.setAttribute("y", y - 9); chip.setAttribute("height", 18); chip.setAttribute("rx", 4);
+        chip.setAttribute("width", state.length * 8 + 14);
+        chip.style.fill = "var(--surface)"; chip.style.stroke = "var(" + tone + "-line)"; chip.style.strokeWidth = "1";
+        var label = document.createElementNS(ns, "text");
+        label.setAttribute("x", x + 17); label.setAttribute("y", y + 4);
+        label.style.fill = "var(" + tone + ")"; label.style.fontSize = "12px"; label.style.fontWeight = "600";
+        label.textContent = state;
+        r.parentNode.insertBefore(chip, r.nextSibling);
+        r.parentNode.insertBefore(label, chip.nextSibling);
+      });
+    });
+  }
   function fail(n, src, err) {
     n.classList.add("vc-mermaid-error");
     n.setAttribute("data-error", String(err && err.message || err).slice(0, 400));
@@ -382,14 +693,17 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
     if (!window.mermaid || !nodes.length) { root.setAttribute("data-mermaid", "done"); return; }
     var gen = ++generation;
     configure();
+    var fills = spanFills(getComputedStyle(doc));
     // one at a time with explicit ids: mermaid's own ids come from Date.now() and can collide
     var chain = document.fonts ? document.fonts.ready : Promise.resolve();
     nodes.forEach(function (n, i) {
       chain = chain.then(function () {
         if (gen !== generation) { return; }
-        return mermaid.render("vc-mmd-" + gen + "-" + i, sources[i]).then(function (res) {
+        return mermaid.render("vc-mmd-" + gen + "-" + i, withSpanColors(sources[i], fills)).then(function (res) {
           n.classList.remove("vc-mermaid-error");
           n.innerHTML = res.svg;
+          var svg = n.querySelector("svg");
+          if (svg) { decorateSpans(svg, fills); }
         }, function (err) { fail(n, sources[i], err); });
       });
     });
@@ -397,26 +711,91 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
   }
   renderAll();
 
-  // Full-window view: a dialog inside the page, since hosts may refuse the Fullscreen API.
-  var zoom = document.createElement("dialog");
-  zoom.className = "vc-zoom";
-  zoom.setAttribute("aria-label", "Diagram, full window");
-  zoom.innerHTML = '<div class="vc-zoom-title"></div><button type="button" class="vc-zoom-close">Close</button><div class="vc-zoom-body"></div>';
-  root.appendChild(zoom);
-  var zoomBody = zoom.querySelector(".vc-zoom-body");
+  // Full-window view for diagrams and walkthroughs: a dialog inside the page, since hosts may refuse the Fullscreen API.
+  var FS_WIDTHS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  function widthOptions(extra) {
+    return (extra || "") + FS_WIDTHS.map(function (w) { return '<option value="' + w + '">' + w + "%</option>"; }).join("");
+  }
+  var fs = document.createElement("dialog");
+  fs.className = "vc-fs";
+  fs.setAttribute("aria-label", "Full window view");
+  fs.innerHTML = '<div class="vc-fs-frame"><div class="vc-fs-bar"><span class="vc-fs-title"></span><label for="vc-fs-width">Width</label>' +
+    '<select id="vc-fs-width">' + widthOptions() + '</select><button type="button" class="vc-fs-close">Close</button></div>' +
+    '<div class="vc-fs-body"><div class="vc-fs-content"></div></div></div>';
+  root.appendChild(fs);
+  var fsContent = fs.querySelector(".vc-fs-content"), fsSel = fs.querySelector("#vc-fs-width"), fsRestore = null, fsOpener = null, fsActive = false;
+  function setFsWidth(w) { fsSel.value = String(w); fsContent.style.setProperty("--fs-width", w + "%"); }
+  var savedFs = parseInt(load("fswidth"), 10);
+  setFsWidth(FS_WIDTHS.indexOf(savedFs) >= 0 ? savedFs : 100);
+  fsSel.addEventListener("change", function () {
+    save("fswidth", fsSel.value); setFsWidth(+fsSel.value);
+    var h = fsContent.querySelector(".vc-wt");
+    if (h) { h.focus({ preventScroll: true }); }
+  });
+  function openFs(title, node, restore, opener) {
+    if (typeof fs.showModal !== "function") { return false; }
+    fsContent.innerHTML = "";
+    fsContent.appendChild(node);
+    fsRestore = restore || null;
+    fsOpener = opener || null;
+    fsActive = true;
+    fs.querySelector(".vc-fs-title").textContent = title;
+    fs.showModal();
+    return true;
+  }
+  // The address mirrors a full-window walkthrough: "#<tab>/<block>--fullscreen" everywhere, plus ?fullscreen=true where a query string
+  // survives (a hosted frame passes only the hash). Opening and closing each add a history entry through location.hash, so Back
+  // closes or reopens the view; the query lives on the entry that is open.
+  var fsLink = null;
+  function setFsQuery(on) {
+    try {
+      var u = new URL(location.href);
+      if (on) { u.searchParams.set("fullscreen", "true"); } else { u.searchParams.delete("fullscreen"); }
+      if (u.search !== location.search) { history.replaceState(null, "", u.href); }
+    } catch (e) { /* the page works without a mirrored query */ }
+  }
+  // Closing rewrites the hash only while it still carries the suffix (the close came from the page: Close, Escape). When Back or Forward
+  // caused the close, the address is already the one the reader asked for, and assigning it would push an entry and drop Forward.
+  function setFsUrl(link) {
+    var want = link ? "#" + link + FS_SUFFIX : fsLink && hashState().fs ? "#" + fsLink : null;
+    if (!link) { setFsQuery(false); }
+    if (want && location.hash !== want) { lastRoute = link || fsLink; location.hash = want; }
+    if (link) { setFsQuery(true); }
+  }
+  // Put what the dialog held back where it came from. Runs from closeFs and from the dialog's own close event (Escape),
+  // whichever comes first, so the restore never waits on event timing.
+  function finishFs() {
+    if (!fsActive) { return; }
+    fsActive = false;
+    setFsUrl(null); fsLink = null;
+    if (fsRestore) { fsRestore(); }
+    fsRestore = null;
+    fsContent.innerHTML = "";
+    if (fsOpener && fsOpener.isConnected) { fsOpener.focus(); }
+    fsOpener = null;
+  }
+  function closeFs() { if (fs.open) { fs.close(); } finishFs(); }
+  fs.addEventListener("close", finishFs);
+  // In a full-window walkthrough: left and right step, up and down switch the branch of the split the current step is on.
+  // Keys typed into the width select stay with it, and up and down scroll the dialog when there is no branch to switch.
+  fs.addEventListener("keydown", function (e) {
+    var host = fsContent.querySelector(".vc-wt");
+    if (!host || !host.wtKeys || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.target.closest("select, input, textarea")) { return; }
+    if (e.key === "ArrowRight") { host.wtKeys.step(1); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { host.wtKeys.step(-1); e.preventDefault(); }
+    else if (e.key === "ArrowUp" || e.key === "ArrowDown") { if (host.wtKeys.branch(e.key === "ArrowDown" ? 1 : -1)) { e.preventDefault(); } }
+  });
+  fs.addEventListener("click", function (e) {
+    if (e.target.closest(".vc-fs-close") || e.target.classList.contains("vc-fs-body")) { closeFs(); }
+  });
   function openZoom(box) {
     var svg = box.querySelector("svg");
-    if (!svg || typeof zoom.showModal !== "function") { return; }
-    zoomBody.innerHTML = "";
-    zoomBody.appendChild(svg.cloneNode(true));
+    if (!svg) { return; }
     var block = box.closest(".vc-block"), fig = box.closest("figure");
     var head = block && block.querySelector(":scope > h3");
     var side = fig && fig.querySelector("figcaption");
-    zoom.querySelector(".vc-zoom-title").textContent =
-      [head && head.textContent, side && side.textContent].filter(Boolean).join(" · ");
-    zoom.showModal();
+    openFs([head && head.textContent, side && side.textContent].filter(Boolean).join(" · ") || "Diagram", svg.cloneNode(true), null, box);
   }
-  zoom.addEventListener("click", function () { zoom.close(); });
   root.querySelectorAll(".vc-diagram").forEach(function (box) {
     if (!box.querySelector("pre.vc-mermaid")) { return; }
     box.tabIndex = 0;
@@ -427,5 +806,232 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openZoom(box); }
     });
   });
+  function toggleWalkthroughFs(host, btn) {
+    if (host.closest(".vc-fs")) { closeFs(); return; }
+    var block = host.closest(".vc-block"), title = block && block.getAttribute("data-title");
+    var link = block && block.getAttribute("data-block") ? block.getAttribute("data-tab") + "/" + block.getAttribute("data-block") : null;
+    var ph = document.createElement("div");
+    ph.style.height = host.offsetHeight + "px";
+    host.parentNode.insertBefore(ph, host);
+    var opened = openFs(title || "Walkthrough", host, function () { btn.textContent = "Fullscreen"; ph.replaceWith(host); }, btn);
+    if (opened) {
+      btn.textContent = "Exit fullscreen"; host.focus({ preventScroll: true });
+      if (link) { fsLink = link; setFsUrl(link); }
+    } else { ph.remove(); }
+  }
+  // Walkthroughs: lanes revealed one message at a time; a track of steps and paths, every step clickable.
+  function wesc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  var WT_STATE = { add: "new", mod: "changed", del: "removed" };
+  function initWalkthrough(host) {
+    var data = JSON.parse(host.querySelector(".vc-wt-data").textContent);
+    var lanes = data.lanes, segs = data.segments, N = lanes.length, sel = {}, cur = 0;
+    segs.forEach(function (sg, i) { if (sg.split) { sel[i] = sg.split[0].key; } });
+    host.innerHTML = '<button type="button" class="vc-wt-fsbtn">Fullscreen</button><div class="vc-wt-ctl"><button type="button" data-a="prev">‹ Prev</button><button type="button" data-a="next">Next ›</button></div>' +
+      '<div class="vc-wt-track"></div><div class="vc-wt-detail" aria-live="polite"></div><div class="vc-wt-scroll"><div class="vc-wt-lanes" style="--n:' + N + '"></div></div>';
+    host.tabIndex = 0;
+    var fsBtn = host.querySelector(".vc-wt-fsbtn");
+    fsBtn.addEventListener("click", function () { toggleWalkthroughFs(host, fsBtn); });
+    var track = host.querySelector(".vc-wt-track"), laneHost = host.querySelector(".vc-wt-lanes"), detail = host.querySelector(".vc-wt-detail");
+
+    function branch(i) { return segs[i].split.filter(function (b) { return b.key === sel[i]; })[0]; }
+    function rejoins(i, b) { return !b.ends && i < segs.length - 1; }
+    function flat() {
+      var out = [];
+      for (var i = 0; i < segs.length; i++) {
+        var sg = segs[i];
+        if (sg.steps) { sg.steps.forEach(function (s, k) { out.push({ s: s, seg: i, path: null, idx: k }); }); continue; }
+        var b = branch(i);
+        b.steps.forEach(function (s, k) { out.push({ s: s, seg: i, path: b.key, kind: b.kind, idx: k, first: k === 0, last: k === b.steps.length - 1 }); });
+        if (b.ends) { break; }
+      }
+      return out;
+    }
+    function indexOf(f, seg, path, idx) { for (var k = 0; k < f.length; k++) { if (f[k].seg === seg && f[k].path === path && f[k].idx === idx) { return k; } } return -1; }
+    function jump(seg, path, idx) {
+      for (var i = 0; i < seg; i++) {
+        if (!segs[i].split || !branch(i).ends) { continue; }
+        var go = segs[i].split.filter(function (b) { return !b.ends; })[0];
+        if (!go) { return; }
+        sel[i] = go.key;
+      }
+      if (path) { sel[seg] = path; }
+      var k = indexOf(flat(), seg, path, idx);
+      cur = k < 0 ? 0 : k; render();
+    }
+    function dot(seg, path, idx, num, cursor, kind) {
+      var on = cursor && cursor.seg === seg && cursor.path === path && cursor.idx === idx;
+      return '<button type="button" class="vc-wt-dot' + (kind ? " pk-" + kind : "") + '" data-seg="' + seg + '" data-path="' + (path || "") + '" data-idx="' + idx + '"' +
+        (on ? ' aria-current="step"' : "") + ' aria-label="Step ' + num + '">' + num + "</button>";
+    }
+    function trackHTML(f) {
+      var ROW = 36, base = 0, cursor = f[cur], reached = {}, parts = [], blocker = null;
+      f.forEach(function (e) { reached[e.seg] = 1; });
+      segs.forEach(function (sg, i) {
+        var part = { unreach: !reached[i], why: blocker };
+        if (sg.steps) {
+          part.lc = part.rc = 14;
+          part.html = sg.steps.map(function (s, k) { return dot(i, null, k, base + k + 1, cursor); }).join("");
+          base += sg.steps.length; parts.push(part); return;
+        }
+        var rowsN = sg.split.length, rej = [], used = null;
+        sg.split.forEach(function (b, r) { if (rejoins(i, b)) { rej.push(r); if (used === null || sel[i] === b.key) { used = b.steps.length; } } });
+        var baseAfter = base + (used === null ? 0 : used);
+        var h = '<span class="vc-wt-split" style="--rows:' + rowsN + '">';
+        sg.split.forEach(function (b) {
+          var on = sel[i] === b.key, note;
+          if (b.ends) { note = b.kind === "failure" ? '<span class="vc-wt-tnote err">✕ ends in error</span>' : '<span class="vc-wt-tnote">■ ends</span>'; }
+          else if (rejoins(i, b)) { note = '<span class="vc-wt-tnote">rejoins at ' + (baseAfter + 1) + "</span>"; }
+          else { note = '<span class="vc-wt-tnote">■ end of flow</span>'; }
+          h += '<span class="vc-wt-branch ' + b.kind + (on ? " sel" : "") + '"><span class="vc-wt-bl">' + (b.kind === "failure" ? "✕ " : "") + wesc(b.label) + "</span>" +
+            b.steps.map(function (s, k) { return dot(i, b.key, k, base + k + 1, cursor, b.kind); }).join("") + note + (rejoins(i, b) ? '<span class="vc-wt-tline"></span>' : "") + "</span>";
+        });
+        if (rej.length > 1) { h += '<span class="vc-wt-rejoin" style="top:' + (rej[0] * ROW + 16) + "px;height:" + ((rej[rej.length - 1] - rej[0]) * ROW) + 'px"></span>'; }
+        h += "</span>";
+        part.lc = (rowsN * ROW - 4) / 2;
+        part.rc = rej.length ? ((rej[0] + rej[rej.length - 1]) / 2) * ROW + 16 : part.lc;
+        part.html = h; parts.push(part);
+        if (branch(i).ends) { blocker = sg.split.filter(function (b) { return !b.ends; })[0] || null; }
+        base = baseAfter;
+      });
+      var y = 0, tops = [];
+      parts.forEach(function (p, k) { var top = k === 0 ? 0 : y - p.lc; tops.push(top); y = top + p.rc; });
+      var minTop = Math.min.apply(null, tops);
+      return parts.map(function (p, k) {
+        var tip = p.unreach && p.why ? ' title="reached only through the ' + wesc(p.why.label) + ' path"' : "";
+        return '<span class="vc-wt-seg' + (p.unreach ? " unreach" : "") + '" style="--lc:' + p.lc + "px;margin-top:" + (tops[k] - minTop) + 'px"' + tip + ">" + p.html + "</span>";
+      }).join("");
+    }
+    function rowHTML(s, i) {
+      var a = Math.min(s.f, s.t), b = Math.max(s.f, s.t), c1 = (a + 0.5) * 100 / N, c2 = (b + 0.5) * 100 / N;
+      var cls = "vc-wt-msg " + (s.kind === "ret" ? "ret " : "") + (s.kind === "self" ? "self " : "") + (s.t > s.f || s.kind === "self" ? "r" : "l") + (s.state ? " st-" + s.state : "");
+      var arrow = s.kind === "self" ? '<div class="vc-wt-arrow" style="left:' + c1 + '%;width:28px"></div>' : '<div class="vc-wt-arrow" style="left:' + c1 + '%;width:' + (c2 - c1) + '%"></div>';
+      var lx = s.kind === "self" ? Math.min(c1 + 7, 78) : (c1 + c2) / 2;
+      return '<div class="' + cls + '" data-i="' + i + '"><span class="vc-wt-n">' + (i + 1) + '</span><div class="vc-wt-lbl" style="left:' + lx + '%">' + wesc(s.label) + "</div>" + arrow + "</div>";
+    }
+    function lanesHTML(f) {
+      var head = '<div class="vc-wt-head' + (N >= 6 ? " dense" : "") + '" style="grid-template-columns:repeat(' + N + ',1fr)">' +
+        lanes.map(function (l, k) { return '<span data-lane="' + k + '">' + wesc(l) + "</span>"; }).join("") + "</div>";
+      var rows = "", open = null;
+      f.forEach(function (e, i) {
+        var key = e.path ? e.seg + ":" + e.path : null;
+        if (open && open !== key) { rows += "</div>"; open = null; }
+        if (key && open !== key) { rows += '<div class="vc-wt-box ' + e.kind + '" data-first="' + i + '"><span class="vc-wt-plabel">' + (e.kind === "failure" ? "✕ " : "") + wesc(branch(e.seg).label) + "</span>"; open = key; }
+        rows += rowHTML(e.s, i);
+      });
+      if (open) { rows += "</div>"; }
+      var lines = [];
+      for (var k = 0; k < N; k++) { lines.push("linear-gradient(var(--line),var(--line)) " + (k + 0.5) * 100 / N + "% 0 / 1px 100% no-repeat"); }
+      return head + '<div class="vc-wt-body" style="background:' + lines.join(",") + '">' + rows + "</div>";
+    }
+    function detailHTML(f) {
+      var e = f[cur], s = e.s, nxt = f[cur + 1];
+      var h = "<strong>" + (cur + 1) + ". " + wesc(lanes[s.f]) + " → " + wesc(lanes[s.t]) + ": " + wesc(s.label) + '</strong><div class="vc-wt-why">' + wesc(s.what) + "</div>" +
+        (s.detail ? "<small>" + wesc(s.detail) + "</small>" : "") +
+        (s.tasks && s.tasks.length ? '<ol class="vc-wt-tasks">' + s.tasks.map(function (t) {
+          return "<li><strong>" + wesc(t.label) + "</strong>: " + wesc(t.what) + (t.detail ? "<small>" + wesc(t.detail) + "</small>" : "") + "</li>";
+        }).join("") + "</ol>" : "");
+      var tags = s.state ? '<span class="vc-badge ' + s.state + '">' + WT_STATE[s.state] + "</span>" : "";
+      if (e.path) { tags += '<span class="vc-badge ' + (e.kind === "failure" ? "del" : "add") + '">' + (e.kind === "failure" ? "✕ " : "") + wesc(branch(e.seg).label) + " path</span>"; }
+      if (tags) { h += '<div class="vc-wt-tags">' + tags + "</div>"; }
+      if (e.last) {
+        var b = branch(e.seg);
+        h += '<div class="vc-wt-pnote">' + (b.ends ? (b.kind === "failure" ? "✕ The flow ends here in an error." : "■ The flow ends here.") : rejoins(e.seg, b) ? "↓ This path rejoins the shared flow." : "■ End of the flow.") + "</div>";
+      } else if (!nxt) { h += '<div class="vc-wt-pnote">■ End of the flow.</div>'; }
+      if (nxt && nxt.path && nxt.first && nxt.seg !== e.seg) {
+        h += '<div class="vc-wt-choose">Next, the flow splits: ' + segs[nxt.seg].split.map(function (b) {
+          return '<button type="button" class="' + b.kind + (sel[nxt.seg] === b.key ? " sel" : "") + '" data-choose="' + nxt.seg + ":" + b.key + '">→ ' + (b.kind === "failure" ? "✕ " : "") + wesc(b.label) + "</button>";
+        }).join("") + "</div>";
+      }
+      return h;
+    }
+    function render() {
+      var f = flat();
+      cur = Math.max(0, Math.min(f.length - 1, cur));
+      track.innerHTML = trackHTML(f);
+      laneHost.innerHTML = lanesHTML(f);
+      laneHost.querySelectorAll(".vc-wt-msg").forEach(function (m) {
+        var i = +m.dataset.i;
+        m.classList.toggle("cur", i === cur); m.classList.toggle("hidden", i > cur); m.classList.toggle("dim", i < cur);
+      });
+      laneHost.querySelectorAll(".vc-wt-box").forEach(function (b) { b.classList.toggle("hidden", +b.dataset.first > cur); });
+      var s = f[cur].s;
+      laneHost.querySelectorAll(".vc-wt-head span").forEach(function (h) { var k = +h.dataset.lane; h.classList.toggle("active", k === s.f || k === s.t); });
+      host.querySelector('[data-a="prev"]').disabled = cur === 0;
+      host.querySelector('[data-a="next"]').disabled = cur === f.length - 1;
+      detail.innerHTML = detailHTML(f);
+      track.querySelectorAll(".vc-wt-dot").forEach(function (d) {
+        var k = indexOf(f, +d.dataset.seg, d.dataset.path || null, +d.dataset.idx);
+        d.classList.toggle("done", k >= 0 && k < cur);
+      });
+    }
+    host.addEventListener("click", function (e) {
+      var b = e.target.closest("button"), m = e.target.closest(".vc-wt-msg");
+      if (b && b.dataset.a === "prev") { cur--; render(); }
+      else if (b && b.dataset.a === "next") { cur++; render(); }
+      else if (b && b.classList.contains("vc-wt-dot")) { jump(+b.dataset.seg, b.dataset.path || null, +b.dataset.idx); }
+      else if (b && b.dataset.choose) { var p = b.dataset.choose.split(":"); jump(+p[0], p[1], 0); }
+      else if (m && !m.classList.contains("hidden")) { cur = +m.dataset.i; render(); }
+    });
+    host.addEventListener("keydown", function (e) {
+      if (e.target !== host || host.closest(".vc-fs")) { return; }
+      if (e.key === "ArrowRight") { cur++; render(); e.preventDefault(); } else if (e.key === "ArrowLeft") { cur--; render(); e.preventDefault(); }
+    });
+    // Full-window keys (the dialog's keydown handler): step forward or back, and move to the neighbouring branch of the split the
+    // current step is on, keeping the position within the branch.
+    host.wtKeys = {
+      step: function (d) { cur += d; render(); },
+      branch: function (d) {
+        var c = flat()[cur];
+        if (c.path === null) { return false; }
+        var list = segs[c.seg].split, at = -1;
+        list.forEach(function (b, k) { if (b.key === c.path) { at = k; } });
+        var nb = list[at + d];
+        if (!nb) { return false; }
+        jump(c.seg, nb.key, Math.min(c.idx, nb.steps.length - 1));
+        return true;
+      }
+    };
+    render();
+    host.setAttribute("data-wt", "ready");
+  }
+  root.querySelectorAll(".vc-wt").forEach(function (host) {
+    try { initWalkthrough(host); } catch (err) { host.setAttribute("data-wt-error", String(err && err.message || err).slice(0, 200)); }
+  });
+  // A "#" link on each titled walkthrough's heading: copies the address that opens the page on that walkthrough.
+  root.querySelectorAll(".vc-block[data-block]").forEach(function (block) {
+    var head = block.querySelector(":scope > h3");
+    if (!head) { return; }
+    var a = document.createElement("a"), link = block.getAttribute("data-tab") + "/" + block.getAttribute("data-block");
+    a.className = "vc-anchor"; a.href = "#" + link; a.setAttribute("aria-label", "Link to " + block.getAttribute("data-title")); a.textContent = "#";
+    var msg = document.createElement("span"), timer = null;
+    msg.className = "vc-anchor-msg"; msg.setAttribute("role", "status");
+    function say(text, ok) {
+      msg.textContent = text; a.classList.toggle("copied", ok);
+      clearTimeout(timer); timer = setTimeout(function () { msg.textContent = ""; a.classList.remove("copied"); }, ok ? 2000 : 8000);
+    }
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      try { history.replaceState(null, "", "#" + link); } catch (e) {}
+      // A hosted page runs in a frame whose own address is not the one to share, so there the link is the fragment to add to the page address.
+      var hosted = root.getAttribute("data-mode") === "artifact", text = hosted ? "#" + link : location.href;
+      function done() { say(hosted ? "Copied " + text + ": add it to the page address" : "Link copied", true); }
+      function fail() { say("Copy failed: " + text, false); }
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, fail); } else { fail(); }
+    });
+    head.appendChild(a); head.appendChild(msg);
+  });
+  // The full-window view follows the address: the suffix opens or closes it (Back and Forward included), and on first load
+  // ?fullscreen=true on a link that names a walkthrough opens it too.
+  function syncFs(firstLoad) {
+    var st = hashState(), want = st.fs;
+    if (firstLoad && !want) { try { want = new URL(location.href).searchParams.get("fullscreen") === "true"; } catch (e) {} }
+    if (!want) { if (fs.open) { closeFs(); } return; }
+    if (fs.open) { return; }
+    var block = blockEl(st.tab, st.block), host = block && block.querySelector(".vc-wt");
+    if (host && host.getAttribute("data-wt") === "ready") { toggleWalkthroughFs(host, host.querySelector(".vc-wt-fsbtn")); }
+  }
+  window.addEventListener("hashchange", function () { route(); syncFs(false); });
+  window.addEventListener("popstate", function () { route(); syncFs(false); });
+  syncFs(true);
 })();
 </script>
