@@ -17,6 +17,17 @@ revisions — don't ask for separate approval before those actions. If
 you invoked this skill on your own initiative, confirm with the user
 before Step 2.
 
+## Inputs
+
+- **mode**: `manual` (default) or `auto`. In `auto` the caller (e.g. the
+  lens pipeline) has already been authorized to open the PRs and supplies
+  every answer below, so the skill never asks anything. Each step notes
+  what changes in `auto`.
+- **revisions** (optional): the earliest and latest change ids of the
+  stack.
+- **base** (optional): the branch the stack builds on.
+- **ticket** (optional): the ticket ID used in bookmark names.
+
 ## Step 1 — Select revisions
 
 Count revisions since trunk:
@@ -25,6 +36,7 @@ Count revisions since trunk:
 jj log -r 'trunk()..@' --no-pager -T 'change_id.short() ++ "\n"'
 ```
 
+- **If `revisions` was supplied:** use it. No selection step.
 - **If exactly one revision:** auto-select it. No confirmation ask —
   go straight to Step 2.
 - **Otherwise:** invoke `keepers:select-revs`. Don't proceed until user
@@ -40,7 +52,8 @@ calls it replaces.
 
 ## Step 2 — Plan and assign bookmarks
 
-1. **Ticket ID.** If not already established this session, ask once:
+1. **Ticket ID.** Use `ticket` when supplied. Otherwise, if not already
+   established this session, ask once:
    "What ticket ID should be used for this stack's branch names? (e.g.
    `DP-1234`)." Reuse same ticket ID for every revision in the stack —
    don't ask again per revision.
@@ -52,14 +65,15 @@ calls it replaces.
    invoke `keepers:jjdesc` to generate one — don't ask user to write it
    — then rerun `plan`. Bookmarks, bases, titles, and bodies all depend
    on descriptions.
-4. **Base.** `base_ambiguous` means two bookmarked branches sit directly
-   below the stack. Ask which one the stack builds on, then use it as
-   the first revision's base.
+4. **Base.** When `base` was supplied, use it as the first revision's
+   base. Otherwise, `base_ambiguous` means two bookmarked branches sit
+   directly below the stack. Ask which one the stack builds on, then use
+   it as the first revision's base.
 5. For each revision with `bookmark_exists: false`, create the proposed
    bookmark: `jj bookmark create <bookmark> -r <change_id>`. The script
    has already built the name (`kprs/<ticket>/<slug>`, lowercased, slug
-   ≤50 chars). Existing bookmarks keep their names.
-   and suffixed it if it collides — don't rename it.
+   ≤50 chars) and suffixed it if it collides — don't rename it. Existing
+   bookmarks keep their names.
 
 Show a table (change ID, bookmark, title) so the user sees what was
 created, then continue to Step 3 — informational only, not a
@@ -105,7 +119,8 @@ invoke `keepers:assert-green`.
 - Fails for any bookmark → **halt immediately**. Report which bookmark
   failed and why. Don't proceed to Step 7 until user resolves it and
   verification passes for that bookmark. Re-run `keepers:assert-green`
-  after each fix attempt; continue only once it passes.
+  after each fix attempt; continue only once it passes. In `auto`, stop
+  and report the failure to the caller instead of waiting.
 
 ## Step 7 — Create PRs
 

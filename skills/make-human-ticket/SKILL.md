@@ -88,6 +88,13 @@ State facts only. Stop there.
 
 Skip this step unless the user explicitly says to create or update.
 
+**`mode: auto`** (e.g. the lens pipeline): the caller has already been
+told to create the ticket and supplies the metadata (story points, epic,
+and optionally labels and links). Apply the defaults for everything else,
+skip "Confirm, then run" (step 3 below), and run the script directly.
+Still never guess story points or an epic: if the caller didn't supply
+them, stop and say what's missing.
+
 **Update an existing ticket:** `editJiraIssue` with the new description
 and `contentFormat: markdown`. Leave summary, labels, status, links and
 every other field alone unless the user names them. The script below only

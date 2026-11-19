@@ -1,0 +1,8 @@
+{
+  "name": "lens",
+  "description": "A pipeline of tightly-focused lenses that turns a proposal into a stack of PRs",
+  "version": "0.1.0",
+  "author": {
+    "name": "keepers"
+  }
+}

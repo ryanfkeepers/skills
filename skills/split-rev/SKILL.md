@@ -12,8 +12,21 @@ description: >-
 
 Split one jj revision into multiple independently-reviewable revisions.
 
-**Hard rule:** Don't split anything until user has explicitly approved
-the plan.
+**Hard rule:** in `manual` mode, don't split anything until user has
+explicitly approved the plan.
+
+## Inputs
+
+- **mode**: `manual` (default) or `auto`. `auto` skips the interview
+  (Step 3) and the execute approval (Step 4) and has no approval gate: the
+  caller (e.g. the lens pipeline) already authorized the split.
+- **plan** (optional): a JSON file with the plan to execute instead of
+  proposing one, as `{"splits": [{"title": "...", "files": ["path", ...],
+  "hunks": {"path": "<which hunks, in words>"}}]}`, earliest first. With a
+  plan, skip Step 2 too. With no plan, `auto` proposes one (Step 2) and
+  executes it.
+- **no-desc** (flag): skip Step 6b entirely. The caller describes the
+  revisions itself.
 
 ## Step 1 — Analyze
 
@@ -46,13 +59,13 @@ Format each proposed split as:
 > **Split N — \<one-line description\>**
 > Files: `foo.go`, `foo_test.go` · ~NN lines
 
-## Step 3 — Interview
+## Step 3 — Interview (manual mode only)
 
 Ask: "Does this plan work, or would you like to adjust it?"
 
 Revise until user explicitly agrees. Don't start splitting.
 
-## Step 4 — Get explicit approval
+## Step 4 — Get explicit approval (manual mode only)
 
 Ask:
 
@@ -104,13 +117,14 @@ operation.
 After extraction: `@-` = this split, `@` = remainder. Record `@`'s
 change ID before leaving.
 
-### 6b. Describe
+### 6b. Describe (skipped with `no-desc`)
 
 ```
 jj edit @-
 ```
 
-Invoke `jjdesc` to write and apply the commit description.
+If the revision already has a description, keep it and move on.
+Otherwise invoke `jjdesc` to write and apply the commit description.
 
 ### 6c. Verify
 

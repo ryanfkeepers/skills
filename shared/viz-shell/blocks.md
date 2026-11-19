@@ -1,5 +1,12 @@
 # Spec reference
 
+Shared by `visualize-changes` and `visualize-design`. The tab structure,
+decisions, failures, etc, and the html, diagram and walkthrough blocks work
+the same in both. These parts belong to `visualize-changes` only, because
+they read the diff: `owners`, `landed`, `areas`, the `boundaries` block, and
+the "Where it lands" tree. `visualize-design` adds its own fields; see its
+SKILL.md.
+
 The spec is one JSON file. `build.py` validates it against the revision range and
 renders the page. Errors stop the build with a message naming the field;
 warnings print but still build.

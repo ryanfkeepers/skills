@@ -11,6 +11,11 @@
         "repo": "ryanfkeepers/skills"
       },
       "description": "Personal Claude Code skills for keepers"
+    },
+    {
+      "name": "lens",
+      "source": "./plugins/lens",
+      "description": "A pipeline of tightly-focused lenses that turns a proposal into a stack of PRs"
     }
   ]
 }

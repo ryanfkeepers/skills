@@ -3,21 +3,24 @@ name: address-pr-requests
 description: >-
   Address outstanding review comments — both inline review-thread
   comments and top-level PR conversation comments — on a GitHub PR.
-  Given a PR review URL and a mode (auto | manual, default manual),
-  stages a new jj revision on top of the bookmarked PR tip, loads the
-  review, then either fixes every unresolved comment automatically or
-  walks the user through each one for a fix/skip/investigate decision.
-  Never posts comments or resolves threads on the PR. Use when the user
+  Given a PR review URL and a mode (auto | manual | lens, default
+  manual), stages a new jj revision on top of the bookmarked PR tip,
+  loads the review, then either fixes every unresolved comment
+  automatically or walks the user through each one for a
+  fix/skip/investigate decision. Never posts comments; only lens mode
+  resolves threads, and only those from automated reviewers. Use when the user
   pastes a PR review URL and asks to address, resolve, or fix up review
   comments, or invokes /address-pr-requests.
-argument-hint: "<review-url> [auto|manual (default)]"
+argument-hint: "<review-url> [auto|manual (default)|lens]"
 ---
 
 # PR Comments
 
 **IMPORTANT:** This skill never writes to the PR itself — no comments,
-no thread resolutions, no reviews. Only GitHub mutation it performs is
-pushing commits (Step 5). All PR review API calls are read-only.
+no reviews. It pushes commits (Step 5), and in `lens` mode only it
+resolves review threads opened by **automated reviewers** once their fix
+is pushed (Step 6). It never resolves a human's thread, in any mode. Every
+other PR review API call is read-only.
 
 **IMPORTANT:** Step 3 (resolving comments) is code-edit only. Agent
 executing it must not describe, create, or push a revision, and must
@@ -32,7 +35,12 @@ Step 3.
 - **Review URL** (required) — GitHub PR or PR-review URL, e.g.
   `https://github.com/<owner>/<repo>/pull/<number>` (optionally with a
   `#pullrequestreview-<id>` fragment, ignored — see Step 2).
-- **Mode** (optional) — `auto` or `manual`. Default `manual`.
+- **Mode** (optional) — `auto`, `manual`, or `lens`. Default `manual`.
+  `lens` is for the lens pipeline. It sorts each thread by author (Step 3)
+  and adds Step 6.
+- **Relay** (lens mode) — how to ask the user. The lens caller passes its
+  question file; "ask the user" below means appending the question there
+  and returning `needs_input` to the caller.
 
 Parse `<owner>`, `<repo>`, `<number>` from URL up front; every later
 `gh` call needs them.
@@ -108,11 +116,11 @@ gh api graphql -f query='
             isResolved
             path
             line
-            comments(first:50) { nodes { body author { login } url } }
+            comments(first:50) { nodes { body author { login __typename } url } }
           }
         }
         comments(first:100) {
-          nodes { id body author { login } url createdAt }
+          nodes { id body author { login __typename } url createdAt }
         }
       }
     }
@@ -151,6 +159,21 @@ fix is needed).
 For each thread, apply the fixup directly, then report one line:
 comment summary → what changed (`file:line`, or `(top-level)` with no
 line to cite). No confirmation between threads.
+
+### Lens mode
+
+Classify each thread by the author of its first comment:
+- **Automated**: `author.__typename == "Bot"`, or the login ends in
+  `[bot]`.
+- **Human**: everyone else.
+
+Then act by class:
+- **Automated**: fix it as in auto mode. Remember the thread `id` for
+  Step 6.
+- **Human, trivial**: nit level with no behavior change (naming, a typo,
+  a single-spot style fix). Fix it as in auto mode. Never resolve it.
+- **Human, non-trivial**: run the manual flow below for it, asking through
+  the relay. Never resolve it.
 
 ### Manual mode (default)
 
@@ -204,15 +227,29 @@ Counter-example (avoid):
 
 Invoke `keepers:assert-green`. If it fails, **halt** — report what
 failed, wait for the user to resolve it, re-run `keepers:assert-green`.
-Don't proceed to Step 5 until it passes.
+Don't proceed to Step 5 until it passes. In lens mode, report the failure
+to the caller instead of waiting.
 
 ## Step 5 — Describe and push
 
-Invoke `keepers:jjdesc` to write the description for the new revision,
-then:
+Invoke `keepers:jjdesc` to write the description for the new revision.
+In lens mode, give it the goal "address review comments" so it doesn't
+stop to ask. Then:
 
 ```
 jj git push --bookmark <bookmark-name>
 ```
 
 Using the bookmark name captured in Step 1.
+
+## Step 6 — Resolve automated threads (lens mode only)
+
+After the push succeeds, resolve each **automated** thread you fixed:
+
+```
+gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<thread id>
+```
+
+Never resolve a human's thread, trivial or not. Top-level conversation
+comments have no resolution on GitHub, so addressing them is enough. Report
+which threads were resolved and which human threads are still open.

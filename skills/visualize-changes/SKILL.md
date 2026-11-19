@@ -35,8 +35,10 @@ That sets what belongs on the page:
   screen ends the design conversation and starts a line review, which is not
   what this meeting is for.
 
-The page shell is fixed. `template.html` and `scripts/build.py` own layout,
-theming, tabs, the exposed surface, the trees, and both output formats. Your job is the content: finding the design topics and
+The page shell is fixed and shared with `visualize-design`: the shell in
+`${CLAUDE_SKILL_DIR}/../../shared/viz-shell/` owns layout, theming, tabs,
+settings, links, hotkeys, and both output formats, and `scripts/build.py`
+adds the exposed surface and the trees. Your job is the content: finding the design topics and
 drawing each one so the room gets it in one look. You decide what each
 picture looks like, composed from the template's flow kit, with
 related facts shown together. A reader should be able to trace one request
@@ -217,7 +219,7 @@ ending the flow (`ends: true`) or rejoining the steps that follow. Where the
 split is in the middle, put the steps after it in the next segment.
 
 **Draw flows as HTML, not Mermaid.** Mermaid flowcharts read poorly on a
-shared screen. Compose flows from the flow kit in `references/blocks.md`:
+shared screen. Compose flows from the flow kit in `${CLAUDE_SKILL_DIR}/../../shared/viz-shell/blocks.md`:
 before and after panels side by side, each a column of steps with arrows;
 a step is a box with one line saying what happens and an optional detail
 line with the one fact that changed; branches sit side by side, with the
@@ -231,7 +233,7 @@ it stops there (■, or ✕ with `err` for an error) and leave it open when it
 continues; the page draws open branches joining below the fork. Put a
 condition that changes the path but not the step's one fact in a `vc-aside`,
 never in `vc-detail`. Study the example in
-`references/blocks.md` before your first one.
+`blocks.md` before your first one.
 
 Use what the topic needs. One rich picture beats six thin ones.
 
@@ -268,7 +270,7 @@ Pure additions show only the new shape.
 
 ### 6. Write the spec and build
 
-Read `references/blocks.md` before writing the spec. It covers every field,
+Read `${CLAUDE_SKILL_DIR}/../../shared/viz-shell/blocks.md` before writing the spec. It covers every field,
 the flow kit with a worked example, and the sequence-diagram conventions.
 
 Save the spec as `<workdir>/<slug>.json`. `<workdir>` is the session's
