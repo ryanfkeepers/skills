@@ -189,6 +189,7 @@ def init(run, st, name, e):
 
 
 def next_key(s, prefix):
+    """Unit key unique across the run: callers prefix the group name, since units are looked up run-wide."""
     s["seq"] += 1
     return f"{prefix}-{s['seq']}"
 
@@ -214,7 +215,7 @@ def next_action(run, st, name, e, max_agents):
         if retry and not busy(s, (kind,)):
             return dispatch(s, retry[0])
     if s["untriaged"] and not busy(s, ("triage",)):
-        key = next_key(s, "triage")
+        key = next_key(s, f"{name}-triage")
         epoch = s["epochs"][-1]
         s["units"][key] = new_unit("triage", "triage", {
             "findings": list(s["untriaged"]), "epoch": epoch, "pass": s["pass"],
@@ -226,7 +227,7 @@ def next_action(run, st, name, e, max_agents):
     if queued and not busy(s, ("fix",)) and not (writers and busy(s, ("review",))):
         fixer = "fix" if any(s["items"][i]["blocking"] for i in queued) else FIXERS[s["pass"]]
         batch = [i for i in queued if s["items"][i]["blocking"]] if fixer == "fix" else queued
-        key = next_key(s, fixer)
+        key = next_key(s, f"{name}-{fixer}")
         for i in batch:
             s["items"][i]["state"] = "fixing"
         s["units"][key] = new_unit(fixer, "fix", {"findings": batch, "epoch": s["epochs"][-1], "pass": s["pass"]})

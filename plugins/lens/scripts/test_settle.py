@@ -45,7 +45,9 @@ class RadiusTest(unittest.TestCase):
 
 
 @unittest.skipUnless(shutil.which("jj"), "jj not installed")
-class SettleTest(unittest.TestCase):
+class SettleCase(unittest.TestCase):
+    PIPELINE = PIPELINE
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.home = os.path.join(self.tmp.name, "home")
@@ -67,7 +69,7 @@ class SettleTest(unittest.TestCase):
         self.real_max = settle.MAX_EPOCHS
         pipeline = os.path.join(self.tmp.name, "pipeline.json")
         with open(pipeline, "w") as f:
-            json.dump(PIPELINE, f)
+            json.dump(self.PIPELINE, f)
         self.run = lensctl.cmd_init(self.repo, "p", pipeline)["run"]
         out = lensctl.cmd_next(self.run)
         self.assertEqual(out["lens"], "plan")
@@ -135,6 +137,8 @@ class SettleTest(unittest.TestCase):
         units, out = self.dispatch_all()
         return [u["unit"] for u in units], out
 
+
+class SettleTest(SettleCase):
     # ---- tests -----------------------------------------------------------
 
     def test_reviewers_fan_out_per_task_and_whole(self):
@@ -442,6 +446,35 @@ class SettleTest(unittest.TestCase):
         out = lensctl.cmd_record(self.run, "x", "blocked", unit=units[0])
         self.assertEqual(out["rewound_to"], "plan")
         self.assertNotIn("review-1", lensctl.load(self.run).get("settle", {}))
+
+
+class TwoGroupTest(SettleCase):
+    PIPELINE = dict(PIPELINE, lenses=[
+        {"name": "workspace", "scope": "code", "implemented": True},
+        {"name": "plan", "scope": "run", "implemented": True},
+        {"name": "review-1", "scope": "settle", "implemented": True, "lenses": ["review-security"]},
+        {"name": "review-2", "scope": "settle", "implemented": True, "lenses": ["review-performance"]},
+        {"name": "after", "scope": "run", "implemented": True},
+    ])
+
+    def triage_group(self, group, lens, fid):
+        units, _ = self.review_round()
+        self.assertEqual(units, [lens])
+        epoch = lensctl.load(self.run)["settle"][group]["epochs"][-1]
+        self.findings(lens, [{"id": fid, "lens": lens, "location": {"file": "a/a.go", "line": 1},
+                              "claim": "bug", "evidence": "e", "epoch": epoch}])
+        self.done(lens)
+        tri = self.next()
+        self.triaged([{"id": fid, "sources": [fid], "verdict": "dropped"}])
+        return tri["unit"]
+
+    def test_triage_units_are_unique_across_groups(self):
+        first = self.triage_group("review-1", "review-security", "f1")
+        self.done(first)
+        second = self.triage_group("review-2", "review-performance", "f2")
+        self.assertNotEqual(first, second)
+        self.done(second)
+        self.assertEqual(self.next()["lens"], "after")
 
 
 if __name__ == "__main__":
