@@ -1,0 +1,106 @@
+{
+  "title": "Duplicate orders on double-submit",
+  "eyebrow": "How the bug happens · order creation",
+  "overview": {
+    "summary": "Submitting the same order key twice creates two orders when the second request arrives before the first one commits. The duplicate check reads the store and the insert writes it as two separate steps, so there is a gap where both requests see no order. A slower store widens the gap, so the bug fires more often under load, and retries after a timeout make a second submit likely."
+  },
+  "tabs": [
+    {
+      "key": "conditions",
+      "title": "When it fires",
+      "lede": "Two things must both be true; slow storage and retries only make them likelier.",
+      "blocks": [
+        {
+          "type": "conditions",
+          "title": "What has to be true",
+          "factors": [
+            { "key": "same-key", "name": "Same order key sent twice", "role": "required", "evidence": "confirmed", "note": "different keys never collide" },
+            { "key": "overlap", "name": "Second request lands before the first commits", "role": "required", "evidence": "confirmed", "note": "the gap between the check and the insert" },
+            { "key": "slow-store", "name": "Store write takes over 50 ms", "role": "contributing", "evidence": "confirmed", "note": "widens the gap, so overlap is likelier" },
+            { "key": "retry", "name": "Client retries after a timeout", "role": "contributing", "evidence": "inferred", "note": "a common source of the second submit" },
+            { "key": "mobile", "name": "Request comes from the mobile app", "role": "irrelevant", "evidence": "confirmed" }
+          ],
+          "scenarios": [
+            { "label": "Double-tap, fast store", "minimal": true, "outcome": "bug", "rate": "about 1 in 20",
+              "values": { "same-key": true, "overlap": true, "slow-store": false, "retry": false, "mobile": false } },
+            { "label": "Double-tap, slow store", "outcome": "bug", "rate": "nearly every time",
+              "values": { "same-key": true, "overlap": true, "slow-store": true, "retry": false, "mobile": false } },
+            { "label": "Timeout retry, slow store", "outcome": "bug", "rate": "every time",
+              "values": { "same-key": true, "overlap": true, "slow-store": true, "retry": true, "mobile": "any" } },
+            { "label": "Double-tap from the mobile app", "outcome": "bug", "rate": "about 1 in 20",
+              "values": { "same-key": true, "overlap": true, "slow-store": false, "retry": false, "mobile": true } },
+            { "label": "Second submit after the first commits", "outcome": "ok", "rate": "never",
+              "values": { "same-key": true, "overlap": false, "slow-store": false, "retry": false, "mobile": false } },
+            { "label": "Two different keys at once", "outcome": "ok", "rate": "never",
+              "values": { "same-key": false, "overlap": true, "slow-store": true, "retry": false, "mobile": false } }
+          ]
+        }
+      ],
+      "etc": [
+        "Confirmed by sending two requests 10 ms apart against a local store with injected latency.",
+        "Not tried: a second submit routed to a different server instance."
+      ]
+    },
+    {
+      "key": "sequence",
+      "title": "How it happens",
+      "lede": "The same two requests end in one order or two, depending on who reaches the store first.",
+      "blocks": [
+        {
+          "type": "walkthrough",
+          "title": "Two submits, one key",
+          "lanes": ["Client A", "Client B", "Handler", "Store"],
+          "segments": [
+            { "steps": [
+              { "from": "Client A", "to": "Handler", "label": "POST order, key K", "what": "The first request arrives with key K." },
+              { "from": "Handler", "to": "Store", "label": "any order for K?", "what": "The handler checks for a duplicate before it creates anything." },
+              { "from": "Store", "to": "Handler", "label": "none", "ret": true, "what": "Nothing is stored for K yet, which is correct for the first request." }
+            ] },
+            { "split": [
+              { "key": "ok", "label": "first commits before the second arrives", "kind": "ok", "ends": true, "steps": [
+                { "from": "Handler", "to": "Store", "label": "insert order for K", "what": "The first request writes its order." },
+                { "from": "Store", "to": "Handler", "label": "committed", "ret": true, "what": "The order is now visible to every reader." },
+                { "from": "Handler", "to": "Client A", "label": "201 created", "ret": true, "what": "The first caller gets its order." },
+                { "from": "Client B", "to": "Handler", "label": "POST order, key K", "what": "The second request arrives after the commit." },
+                { "from": "Handler", "to": "Store", "label": "any order for K?", "what": "The duplicate check runs again." },
+                { "from": "Store", "to": "Handler", "label": "found", "ret": true, "what": "The check sees the first order." },
+                { "from": "Handler", "to": "Client B", "label": "200 same order", "ret": true, "what": "The second caller gets the existing order, not a new one." }
+              ] },
+              { "key": "failure", "label": "second arrives during the gap", "kind": "failure", "ends": true, "steps": [
+                { "from": "Client B", "to": "Handler", "label": "POST order, key K", "what": "The second request arrives while the first insert is still in flight.", "detail": "The tipping point: neither request has committed." },
+                { "from": "Handler", "to": "Store", "label": "any order for K?", "what": "The second duplicate check runs before the first insert lands." },
+                { "from": "Store", "to": "Handler", "label": "none", "ret": true, "what": "Still nothing for K, so the second request believes it is first." },
+                { "from": "Handler", "to": "Store", "label": "insert order for K", "what": "Both requests now insert an order for the same key." },
+                { "from": "Handler", "to": "Client A", "label": "201 created", "ret": true, "what": "The first caller gets an order." },
+                { "from": "Handler", "to": "Client B", "label": "201 created", "ret": true, "what": "The second caller also gets an order: a duplicate." }
+              ] }
+            ] }
+          ]
+        },
+        {
+          "type": "html",
+          "title": "What each request believes",
+          "html": "<table class=\"vc-table\"><thead><tr><th>Moment</th><th>Request A sees</th><th>Request B sees</th><th>Orders stored for K</th></tr></thead><tbody><tr><td>A checks</td><td>no order</td><td>not started</td><td>0</td></tr><tr><td>B checks, A not yet committed</td><td>no order</td><td class=\"mod\">no order</td><td>0</td></tr><tr><td>A inserts</td><td>creating</td><td>no order</td><td>1</td></tr><tr><td>B inserts</td><td>done</td><td>creating</td><td class=\"del\">2</td></tr></tbody></table>",
+          "caption": "B's view is stale from the moment it checks; nothing makes it look again."
+        }
+      ]
+    },
+    {
+      "key": "reproduce",
+      "title": "Reproduce it",
+      "lede": "Two requests close together are enough; the knobs below change how often it fires.",
+      "blocks": [
+        {
+          "type": "html",
+          "title": "Minimal recipe",
+          "html": "<div class=\"vc-flow\"><div class=\"vc-step term\">Empty store</div><div class=\"vc-step\">Send the same order key twice<span class=\"vc-detail\">10 ms apart, no waiting for the first response</span></div><div class=\"vc-step\">Read the orders stored for that key</div><div class=\"vc-decision mod\">More than one order?</div><div class=\"vc-branches fork\"><div class=\"vc-branch\"><span class=\"vc-branch-title\">Yes</span><div class=\"vc-flow\"><div class=\"vc-step del\">Reproduced<span class=\"vc-detail\">about 1 run in 20 with a fast store</span></div></div></div><div class=\"vc-branch alt\"><span class=\"vc-branch-title\">No</span><div class=\"vc-flow\"><div class=\"vc-step\">Run again<span class=\"vc-detail\">the window is narrow; repeat or add store latency</span></div></div></div></div></div>"
+        },
+        {
+          "type": "html",
+          "title": "Knobs",
+          "html": "<table class=\"vc-table\"><thead><tr><th>Knob</th><th>Turn it</th><th>Effect</th></tr></thead><tbody><tr><td>Store write latency</td><td>up</td><td class=\"del\">fires nearly every run</td></tr><tr><td>Gap between the two sends</td><td>up past the commit time</td><td class=\"add\">never fires</td></tr><tr><td>Number of concurrent submits</td><td>up</td><td class=\"del\">more than two orders can appear</td></tr><tr><td>Client type</td><td>change</td><td>no effect</td></tr></tbody></table>"
+        }
+      ]
+    }
+  ]
+}

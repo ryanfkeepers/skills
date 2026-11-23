@@ -1,6 +1,6 @@
 # Spec reference
 
-Shared by `visualize-changes` and `visualize-design`. The tab structure,
+Shared by `visualize-changes`, `visualize-design` and `visualize-bug`. The tab structure,
 decisions, failures, etc, and the html, diagram and walkthrough blocks work
 the same in both. These parts belong to `visualize-changes` only, because
 they read the diff: `owners`, `landed`, `areas`, the `boundaries` block, and
