@@ -1,7 +1,8 @@
 """Code lenses that manage the run workspace and the repo-level cores.
 
 workspace: resolves the run's base and adds an isolated jj workspace.
-graph:     keeps the central graphify graph current and snapshots it per run.
+graph-core: builds the central graphify graph at trunk, or moves it to trunk (init).
+graph:     moves the central graph to the run's base and snapshots it per run.
 cleanup:   forgets and deletes the run workspace.
 core:      locates, resolves and promotes the user-approved markdown cores
            (conventions, contract-layers).
@@ -146,36 +147,80 @@ def graphify_update(target, out_dir):
     must(["graphify", "update", target], env={"GRAPHIFY_OUT": out_dir})
 
 
+def graph_paths(home, slug):
+    root = os.path.join(repo_home(home, slug), "graph")
+    return {
+        "root": root,
+        "ws": os.path.join(root, "core", "workspace"),
+        "out": os.path.join(root, "core", "out"),
+        "commit": os.path.join(root, "core", "commit"),
+    }
+
+
+def core_graph_present(home, slug):
+    p = graph_paths(home, slug)
+    return os.path.exists(p["commit"]) and os.path.exists(os.path.join(p["out"], "graph.json"))
+
+
+def missing_cores(home, slug):
+    """Names of the cores a run needs that are not built yet."""
+    missing = []
+    if not core_graph_present(home, slug):
+        missing.append("graph")
+    for kind in ("conventions", "contract-layers"):
+        if not core_exists(home, slug, kind):
+            missing.append(kind)
+    return missing
+
+
+def advance_core_graph(repo, paths, target):
+    """Move the core graph workspace to target and rebuild the graph. Caller holds the lock."""
+    if not os.path.isdir(paths["ws"]):
+        os.makedirs(os.path.dirname(paths["ws"]), exist_ok=True)
+        jj(repo, "workspace", "add", "--name", CORE_WORKSPACE, "-r", "trunk()", paths["ws"])
+    jj(paths["ws"], "new", target)
+    graphify_update(paths["ws"], paths["out"])
+    with open(paths["commit"], "w") as f:
+        f.write(target + "\n")
+
+
+def graph_core_lens(st, home):
+    """Init: build the core graph at trunk, or move a present one forward to trunk."""
+    repo, slug = st["repo"], st["repo_slug"]
+    paths = graph_paths(home, slug)
+    with locked(home, slug):
+        trunk = commit_of(repo, "trunk()")
+        current = read_text(paths["commit"]) if core_graph_present(home, slug) else None
+        if current == trunk:
+            return {"status": "done", "summary": f"core graph already at {trunk[:12]}"}
+        if current is not None and not is_ancestor(repo, current, trunk):
+            return {"status": "done", "summary": f"core graph at {current[:12]} is not behind trunk, left as is"}
+        advance_core_graph(repo, paths, trunk)
+    how = "built" if current is None else "advanced"
+    return {"status": "done", "summary": f"{how} core graph at {trunk[:12]}"}
+
+
 def graph_lens(run_dir, st, home):
-    """Bring the core graph to trunk when the run is newer, then snapshot it."""
+    """Bring the core graph to the run's base when the run is newer, then snapshot it.
+
+    The core graph is built by init. A run that finds none halts.
+    """
     ws = read_json(os.path.join(run_dir, "workspace.json"))
     slug = st["repo_slug"]
-    root = os.path.join(repo_home(home, slug), "graph")
-    core_ws = os.path.join(root, "core", "workspace")
-    core_out = os.path.join(root, "core", "out")
-    commit_file = os.path.join(root, "core", "commit")
-    snap = os.path.join(root, "snapshots", st["run_id"])
+    paths = graph_paths(home, slug)
+    snap = os.path.join(paths["root"], "snapshots", st["run_id"])
     with locked(home, slug):
-        if not os.path.isdir(core_ws):
-            os.makedirs(os.path.dirname(core_ws), exist_ok=True)
-            jj(st["repo"], "workspace", "add", "--name", CORE_WORKSPACE, "-r", "trunk()", core_ws)
-        core_commit = read_text(commit_file) if os.path.exists(commit_file) else None
+        if not core_graph_present(home, slug):
+            raise CoreError("the core graph is missing; run /lens:init")
+        core_commit = read_text(paths["commit"])
         base = ws["base_commit"]
-        target = None
-        if core_commit is None:
-            target = base if ws["mode"] == "trunk" else commit_of(st["repo"], "trunk()")
-        elif ws["mode"] == "trunk" and base != core_commit and is_ancestor(st["repo"], core_commit, base):
-            target = base
-        update_core = target is not None
+        update_core = ws["mode"] == "trunk" and base != core_commit and is_ancestor(st["repo"], core_commit, base)
         if update_core:
-            jj(core_ws, "new", target)
-            graphify_update(core_ws, core_out)
-            with open(commit_file, "w") as f:
-                f.write(target + "\n")
-            core_commit = target
+            advance_core_graph(st["repo"], paths, base)
+            core_commit = base
         if os.path.exists(snap):
             shutil.rmtree(snap)
-        shutil.copytree(core_out, os.path.join(snap, "base"))
+        shutil.copytree(paths["out"], os.path.join(snap, "base"))
     if core_commit != base:
         graphify_update(ws["path"], os.path.join(snap, "base"))
     shutil.copytree(os.path.join(snap, "base"), os.path.join(snap, "live"))

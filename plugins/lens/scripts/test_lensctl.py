@@ -279,6 +279,54 @@ class LensctlTest(unittest.TestCase):
         run = lensctl.cmd_init(self.repo, "x", self.pipeline, only="conventions")["run"]
         self.assertEqual(lensctl.cmd_next(run)["action"], "dispatch")
 
+    def test_init_mode_runs_the_init_lenses_without_refresh(self):
+        pipeline = dict(PIPELINE, init=[
+            {"name": "graph-core", "scope": "code", "implemented": True},
+            {"name": "conventions", "scope": "core", "implemented": True, "reuse_core": "conventions"}])
+        with open(self.pipeline, "w") as f:
+            json.dump(pipeline, f)
+        run = lensctl.cmd_init(self.repo, "p", self.pipeline, init=True)["run"]
+        st = lensctl.load(run)
+        self.assertEqual((st["order"], st["refresh"]), (["graph-core", "conventions"], False))
+
+    def test_init_mode_builds_only_missing_cores(self):
+        pipeline = dict(PIPELINE, init=[
+            {"name": "conventions", "scope": "core", "implemented": True, "reuse_core": "conventions"}])
+        with open(self.pipeline, "w") as f:
+            json.dump(pipeline, f)
+        core = os.path.join(self.home, lensctl.load(self.run)["repo_slug"], "conventions")
+        os.makedirs(core)
+        for name in ("code.md", "tests.md"):
+            open(os.path.join(core, name), "w").close()
+        run = lensctl.cmd_init(self.repo, "p", self.pipeline, init=True)["run"]
+        self.assertEqual(lensctl.cmd_next(run), {"action": "done"})
+
+    def test_only_finds_a_lens_in_the_init_list(self):
+        pipeline = dict(PIPELINE, init=[
+            {"name": "conventions", "scope": "core", "implemented": True, "reuse_core": "conventions"}])
+        with open(self.pipeline, "w") as f:
+            json.dump(pipeline, f)
+        run = lensctl.cmd_init(self.repo, "p", self.pipeline, only="conventions")["run"]
+        st = lensctl.load(run)
+        self.assertEqual((st["order"], st["refresh"]), (["conventions"], True))
+
+    def test_check_initialized_names_missing_cores_and_creates_nothing(self):
+        other = os.path.join(self.tmp.name, "other")
+        os.makedirs(other)
+        with self.assertRaises(lensctl.LensError) as ctx:
+            lensctl.check_initialized(other)
+        self.assertIn("graph, conventions, contract-layers", str(ctx.exception))
+        self.assertIn("/lens:init", str(ctx.exception))
+        self.assertFalse(os.path.exists(os.path.join(self.home, lensctl.repo_slug(other))))
+
+    def test_main_refuses_a_run_on_an_uninitialized_repo(self):
+        other = os.path.join(self.tmp.name, "other")
+        os.makedirs(other)
+        self.assertEqual(lensctl.main(["init", "--repo", other, "--proposal", "x"]), 1)
+        self.assertFalse(os.path.exists(os.path.join(self.home, lensctl.repo_slug(other))))
+        self.assertEqual(lensctl.main(["init", "--repo", other, "--init"]), 0)
+        self.assertEqual(lensctl.main(["init", "--repo", other, "--proposal", "x", "--only", "conventions"]), 0)
+
     def test_parallel_group_runs_side_by_side_and_finishes(self):
         pipeline = dict(PIPELINE, lenses=[
             {"name": "pair", "scope": "parallel", "implemented": True, "lenses": ["docs", "comments"]},

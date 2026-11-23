@@ -8,7 +8,8 @@ owns state, scheduling, retries, relayed questions, disputes, rewinds,
 settlement, and the report.
 
 ```
-/lens:run <proposal> [--base <rev>]   start a run
+/lens:init                            build the cores a run needs (user approves each)
+/lens:run <proposal> [--base <rev>]   start a run (the repo must be initialized)
 /lens:resume [run-dir]                continue an interrupted or halted run
 /lens:conventions --refresh           rebuild the conventions core (user approves)
 /lens:contract-layers --refresh       rebuild the contract-layers core (user approves)
@@ -40,9 +41,13 @@ services/<svc>/        per-service overrides of the two cores
 
 ## Lens order
 
-`pipeline.json` is the source of truth. Code lenses run inside lensctl.
+`pipeline.json` is the source of truth. Code lenses run inside lensctl. The
+`lenses` list is the run. The `init` list (graph-core* → conventions →
+contract-layers) is what `/lens:init` runs: a run never builds a core, and
+`/lens:run` exits at once when the graph, conventions, or contract-layers core
+is missing.
 
-intake → workspace* → graph* → conventions → contract-layers → explore →
+intake → workspace* → graph* → explore →
 design → design-trim → visualize-design → plan → build grid (scaffold,
 implement, unit-test, test-coverage per task) → green → review set 1 →
 review set 2 → pseudolinter → vibediff → visualize-changes → docs ∥ comments

@@ -24,7 +24,10 @@ Every command prints one JSON object.
 - **New run:** write the proposal text exactly as given to a scratch file,
   then run `LENSCTL init --repo "$(jj root)" --proposal-file <file>`. Add
   `--base <rev>` when the user names a base revision; the default is
-  `trunk()`. Keep the returned `run` path.
+  `trunk()`. Keep the returned `run` path. A run never builds the repo's
+  cores. If `init` reports the repo is not lens-initialized, tell the user,
+  marked with 🛑, which cores are missing and that `/lens:init` builds them,
+  then stop. Nothing was created.
 - **`--resume <run>`:** run `LENSCTL resume --run <run>` and handle its output
   like a `next` result (below).
 

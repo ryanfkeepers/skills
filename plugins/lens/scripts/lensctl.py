@@ -122,13 +122,23 @@ def pending_question(run, lens):
 # ---- init ----------------------------------------------------------------
 
 
-def cmd_init(repo, proposal, pipeline_path=PIPELINE, base=None, only=None):
+def check_initialized(repo):
+    """Refuse to start a run on a repo whose cores are not all built."""
+    missing = cores.missing_cores(lens_home(), repo_slug(repo))
+    if missing:
+        raise LensError(f"this repo is not lens-initialized (missing: {', '.join(missing)}). "
+                        "Run /lens:init first.")
+
+
+def cmd_init(repo, proposal, pipeline_path=PIPELINE, base=None, only=None, init=False):
     repo = os.path.realpath(repo)
     if not os.path.isdir(repo):
         raise LensError(f"repo {repo} is not a directory")
     pipeline = read_json(pipeline_path)
-    if only:
-        pipeline["lenses"] = [e for e in pipeline["lenses"] if e["name"] == only]
+    if init:
+        pipeline["lenses"] = list(pipeline.get("init", []))
+    elif only:
+        pipeline["lenses"] = [e for e in pipeline["lenses"] + pipeline.get("init", []) if e["name"] == only]
         if not pipeline["lenses"]:
             raise LensError(f"unknown lens {only!r}")
     run_id = time.strftime("%Y%m%d-%H%M%S", time.localtime(now())) + "-" + secrets.token_hex(2)
@@ -279,6 +289,7 @@ def code_apply_descriptions(run, st, answers):
 CODE_LENSES = {
     "apply-descriptions": code_apply_descriptions,
     "workspace": lambda run, st, answers: cores.workspace_lens(run, st, answers),
+    "graph-core": lambda run, st, answers: cores.graph_core_lens(st, lens_home()),
     "graph": lambda run, st, answers: cores.graph_lens(run, st, lens_home()),
     "cleanup": lambda run, st, answers: cores.cleanup_lens(run, st),
     "run-report": code_report,
@@ -940,11 +951,12 @@ def build_parser():
 
     s = sub.add_parser("init")
     s.add_argument("--repo", required=True)
-    g = s.add_mutually_exclusive_group(required=True)
+    g = s.add_mutually_exclusive_group()
     g.add_argument("--proposal")
     g.add_argument("--proposal-file")
     s.add_argument("--base", help="base revision (default trunk())")
     s.add_argument("--only", help="run a single lens, e.g. a core refresh")
+    s.add_argument("--init", action="store_true", help="build the cores a run needs")
 
     for name in ("next", "resume", "report"):
         sub.add_parser(name).add_argument("--run", required=True)
@@ -994,7 +1006,15 @@ def main(argv=None):
             if a.proposal_file:
                 with open(a.proposal_file) as f:
                     proposal = f.read()
-            out = cmd_init(a.repo, proposal, base=a.base, only=a.only)
+            if a.init and a.only:
+                raise LensError("--init and --only cannot be combined")
+            if a.init:
+                proposal = "initialize the lens cores"
+            elif proposal is None:
+                raise LensError("a proposal is required: pass --proposal or --proposal-file")
+            elif not a.only:
+                check_initialized(a.repo)
+            out = cmd_init(a.repo, proposal, base=a.base, only=a.only, init=a.init)
         elif a.cmd == "next":
             out = cmd_next(a.run)
         elif a.cmd == "record":

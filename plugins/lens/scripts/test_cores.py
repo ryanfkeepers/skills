@@ -127,9 +127,10 @@ class CoresTest(unittest.TestCase):
 
     # ---- graph -----------------------------------------------------------
 
-    def test_first_trunk_run_builds_core_and_snapshots(self):
+    def test_trunk_run_snapshots_the_core_built_by_init(self):
         run, st = self.new_run()
         self.workspace(run, st)
+        cores.graph_core_lens(st, self.home)
         cores.graph_lens(run, st, self.home)
         core_ws = os.path.join(self.home, st["repo_slug"], "graph", "core", "workspace")
         self.assertEqual(self.updates, [(core_ws, os.path.join(os.path.dirname(core_ws), "out"))])
@@ -142,6 +143,7 @@ class CoresTest(unittest.TestCase):
     def test_newer_trunk_updates_core_and_same_trunk_reuses_it(self):
         run, st = self.new_run()
         self.workspace(run, st)
+        cores.graph_core_lens(st, self.home)
         cores.graph_lens(run, st, self.home)
         run2, st2 = self.new_run()
         self.workspace(run2, st2)
@@ -161,6 +163,7 @@ class CoresTest(unittest.TestCase):
     def test_branch_run_updates_snapshot_not_core(self):
         run, st = self.new_run()
         self.workspace(run, st)
+        cores.graph_core_lens(st, self.home)
         cores.graph_lens(run, st, self.home)
         sh(self.repo, "jj", "new", "main")
         self.commit("c.go", "package a\n", "side")
@@ -171,16 +174,45 @@ class CoresTest(unittest.TestCase):
         self.assertEqual(target, self.ws(run2)["path"])
         self.assertTrue(out_dir.endswith(os.path.join(st2["run_id"], "base")))
 
-    def test_branch_run_without_core_builds_core_at_trunk(self):
-        sh(self.repo, "jj", "new", "main")
-        self.commit("c.go", "package a\n", "side")
-        run, st = self.new_run(base=self.commit_id("@-"))
+    def test_run_without_core_graph_raises(self):
+        run, st = self.new_run()
         self.workspace(run, st)
-        cores.graph_lens(run, st, self.home)
-        self.assertEqual(len(self.updates), 2)
-        commit_file = os.path.join(self.home, st["repo_slug"], "graph", "core", "commit")
+        with self.assertRaises(cores.CoreError):
+            cores.graph_lens(run, st, self.home)
+        self.assertEqual(self.updates, [])
+
+    def test_graph_core_lens_builds_at_trunk_then_leaves_it_alone(self):
+        _, st = self.new_run()
+        self.assertFalse(cores.core_graph_present(self.home, st["repo_slug"]))
+        out = cores.graph_core_lens(st, self.home)
+        self.assertIn("built", out["summary"])
+        self.assertTrue(cores.core_graph_present(self.home, st["repo_slug"]))
+        self.assertEqual(len(self.updates), 1)
+        out = cores.graph_core_lens(st, self.home)
+        self.assertIn("already", out["summary"])
+        self.assertEqual(len(self.updates), 1)
+
+    def test_graph_core_lens_advances_a_core_behind_trunk(self):
+        _, st = self.new_run()
+        cores.graph_core_lens(st, self.home)
+        sh(self.repo, "jj", "new", "main")
+        self.commit("d.go", "package a\n", "third")
+        sh(self.repo, "jj", "bookmark", "set", "main", "-r", "@-")
+        out = cores.graph_core_lens(st, self.home)
+        self.assertIn("advanced", out["summary"])
+        commit_file = cores.graph_paths(self.home, st["repo_slug"])["commit"]
         with open(commit_file) as f:
             self.assertEqual(f.read().strip(), self.commit_id("main"))
+
+    def test_graph_core_lens_rebuilds_a_cut_off_build(self):
+        _, st = self.new_run()
+        cores.graph_core_lens(st, self.home)
+        paths = cores.graph_paths(self.home, st["repo_slug"])
+        os.remove(os.path.join(paths["out"], "graph.json"))
+        self.assertEqual(cores.missing_cores(self.home, st["repo_slug"])[0], "graph")
+        out = cores.graph_core_lens(st, self.home)
+        self.assertIn("built", out["summary"])
+        self.assertTrue(cores.core_graph_present(self.home, st["repo_slug"]))
 
     # ---- cleanup ---------------------------------------------------------
 
@@ -281,3 +313,20 @@ class MarkdownCoreTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_missing_cores_lists_every_unbuilt_core(self):
+        self.assertEqual(cores.missing_cores(self.home, self.slug),
+                         ["graph", "conventions", "contract-layers"])
+        paths = cores.graph_paths(self.home, self.slug)
+        os.makedirs(paths["out"])
+        open(os.path.join(paths["out"], "graph.json"), "w").close()
+        with open(paths["commit"], "w") as f:
+            f.write("abc\n")
+        self.assertEqual(cores.missing_cores(self.home, self.slug), ["conventions", "contract-layers"])
+        self.pend("conventions/repo/code.md", "c")
+        self.pend("conventions/repo/tests.md", "t")
+        cores.promote(self.run, self.home, self.slug, "conventions")
+        self.assertEqual(cores.missing_cores(self.home, self.slug), ["contract-layers"])
+        self.pend("contract-layers/repo/contract-layers.md", "l")
+        cores.promote(self.run, self.home, self.slug, "contract-layers")
+        self.assertEqual(cores.missing_cores(self.home, self.slug), [])

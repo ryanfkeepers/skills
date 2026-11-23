@@ -1,12 +1,15 @@
 {
   "retries": 1,
   "max_agents": 32,
+  "init": [
+    {"name": "graph-core", "scope": "code", "gate": "none", "implemented": true},
+    {"name": "conventions", "scope": "core", "gate": "approve", "implemented": true, "reuse_core": "conventions"},
+    {"name": "contract-layers", "scope": "core", "gate": "approve", "implemented": true, "reuse_core": "contract-layers"}
+  ],
   "lenses": [
     {"name": "intake", "scope": "run", "gate": "qa", "implemented": true},
     {"name": "workspace", "scope": "code", "gate": "qa", "implemented": true},
     {"name": "graph", "scope": "code", "gate": "none", "implemented": true},
-    {"name": "conventions", "scope": "core", "gate": "approve", "implemented": true, "reuse_core": "conventions"},
-    {"name": "contract-layers", "scope": "core", "gate": "approve", "implemented": true, "reuse_core": "contract-layers"},
     {"name": "explore", "scope": "run", "gate": "none", "implemented": true},
     {"name": "design", "scope": "run", "gate": "qa", "implemented": true},
     {"name": "design-trim", "scope": "run", "gate": "qa", "implemented": true},
