@@ -175,6 +175,17 @@ def fresh_lens():
 
 
 def cmd_next(run):
+    """Next action, with the run's workspace path on every dispatch once it exists."""
+    out = next_action(run)
+    if out["action"] == "dispatch":
+        try:
+            out["workspace"] = read_json(os.path.join(run, "workspace.json"))["path"]
+        except FileNotFoundError:
+            pass
+    return out
+
+
+def next_action(run):
     st = load(run)
     if st["halt"]:
         return {"action": "halt", **st["halt"]}

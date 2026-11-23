@@ -91,6 +91,14 @@ class LensctlTest(unittest.TestCase):
         self.assertEqual(out["lens"], "design")
         self.assertEqual(self.status("graph"), "skipped")
 
+    def test_dispatch_carries_workspace_path_once_it_exists(self):
+        self.assertNotIn("workspace", lensctl.cmd_next(self.run))
+        lensctl.cmd_record(self.run, "intake", "done", "brief written")
+        with open(os.path.join(self.run, "workspace.json"), "w") as f:
+            json.dump({"path": "/ws/path"}, f)
+        out = lensctl.cmd_next(self.run)
+        self.assertEqual((out["action"], out["workspace"]), ("dispatch", "/ws/path"))
+
     def test_in_flight_lens_is_not_dispatched_twice(self):
         lensctl.cmd_next(self.run)
         self.assertEqual(lensctl.cmd_next(self.run), {"action": "wait", "running": ["intake"]})

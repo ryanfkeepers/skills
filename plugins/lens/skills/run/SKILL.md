@@ -51,7 +51,9 @@ around it.
 
 > Lens run directory: `<run>`. `LENSCTL` is `python3 <absolute path to
 > lensctl.py>`. Task: `<task, or "none">`. Unit: `<unit, or "none">`.
-> Params: `<params as JSON, or {}>`. Attempt `<attempt>`. Follow your lens
+> Params: `<params as JSON, or {}>`. Workspace: `<workspace, or "none">`.
+> Every read, write and command runs inside it; never touch any other
+> checkout. Attempt `<attempt>`. Follow your lens
 > contract exactly: read only the inputs it names, write only its outputs.
 > If you need the user, append your question to `qa/<key>.jsonl` and
 > return `needs_input`. If an earlier lens's output stops you, write
