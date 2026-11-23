@@ -63,11 +63,22 @@ around it.
 > exactly one line of JSON: `{"status": "done|needs_input|failed|blocked",
 > "summary": "<at most 10 lines>"}`.
 
+## Ad-hoc lenses
+
+Deviations from the pipeline are always additive. When a run needs a lens the
+pipeline does not schedule, add it with `LENSCTL add-lens --run <run> --name
+<name> --agent <agent in agents/> --after <established lens>`. It then
+dispatches like any other lens. lensctl refuses names the pipeline already
+uses, agents that are not in `agents/`, an ad-hoc anchor, and any anchor behind
+a lens that has started. You can never skip, remove, reorder or replace an
+established lens, so the pipeline still runs in full.
+
 ## Rules
 
 - Never open files in the run directory. lensctl and the lenses own them.
 - Never decide ordering, retries, parallelism, or routing yourself. lensctl
-  does. It never hands you more than 32 agents at once.
+  does. Adding an ad-hoc lens is the only change you may make to a run's
+  lenses. It never hands you more than 32 agents at once.
 - Never answer a relayed question on the user's behalf.
 - Never declare a model when dispatching. Each lens's agent definition
   controls its own setup.

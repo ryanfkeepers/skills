@@ -49,13 +49,24 @@ is missing.
 
 intake → workspace* → graph* → explore →
 design → design-trim → visualize-design → plan → build grid (scaffold,
-implement, unit-test, test-coverage per task) → green → review set 1 →
+implement, unit-test, test-coverage per task) → green → negative-catch →
+review set 1 →
 review set 2 → pseudolinter → vibediff → visualize-changes → docs ∥ comments
-→ scenarios → contract ∥ integration ∥ e2e tests → ticket → stack-shape →
+→ scenarios → contract ∥ integration ∥ e2e tests → negative-catch → ticket → stack-shape →
 describe (per slice) → apply-descriptions* → publish → wait → pr-followup →
 wait → pr-followup → run-report* → cleanup*
 
 (* = code lens)
+
+## Ad-hoc lenses
+
+Deviations from the pipeline are always additive. The orchestrator may add a
+lens to one run with `lensctl add-lens --name <n> --agent <agent in agents/>
+--after <established lens>`. The entry lives in that run's `status.json` only
+and `pipeline.json` is untouched. lensctl rejects a name the pipeline already
+uses, an agent that is not in `agents/`, an ad-hoc anchor, and an anchor behind
+a lens that has started. No command skips, removes, reorders or replaces an
+established lens. The report lists the ad-hoc lenses a run added.
 
 ## Coordination, in code
 

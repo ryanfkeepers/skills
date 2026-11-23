@@ -24,6 +24,8 @@ import grid
 import settle
 
 PIPELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pipeline.json")
+AGENTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents")
+WORD = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 DONE_STATES = ("done", "skipped")
 SUMMARY_MAX_LINES = 10
 
@@ -778,6 +780,46 @@ def rewind(run, to, reason="manual"):
     return {"rewound_to": to, "reason": reason}
 
 
+def taken_names(st):
+    names = set()
+    for e in st["pipeline"]["lenses"] + st["pipeline"].get("init", []):
+        names.add(e["name"])
+        names.update(e.get("lenses", []))
+        names.update(e.get("cells", []))
+    return names
+
+
+def cmd_add_lens(run, name, agent, after, agents_dir=AGENTS):
+    """Add an ad-hoc lens to this run, right after an established lens.
+
+    Deviations are additive: this is the only edit to a run's lens list. It
+    never removes, skips, reorders or renames an established lens, and it
+    cannot insert behind a lens that has already started.
+    """
+    st = load(run)
+    for label, word in (("name", name), ("agent", agent)):
+        if not WORD.match(word):
+            raise LensError(f"ad-hoc lens {label} {word!r} must be lowercase letters, digits and dashes")
+    if name in taken_names(st):
+        raise LensError(f"lens name {name!r} is already used by the pipeline")
+    if not os.path.isfile(os.path.join(agents_dir, f"{agent}.md")):
+        raise LensError(f"no lens agent {agent!r}: an ad-hoc lens runs an agent from agents/")
+    if entry(st, after).get("adhoc"):
+        raise LensError(f"--after must name an established lens, not ad-hoc {after!r}")
+    at = index_of(st, after) + 1
+    while at < len(st["order"]) and entry(st, st["order"][at]).get("adhoc"):
+        at += 1
+    started = [n for n in st["order"][at:] if st["lenses"][n]["status"] not in ("pending", "skipped")]
+    if started:
+        raise LensError(f"cannot add after {after!r}: {', '.join(started)} already started")
+    st["pipeline"]["lenses"].insert(at, {"name": name, "agent": agent, "scope": "run", "gate": "qa",
+                                         "implemented": True, "adhoc": True})
+    st["order"].insert(at, name)
+    st["lenses"][name] = fresh_lens()
+    save(run, st)
+    return {"added": name, "agent": agent, "after": after, "position": at}
+
+
 def cmd_resume(run):
     st = load(run)
     for lens in st["lenses"].values():
@@ -857,6 +899,7 @@ def build_report(run, st):
         "flaky": read_jsonl(os.path.join(run, "flaky.jsonl")),
         "skipped_tiers": read_jsonl(os.path.join(run, "skipped.jsonl")),
         "coherence": (read_json(os.path.join(run, "coherence.json")) if os.path.exists(os.path.join(run, "coherence.json")) else None),
+        "adhoc": [e["name"] for e in st["pipeline"]["lenses"] if e.get("adhoc")],
         "lenses": lenses,
         "gates": gates,
         "disputes": st["disputes"],
@@ -873,6 +916,8 @@ def cmd_report(run):
     skipped = [x["lens"] for x in report["lenses"] if x["status"] == "skipped"]
     lines = [f"run {report['run_id']}: {len(ran)} lenses done, {len(skipped)} skipped"]
     lines += [f"- {x['lens']}: {x['attempts']} attempt(s), {x['seconds']}s" for x in ran]
+    if report["adhoc"]:
+        lines.append("ad-hoc lenses added: " + ", ".join(report["adhoc"]))
     if report["gates"]:
         lines.append(f"{len(report['gates'])} question(s) relayed to the user")
     if report["disputes"]:
@@ -992,6 +1037,12 @@ def build_parser():
     s.add_argument("--to", required=True)
     s.add_argument("--reason", default="manual")
 
+    s = sub.add_parser("add-lens")
+    s.add_argument("--run", required=True)
+    s.add_argument("--name", required=True)
+    s.add_argument("--agent", required=True, help="an agent in agents/")
+    s.add_argument("--after", required=True, help="an established lens")
+
     s = sub.add_parser("core")
     s.add_argument("op", choices=["resolve", "promote", "dirs"])
     s.add_argument("--run", required=True)
@@ -1034,6 +1085,8 @@ def main(argv=None):
             out = cmd_answer(a.run, a.lens, a.answer, a.task, a.unit)
         elif a.cmd == "rewind":
             out = rewind(a.run, a.to, a.reason)
+        elif a.cmd == "add-lens":
+            out = cmd_add_lens(a.run, a.name, a.agent, a.after)
         elif a.cmd == "resume":
             out = cmd_resume(a.run)
         elif a.cmd == "report":

@@ -257,6 +257,71 @@ class LensctlTest(unittest.TestCase):
         out = lensctl.cmd_report(self.run)
         self.assertTrue(out["rendering"][0].startswith(f"run {lensctl.load(self.run)['run_id']}: 1 lenses done"))
 
+    # ---- ad-hoc lenses ---------------------------------------------------
+
+    def add(self, name="extra-docs", agent="docs", after="design"):
+        return lensctl.cmd_add_lens(self.run, name, agent, after)
+
+    def test_add_lens_inserts_after_anchor_and_runs_in_order(self):
+        before = lensctl.load(self.run)["order"]
+        self.add()
+        order = lensctl.load(self.run)["order"]
+        self.assertEqual([n for n in order if n != "extra-docs"], before)
+        self.assertEqual(order[order.index("design") + 1], "extra-docs")
+        self.finish("intake")
+        self.finish("design")
+        out = lensctl.cmd_next(self.run)
+        self.assertEqual((out["lens"], out["agent"]), ("extra-docs", "lens:docs"))
+
+    def test_added_lenses_keep_their_call_order_after_one_anchor(self):
+        self.add("first")
+        self.add("second")
+        order = lensctl.load(self.run)["order"]
+        i = order.index("design")
+        self.assertEqual(order[i + 1:i + 3], ["first", "second"])
+
+    def test_add_lens_rejects_an_unknown_agent(self):
+        with self.assertRaises(lensctl.LensError):
+            self.add(agent="nope")
+        with self.assertRaises(lensctl.LensError):
+            self.add(agent="../pipeline")
+
+    def test_add_lens_cannot_reuse_an_established_name(self):
+        for name in ("design", "intake"):
+            with self.assertRaises(lensctl.LensError):
+                self.add(name=name)
+        self.add()
+        with self.assertRaises(lensctl.LensError):
+            self.add()
+
+    def test_add_lens_anchor_must_be_established(self):
+        self.add()
+        with self.assertRaises(lensctl.LensError):
+            self.add("another", after="extra-docs")
+        with self.assertRaises(lensctl.LensError):
+            self.add("another", after="missing")
+
+    def test_add_lens_cannot_insert_behind_a_started_lens(self):
+        self.finish("intake")
+        self.finish("design")
+        with self.assertRaises(lensctl.LensError):
+            self.add(after="intake")
+        self.add(after="design")
+
+    def test_add_lens_leaves_established_lenses_untouched(self):
+        before = lensctl.load(self.run)
+        self.add()
+        after = lensctl.load(self.run)
+        established = [e for e in after["pipeline"]["lenses"] if not e.get("adhoc")]
+        self.assertEqual(established, before["pipeline"]["lenses"])
+        for name, state in before["lenses"].items():
+            self.assertEqual(after["lenses"][name], state)
+
+    def test_report_lists_adhoc_lenses(self):
+        self.add()
+        out = lensctl.cmd_report(self.run)
+        self.assertIn("ad-hoc lenses added: extra-docs", out["rendering"])
+
     # ---- only / info / core reuse -----------------------------------------
 
     def test_only_restricts_run_to_one_lens_and_marks_refresh(self):

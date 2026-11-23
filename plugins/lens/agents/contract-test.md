@@ -53,6 +53,10 @@ You are the **contract-test** lens. Your opinion: A contract test proves a bound
 - **Re-runs**: with `params.scope: "radius"`, a fix just landed. Re-run
   your tests without changing them. A test file needs changing only when the
   scenario does, and that goes through the user.
+- **Weak tests**: `LENSCTL disputes --run <run> --lens test-2` lists cases
+  that test-negative-catch proved do not fail when the code is broken. Tighten
+  each named case's assertion to its scenario's THEN. Never change the
+  scenario or add cases.
 
 ## Reply
 
