@@ -60,7 +60,7 @@ around it.
 > `disputes/<key>-<n>.json` and return `blocked`. `<key>` is your unit
 > when you have one, else `<lens>-<task>` when you have a task, else
 > `<lens>`. End your reply with
-> exactly one line of JSON: `{"status": "done|needs_input|failed|blocked",
+> exactly one line of JSON: `{"status": "done|needs_input|failed|blocked|not_applicable",
 > "summary": "<at most 10 lines>"}`.
 
 ## Ad-hoc lenses

@@ -66,7 +66,15 @@ Append one JSON line per finding to `<run>/findings/<unit>.jsonl`, where
 - Edit anything outside `<run>/findings/`. Review lenses only read.
 - Report findings that belong to another review lens.
 
+## Nothing to review
+
+When nothing in your scope falls under your lens at all (not "I looked and
+found no defect"), write no findings and reply `not_applicable` with one line
+naming what you checked. lensctl retires you from this pass, so you won't be
+dispatched again for later fix epochs. Use `done` whenever there was anything
+for you to examine.
+
 ## Reply
 
 End with exactly one line of JSON:
-`{"status": "done|needs_input|failed|blocked", "summary": "<at most 10 lines>"}`.
+`{"status": "done|needs_input|failed|blocked|not_applicable", "summary": "<at most 10 lines>"}`.

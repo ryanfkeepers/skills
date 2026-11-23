@@ -50,7 +50,7 @@ is missing.
 intake → workspace* → graph* → explore →
 design → design-trim → visualize-design → plan → build grid (scaffold,
 implement, unit-test, test-coverage per task) → green → negative-catch →
-review set 1 →
+review-select → review set 1 →
 review set 2 → pseudolinter → vibediff → visualize-changes → docs ∥ comments
 → scenarios → contract ∥ integration ∥ e2e tests → negative-catch → ticket → stack-shape →
 describe (per slice) → apply-descriptions* → publish → wait → pr-followup →
@@ -81,6 +81,14 @@ established lens. The report lists the ad-hoc lenses a run added.
   - Whole-repo operations (tidy, codegen) run in `green`, which runs alone
     after the grid.
 - **Settlement** (both review sets and the second test set):
+  - Before review set 1, `review-select` rules out the reviewers with no
+    surface in the change (`review-select.json`). It errs toward keeping a
+    lens, and the `always` list in `pipeline.json` (correctness, conventions)
+    is never dropped. A missing selection drops nothing.
+  - A reviewer with nothing at all in scope replies `not_applicable`. When it
+    was a full-scope review, lensctl retires that lens (per task or boundary for per-unit lenses) for the rest
+    of the pass, so fix epochs don't re-dispatch it. Retirement resets on a
+    rewind. The report lists dropped and retired lenses.
   - Reviewers read a pinned epoch (the run revision's commit id).
   - Triage validates findings in batches.
   - One writer at a time applies them: `fix` for blocking findings,
@@ -109,7 +117,8 @@ and writes, what it must not do, and when it's done.
 - **Blocked by an earlier lens**: write `disputes/<key>-<n>.json`
   (`{"target_lens", "claim", "evidence"}`) and return `blocked`.
 - **Reply**: every lens ends with one JSON line:
-  `{"status": "done|needs_input|failed|blocked", "summary": "..."}`.
+  `{"status": "done|needs_input|failed|blocked", "summary": "..."}`. Reviewers
+  may also reply `not_applicable` (see Settlement).
 
 ## Tests
 

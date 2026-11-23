@@ -547,6 +547,14 @@ def settle_record(run, st, unit, status, summary):
             out = settle.record_done(run, st, name, e, unit)
         except cores.CoreError as err:
             out = {"halt": str(err)}
+    elif status == "not_applicable":
+        if u["kind"] != "review":
+            raise LensError(f"unit {unit} is a {u['kind']}; only a reviewer can report not_applicable")
+        write_summary(run, unit, summary)
+        if e.get("scope") == "parallel":
+            u["status"] = "done"
+        else:
+            settle.retire(st["settle"][name], unit)
     elif status == "failed":
         out = settle.record_failed(st, name, unit, st["pipeline"].get("retries", 1))
     elif status == "needs_input":
@@ -928,6 +936,10 @@ def cmd_report(run):
                      f"{len(b['coverage_gaps'])} task(s) with coverage gaps left")
     for name, grp in (report.get("settle") or {}).items():
         lines.append(f"{name}: {grp['epochs']} fix epoch(s), findings {grp['findings']}")
+        if grp.get("deselected"):
+            lines.append(f"{name}: not selected for review: " + ", ".join(sorted(grp["deselected"])))
+        if grp.get("retired"):
+            lines.append(f"{name}: retired as not applicable: " + ", ".join(grp["retired"]))
     sig = (report.get("coherence") or {}).get("signals")
     if sig:
         lines.append(f"coherence: cross-community {sig['cross_community_ratio']} (p75 {sig['cross_community_baseline_p75']}), "
@@ -1020,7 +1032,7 @@ def build_parser():
     s = sub.add_parser("record")
     s.add_argument("--run", required=True)
     s.add_argument("--lens", required=True)
-    s.add_argument("--status", required=True, choices=["done", "needs_input", "failed", "blocked"])
+    s.add_argument("--status", required=True, choices=["done", "needs_input", "failed", "blocked", "not_applicable"])
     s.add_argument("--summary", default="")
     s.add_argument("--task")
     s.add_argument("--unit")

@@ -111,6 +111,50 @@ def consume_feedback(run, name):
     return rows
 
 
+def deselected(run, e):
+    """Lenses the review-select lens ruled out, name -> reason. Only gated groups are affected.
+
+    A missing or unreadable selection drops nothing, and a lens in `always` is never dropped.
+    """
+    if "always" not in e:
+        return {}
+    chosen = read_json(os.path.join(run, "review-select.json"), {}).get("lenses", {})
+    out = {}
+    for lens in e["lenses"]:
+        pick = chosen.get(lens)
+        if lens not in e["always"] and isinstance(pick, dict) and pick.get("apply") is False:
+            out[lens] = str(pick.get("reason", ""))
+    return out
+
+
+def retire_key(lens, scope=None):
+    """Identity of a lens for retirement: the lens, narrowed by task or boundary when it runs per unit."""
+    return f"{lens}:{scope}" if scope else lens
+
+
+def unit_retire_key(u):
+    return retire_key(u["lens"], u.get("task") or u["params"].get("boundary"))
+
+
+def retire(s, key):
+    """The unit reported not_applicable: retire its lens and cancel its queued re-reviews.
+
+    Only a full-scope review can retire a lens. A radius review saw a few files, so its
+    not_applicable says nothing about the rest of the change.
+    """
+    u = s["units"][key]
+    u["status"] = "done"
+    if u["params"].get("scope") == "radius":
+        return
+    rk = unit_retire_key(u)
+    s.setdefault("retired", [])
+    if rk not in s["retired"]:
+        s["retired"].append(rk)
+    for other in s["units"].values():
+        if other["kind"] == "review" and other["status"] == "pending" and unit_retire_key(other) == rk:
+            other["status"] = "done"
+
+
 def init(run, st, name, e):
     ws = workspace(run)
     epoch = grid.commit_of_workspace(ws)
@@ -118,6 +162,7 @@ def init(run, st, name, e):
     if feedback:
         st.setdefault("settle", {})[name] = {
             "pass": "blocking", "epochs": [epoch], "units": {}, "untriaged": [], "seq": 0, "new_findings": 0,
+            "retired": [], "deselected": {},
             "items": {r["id"]: {"state": "queued", "blocking": True, "rounds": 0, "class": "defect",
                                 "decision": r.get("claim")} for r in feedback},
         }
@@ -125,7 +170,10 @@ def init(run, st, name, e):
     units = {}
     tasks = sorted(task_targets(run)) if e.get("per_task") else []
     bounds = boundaries(run) if e.get("per_boundary") else {}
+    dropped = deselected(run, e)
     for lens in e["lenses"]:
+        if lens in dropped:
+            continue
         if lens in e.get("per_boundary", []):
             for b in bounds:
                 units[f"{lens}-{b}"] = new_unit(lens, "review", {"epoch": epoch, "scope": "full", "boundary": b})
@@ -136,7 +184,7 @@ def init(run, st, name, e):
             units[lens] = new_unit(lens, "review", {"epoch": epoch, "scope": "full"})
     st.setdefault("settle", {})[name] = {
         "pass": "blocking", "epochs": [epoch], "units": units, "untriaged": [],
-        "items": {}, "seq": 0, "new_findings": 0,
+        "items": {}, "seq": 0, "new_findings": 0, "retired": [], "deselected": dropped,
     }
 
 
@@ -329,21 +377,25 @@ def after_write(run, st, name, e, key):
     targets = task_targets(run)
     bounds = boundaries(run) if e.get("per_boundary") else {}
     rad_dirs = {os.path.dirname(f) for f in rad}
+    retired = set(s.get("retired", []))
+    dropped = set(s.get("deselected", {}))
     for lens in e["lenses"]:
+        if lens in dropped:
+            continue
         if lens in e.get("per_boundary", []):
             for b, pkg in bounds.items():
-                if pkg in rad_dirs:
+                if pkg in rad_dirs and retire_key(lens, b) not in retired:
                     rk = next_key(s, f"{lens}-{b}-e{len(s['epochs']) - 1}")
                     s["units"][rk] = new_unit(lens, "review", {"epoch": new, "scope": "radius", "radius": rad,
                                                                 "boundary": b})
         elif lens in e.get("per_task", []):
             for tid, files in targets.items():
                 hit = sorted(files & set(rad))
-                if hit:
+                if hit and retire_key(lens, tid) not in retired:
                     rk = next_key(s, f"{lens}-{tid}-e{len(s['epochs']) - 1}")
                     s["units"][rk] = new_unit(lens, "review", {"epoch": new, "scope": "radius", "radius": rad,
                                                                 "task": tid}, tid)
-        elif rad:
+        elif rad and retire_key(lens) not in retired:
             rk = next_key(s, f"{lens}-e{len(s['epochs']) - 1}")
             s["units"][rk] = new_unit(lens, "review", {"epoch": new, "scope": "radius", "radius": rad})
     return {"epoch": new, "radius": rad}
@@ -368,6 +420,7 @@ def report(st):
         for it in s["items"].values():
             states[it["state"]] = states.get(it["state"], 0) + 1
         out[name] = {"epochs": len(s["epochs"]) - 1, "findings": states,
+                     "retired": sorted(s.get("retired", [])), "deselected": s.get("deselected", {}),
                      "fix_rounds": sum(it["rounds"] for it in s["items"].values()),
                      "units": len(s["units"])}
     return out
