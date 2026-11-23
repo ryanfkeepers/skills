@@ -62,7 +62,9 @@ The same as the conventions lens:
 1. Write the pending files.
 2. Append `{"question": "Approve the contract-layers core?", "options":
    ["approve", "revise (add notes)"], "recommendation": "approve",
-   "rendering": "<paths + diff against the current core>", "answer": null}`
+   "rendering": "<the full text of every pending file, each under its path;
+   on a refresh, the diff against the current core comes first>", "answer":
+   null}`
    to `<run>/qa/contract-layers.jsonl`, then return `needs_input`.
 3. When you're continued:
    - **approve**: run `LENSCTL core promote --run <run> --kind
@@ -74,6 +76,8 @@ The same as the conventions lens:
 - Edit the repo.
 - List every interface. Only the major layer boundaries belong in the map.
 - Promote without an `approve` answer.
+- Summarize or truncate the rendering. The user must see the full text they
+  are approving; paths or a diff alone are not enough.
 
 ## Reply
 

@@ -108,6 +108,23 @@ class CoresTest(unittest.TestCase):
         self.workspace(run, st)
         self.assertEqual(self.ws(run)["mode"], "branch")
 
+    def test_rerun_reuses_recorded_workspace(self):
+        run, st = self.new_run()
+        self.workspace(run, st)
+        before = self.ws(run)
+        out = self.workspace(run, st)
+        self.assertEqual(out["status"], "done")
+        self.assertIn(before["name"], out["summary"])
+        self.assertEqual(self.ws(run), before)
+        self.assertEqual(jj_out(self.repo, "workspace", "list").count(before["name"]), 1)
+
+    def test_rerun_with_missing_workspace_dir_raises(self):
+        run, st = self.new_run()
+        self.workspace(run, st)
+        shutil.rmtree(self.ws(run)["path"])
+        with self.assertRaises(cores.CoreError):
+            self.workspace(run, st)
+
     # ---- graph -----------------------------------------------------------
 
     def test_first_trunk_run_builds_core_and_snapshots(self):

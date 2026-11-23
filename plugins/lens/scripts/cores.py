@@ -95,8 +95,18 @@ def write_json(path, data):
 
 
 def workspace_lens(run_dir, st, answers):
-    """Resolve the base, ask about stale trunk bases, then add the workspace."""
+    """Resolve the base, ask about stale trunk bases, then add the workspace.
+
+    A rewind re-runs this lens, so workspace.json is the record that the
+    workspace is already created: reuse it, never add a second one.
+    """
     repo = st["repo"]
+    recorded = os.path.join(run_dir, "workspace.json")
+    if os.path.exists(recorded):
+        ws = read_json(recorded)
+        if not os.path.isdir(ws["path"]):
+            raise CoreError(f"workspace {ws['name']} is recorded but {ws['path']} is gone")
+        return {"status": "done", "summary": f"workspace {ws['name']} already created, reused"}
     brief_base = os.path.join(run_dir, "brief", "base.json")
     base = st.get("base") or (read_json(brief_base).get("base") if os.path.exists(brief_base) else None) or "trunk()"
     base_commit = commit_of(repo, base)

@@ -17,6 +17,9 @@ design visually before any code is written.
    directory, and that `LENSCTL` is the one from your dispatch prompt. It
    reads only the brief, design, trims, context and contract-layers files its
    SKILL.md names, then builds and publishes the page.
+   Then open the standalone `.html` it reports in the user's browser: run
+   `open <path>` (`xdg-open <path>` when `open` isn't on PATH). A failed open
+   is not an error, since the artifact link is in the question.
 2. Append to `<run>/qa/visualize-design.jsonl`:
    `{"question": "Review the proposed design: <artifact link>. Go ahead?",
    "options": ["go ahead", "change the design (add notes)", "change the goal

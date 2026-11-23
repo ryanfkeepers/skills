@@ -117,9 +117,9 @@ needs the slots that differ from the repo file.
 1. Write the pending files.
 2. Append a question to `<run>/qa/conventions.jsonl`:
    `{"question": "Approve the conventions core?", "options": ["approve",
-   "revise (add notes)"], "recommendation": "approve", "rendering": "<pending
-   file paths, plus a unified diff against the current core files when this
-   is a refresh>", "answer": null}`.
+   "revise (add notes)"], "recommendation": "approve", "rendering": "<the full
+   text of every pending file, each under its path; on a refresh, the unified
+   diff against the current core files comes first>", "answer": null}`.
 3. Return `needs_input`.
 4. When you're continued, read the answer from the same file:
    - **approve**: run `LENSCTL core promote --run <run> --kind conventions`,
@@ -132,6 +132,8 @@ needs the slots that differ from the repo file.
 - Edit anything in the repo.
 - Write anywhere except the pending dir and your qa file.
 - Promote without an `approve` answer.
+- Summarize or truncate the rendering. The user must see the full text they
+  are approving; paths or a diff alone are not enough.
 
 ## Reply
 
