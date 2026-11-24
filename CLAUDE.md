@@ -17,6 +17,10 @@ Run these as two separate commands:
 
 Skills are namespaced: `/keepers:skill-name`
 
+## Publishing
+
+`pushskills "message"` pushes main, then updates the `keepers` and `lens` plugins.
+
 ## Local testing
 
 ```bash
