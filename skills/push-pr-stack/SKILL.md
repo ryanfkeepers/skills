@@ -157,3 +157,18 @@ Print a table of all PRs, with Step 7's `action`:
 |----------|--------|--------|
 | `kprs/dp-1234/add-auth-handler` | https://github.com/org/repo/pull/42 | created |
 | `kprs/dp-1234/add-auth-tests` | https://github.com/org/repo/pull/43 | reused (base fixed) |
+
+## Step 10 — Delayed readiness check
+
+Offer to score the stack in 10 minutes with `keepers:evaluate-pr-stack`,
+giving it the first PR URL from Step 7. The delay gives automated
+reviewers time to comment.
+
+- **`manual`:** ask once: "⚠️ Check this stack with evaluate-pr-stack in
+  10 minutes?" On yes, schedule it with `CronCreate` as a one-shot, 10
+  minutes out, with the prompt `/keepers:evaluate-pr-stack <first-pr-url>`.
+  On no, stop.
+- **`auto`:** the caller's go-ahead already covers it, so accept without
+  asking. Don't schedule it: add
+  `"evaluate": {"after_seconds": 600, "url": "<first-pr-url>"}` to the
+  result, and the caller runs it.

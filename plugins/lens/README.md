@@ -54,7 +54,7 @@ review-select → review set 1 →
 review set 2 → pseudolinter → vibediff → visualize-changes → docs ∥ comments
 → scenarios → contract ∥ integration ∥ e2e tests → negative-catch (fixes only) → ticket → stack-shape →
 describe (per slice) → apply-descriptions* → publish → wait → pr-followup →
-wait → pr-followup → run-report* → cleanup*
+wait → pr-followup → pr-evaluate → run-report* → cleanup*
 
 (* = code lens)
 

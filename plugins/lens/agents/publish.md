@@ -33,6 +33,9 @@ From `workspace.path`, invoke `keepers:push-pr-stack` with:
 - `base`: from above
 - `ticket`: the key from `ticket.json`
 
+push-pr-stack's delayed readiness check (its Step 10) is accepted without
+asking. The `pr-evaluate` lens runs it, so don't schedule it yourself.
+
 Reviewers come from CODEOWNERS only. If its per-bookmark `assert-green`
 fails, return `failed` with the failing bookmark and output. Don't fix
 anything.

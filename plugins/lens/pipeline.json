@@ -51,6 +51,7 @@
     {"name": "pr-followup-1", "agent": "pr-followup", "scope": "run", "gate": "qa", "implemented": true},
     {"name": "pr-wait-2", "scope": "sleep", "seconds": 300, "gate": "none", "implemented": true},
     {"name": "pr-followup-2", "agent": "pr-followup", "scope": "run", "gate": "qa", "implemented": true},
+    {"name": "pr-evaluate", "scope": "run", "gate": "qa", "implemented": true},
     {"name": "run-report", "scope": "code", "gate": "none", "implemented": true},
     {"name": "cleanup", "scope": "code", "gate": "none", "implemented": true}
   ]
