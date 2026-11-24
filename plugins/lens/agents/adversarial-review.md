@@ -36,8 +36,8 @@ are none." Then append the diff.
 
 1. **`codex` on PATH** (`command -v codex`): write the prompt and diff to a
    file under `/tmp`, then run
-   `codex exec -s read-only -C <workspace.path> --skip-git-repo-check --ephemeral -o /tmp/<unit>-review.md - < <prompt file>`,
-   and read `/tmp/<unit>-review.md`.
+   `codex exec -s read-only -C <workspace.path> --skip-git-repo-check --ephemeral -o /tmp/<task-action>-review.md - < <prompt file>`,
+   and read `/tmp/<task-action>-review.md`.
 2. **Otherwise**: start a `general-purpose` agent through the Agent tool,
    with `model` set to a Claude model **different from the one running this
    session** (`opus` if you are Sonnet, `sonnet` otherwise), and give it the
@@ -45,9 +45,9 @@ are none." Then append the diff.
 
 ## Findings
 
-Turn each issue it raises into a finding in `<run>/findings/<unit>.jsonl`
+Turn each issue it raises into a finding in `<run>/findings/<task-action>.jsonl`
 (same format as every review lens):
-`{"id": "<unit>-<n>", "lens": "adversarial-review", "task": null, "epoch": "<epoch>",
+`{"id": "<task-action>-<n>", "lens": "adversarial-review", "epoch": "<epoch>",
 "location": {"file", "line"}, "claim", "evidence", "blocking", "class"}`.
 Propose `blocking` and `class` the way any review lens does. Triage checks
 every one against the code, so pass the issues through as given and don't

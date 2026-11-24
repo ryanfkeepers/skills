@@ -1,8 +1,8 @@
 ---
 name: test-negative-catch
 description: >-
-  Lens, run twice (after green, and after the second test set), that proves
-  the tests catch broken code: it breaks the code under test in a throwaway
+  Lens, run twice (after green, and after the second test set) on fix
+  changes only, that proves the tests catch broken code: it breaks the code under test in a throwaway
   workspace and checks that a test fails. Never touches the run's workspace.
   Dispatched by lens:run; not for direct use.
 tools: Read, Grep, Glob, Bash, Write
@@ -16,9 +16,9 @@ passes when the code is broken guards nothing.
 - `workspace.path` and the run's current commit from `LENSCTL info --run <run>`.
 - Your lens name (`test-negative-catch-1` or `test-negative-catch-2`) tells
   you which pass this is:
-  - **1** (after green): per task in `<run>/tasks/*.json`, the task's target
-    files are the code under test and their `foo_test.go`-style files are the
-    tests.
+  - **1** (after green): the run's whole change. The non-test files in
+    `jj diff --from <workspace.base_commit> --to <commit> --name-only` are the
+    code under test, and their `foo_test.go`-style files are the tests.
   - **2** (after the second test set): the code under test is each boundary's
     package (`<run>/scenarios/contract/*.json`, `integration.json`,
     `e2e.json`). The tests are the contract, integration and e2e tests those
@@ -30,7 +30,7 @@ passes when the code is broken guards nothing.
    `jj workspace add --revision <commit> <run>/negative-catch/ws`. Every
    break, build and test run happens there. **Never edit, restore, or run
    anything that writes in `workspace.path`.**
-2. For each unit of code under test, apply a few small breaks to the
+2. For each changed file under test, apply a few small breaks to the
    non-test code, one at a time: invert a condition, drop a branch, return a
    zero value, skip an error check, change a boundary constant. Pick breaks
    that change behavior, not ones that fail to compile.
@@ -48,15 +48,15 @@ passes when the code is broken guards nothing.
 `<run>/negative-catch/<your lens>.json`:
 `{"breaks": <n>, "caught": <n>, "survivors": [{"file": "<code>:<line>",
 "break": "<what you changed>", "test_file": "<test that should have caught
-it>", "task": "<task id or null>"}]}`.
+it>"}]}`.
 
 ## Survivors
 
 - No survivors: return `done`.
 - Survivors, and your previous `<your lens>.json` (read it before you
   overwrite it) does not list the same `file` and `break`: write one
-  `disputes/<your lens>-<n>.json` per owning unit and return `blocked`.
-  - Pass 1: `{"target_lens": "unit-test", "task": "<task id>", "claim":
+  `disputes/<your lens>-<n>.json` per survivor and return `blocked`.
+  - Pass 1: `{"target_lens": "unit-test", "claim":
     "<test_file> does not fail when <break>", "evidence": "<the break and the
     passing test output, trimmed>"}`.
   - Pass 2: `{"target_lens": "test-2", "claim": ..., "evidence": ...}`

@@ -408,17 +408,17 @@ class LensctlTest(unittest.TestCase):
             json.dump(pipeline, f)
         run = lensctl.cmd_init(self.repo, "x", self.pipeline)["run"]
         first, second = lensctl.cmd_next(run), lensctl.cmd_next(run)
-        self.assertEqual({first["unit"], second["unit"]}, {"docs", "comments"})
+        self.assertEqual({first["task_action"], second["task_action"]}, {"docs", "comments"})
         self.assertEqual(lensctl.cmd_next(run)["action"], "wait")
         with open(lensctl.qa_path(run, "comments"), "w") as f:
             f.write(json.dumps({"question": "add this comment?", "options": ["yes", "no"],
                                 "recommendation": "no", "answer": None}) + "\n")
-        lensctl.cmd_record(run, "comments", "needs_input", unit="comments")
+        lensctl.cmd_record(run, "comments", "needs_input", task_action="comments")
         relay = lensctl.cmd_next(run)
-        self.assertEqual((relay["action"], relay["unit"]), ("relay", "comments"))
-        lensctl.cmd_answer(run, "comments", "no", unit="comments")
-        lensctl.cmd_record(run, "docs", "done", unit="docs")
-        lensctl.cmd_record(run, "comments", "done", unit="comments")
+        self.assertEqual((relay["action"], relay["task_action"]), ("relay", "comments"))
+        lensctl.cmd_answer(run, "comments", "no", task_action="comments")
+        lensctl.cmd_record(run, "docs", "done", task_action="docs")
+        lensctl.cmd_record(run, "comments", "done", task_action="comments")
         self.assertEqual(lensctl.cmd_next(run)["lens"], "after")
 
     def test_sleep_lens_waits_then_records(self):
@@ -434,7 +434,7 @@ class LensctlTest(unittest.TestCase):
         out = lensctl.cmd_next(run)
         self.assertEqual((out["lens"], out["agent"]), ("follow-1", "lens:follow"))
 
-    def test_per_slice_group_has_one_unit_per_slice(self):
+    def test_per_slice_group_has_one_task_action_per_slice(self):
         pipeline = dict(PIPELINE, lenses=[
             {"name": "describe", "scope": "parallel", "implemented": True, "lenses": ["describe"], "per_slice": True}])
         with open(self.pipeline, "w") as f:
@@ -443,8 +443,32 @@ class LensctlTest(unittest.TestCase):
         with open(os.path.join(run, "stack.json"), "w") as f:
             json.dump({"slices": [{"change_id": "aaa"}, {"change_id": "bbb"}]}, f)
         a, b = lensctl.cmd_next(run), lensctl.cmd_next(run)
-        self.assertEqual([(x["unit"], x["params"]["change_id"]) for x in (a, b)],
+        self.assertEqual([(x["task_action"], x["params"]["change_id"]) for x in (a, b)],
                          [("describe-1", "aaa"), ("describe-2", "bbb")])
+
+    def only_for_fix_run(self, change_type):
+        pipeline = dict(PIPELINE, lenses=[
+            {"name": "catch", "agent": "test-negative-catch", "scope": "run", "implemented": True,
+             "only_for": ["fix"]},
+            {"name": "after", "scope": "run", "implemented": True}])
+        with open(self.pipeline, "w") as f:
+            json.dump(pipeline, f)
+        run = lensctl.cmd_init(self.repo, "x", self.pipeline)["run"]
+        if change_type:
+            os.makedirs(os.path.join(run, "brief"))
+            with open(os.path.join(run, "brief", "change_type.json"), "w") as f:
+                json.dump({"type": change_type}, f)
+        return run
+
+    def test_only_for_skips_other_change_types(self):
+        run = self.only_for_fix_run("feature")
+        self.assertEqual(lensctl.cmd_next(run)["lens"], "after")
+        st = lensctl.load(run)["lenses"]["catch"]
+        self.assertEqual((st["status"], st["note"]), ("skipped", "only for fix changes"))
+
+    def test_only_for_runs_on_a_matching_or_unknown_change_type(self):
+        for change_type in ("fix", None):
+            self.assertEqual(lensctl.cmd_next(self.only_for_fix_run(change_type))["lens"], "catch")
 
     # ---- cli -------------------------------------------------------------
 

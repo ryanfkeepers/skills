@@ -18,7 +18,7 @@ PIPELINE = {
         {"name": "workspace", "scope": "code", "implemented": True},
         {"name": "plan", "scope": "run", "implemented": True},
         {"name": "review-1", "scope": "settle", "implemented": True,
-         "lenses": ["review-correctness", "review-security"], "per_task": ["review-correctness"]},
+         "lenses": ["review-correctness", "review-security"]},
         {"name": "after", "scope": "run", "implemented": True},
     ],
 }
@@ -101,15 +101,15 @@ class SettleCase(unittest.TestCase):
         return lensctl.cmd_next(self.run)
 
     def dispatch_all(self):
-        units = []
+        actions = []
         while True:
             out = self.next()
             if out["action"] != "dispatch":
-                return units, out
-            units.append(out)
+                return actions, out
+            actions.append(out)
 
-    def findings(self, unit, rows):
-        path = os.path.join(self.run, "findings", f"{unit}.jsonl")
+    def findings(self, key, rows):
+        path = os.path.join(self.run, "findings", f"{key}.jsonl")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a") as f:
             for r in rows:
@@ -118,8 +118,8 @@ class SettleCase(unittest.TestCase):
     def triaged(self, rows):
         self.findings("triaged", rows)
 
-    def done(self, unit, summary="ok"):
-        return lensctl.cmd_record(self.run, "x", "done", summary, unit=unit)
+    def done(self, key, summary="ok"):
+        return lensctl.cmd_record(self.run, "x", "done", summary, task_action=key)
 
     def group(self):
         return lensctl.load(self.run)["settle"]["review-1"]
@@ -134,160 +134,166 @@ class SettleCase(unittest.TestCase):
 
     def review_round(self):
         """Dispatch every reviewer, finish them all clean except as the test arranges."""
-        units, out = self.dispatch_all()
-        return [u["unit"] for u in units], out
+        actions, out = self.dispatch_all()
+        return [u["task_action"] for u in actions], out
 
 
 class SettleTest(SettleCase):
     # ---- tests -----------------------------------------------------------
 
-    def test_reviewers_fan_out_per_task_and_whole(self):
-        units, out = self.review_round()
-        self.assertEqual(sorted(units), ["review-correctness-t1", "review-correctness-t2", "review-security"])
+    def test_reviewers_review_the_whole_change_once(self):
+        actions, out = self.review_round()
+        self.assertEqual(sorted(actions), ["review-correctness", "review-security"])
         self.assertEqual(out["action"], "wait")
         epoch = self.group()["epochs"][0]
-        self.assertTrue(all(u["params"]["epoch"] == epoch for u in lensctl.load(self.run)["settle"]["review-1"]["units"].values()
-                            if "epoch" in u["params"]))
+        group = self.group()["task_actions"].values()
+        self.assertTrue(all(ta["params"]["epoch"] == epoch for ta in group if "epoch" in ta["params"]))
+        self.assertTrue(all("task" not in ta and "task" not in ta["params"] for ta in group))
+
+    def test_a_run_of_more_than_one_revision_halts(self):
+        sh(self.ws, "jj", "new")
+        out = self.next()
+        self.assertEqual(out["action"], "halt")
+        self.assertIn("one revision", out["reason"])
 
     def test_clean_reviews_settle_and_move_on(self):
-        units, _ = self.review_round()
-        for u in units:
+        actions, _ = self.review_round()
+        for u in actions:
             self.done(u)
         self.assertEqual(self.next()["lens"], "after")
         self.assertEqual(lensctl.load(self.run)["lenses"]["review-1"]["status"], "done")
 
     def test_blocking_defect_is_fixed_and_radius_rereviewed(self):
-        units, _ = self.review_round()
-        self.findings("review-correctness-t1", [self.finding("f1")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1")])
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.assertEqual((tri["lens"], tri["params"]["findings"]), ("triage", ["f1"]))
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         fix = self.next()
         self.assertEqual((fix["lens"], fix["params"]["findings"]), ("fix", ["f1"]))
         self.edit("a/a.go", "package x\n// fixed\n")
-        out = self.done(fix["unit"])
+        out = self.done(fix["task_action"])
         self.assertEqual(out["radius"], ["a/a.go", "c/c.go"])
         rereview, _ = self.dispatch_all()
-        keys = sorted(u["lens"] + ":" + str(u["task"]) for u in rereview)
-        self.assertEqual(keys, ["review-correctness:t1", "review-security:None"])
+        self.assertEqual(sorted(u["lens"] for u in rereview), ["review-correctness", "review-security"])
         self.assertTrue(all(u["params"]["scope"] == "radius" for u in rereview))
         for u in rereview:
-            self.done(u["unit"])
+            self.done(u["task_action"])
         self.assertEqual(self.next()["lens"], "after")
 
     def test_dropped_findings_are_not_fixed(self):
-        units, _ = self.review_round()
+        actions, _ = self.review_round()
         self.findings("review-security", [self.finding("f1", lens="review-security")])
-        for u in units:
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "dropped"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         self.assertEqual(self.next()["lens"], "after")
 
     def test_deferred_findings_wait_for_the_patcher(self):
-        units, _ = self.review_round()
-        self.findings("review-correctness-t2", [self.finding("f1", file="b/b.go")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1", file="b/b.go")])
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": False, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         patch = self.next()
         self.assertEqual(patch["lens"], "review-patcher")
         self.assertEqual(self.group()["pass"], "deferred")
         self.edit("b/b.go", "package x\n// tidy\n")
-        self.done(patch["unit"])
+        self.done(patch["task_action"])
         rereview, _ = self.dispatch_all()
-        self.assertEqual(sorted(u["unit"].split("-e")[0] for u in rereview),
-                         ["review-correctness-t2", "review-security"])
+        self.assertEqual(sorted(u["task_action"].split("-e")[0] for u in rereview),
+                         ["review-correctness", "review-security"])
 
     def test_design_finding_is_decided_by_the_user(self):
-        units, _ = self.review_round()
+        actions, _ = self.review_round()
         self.findings("review-security", [self.finding("f1", lens="review-security")])
-        for u in units:
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "design",
                        "claim": "which roles may call it?"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         relay = self.next()
         self.assertEqual(relay["action"], "relay")
         self.assertIn("which roles", relay["question"]["question"])
-        self.assertEqual(lensctl.cmd_answer(self.run, "x", "leave it", unit=relay["unit"])["continue"], "next")
+        self.assertEqual(lensctl.cmd_answer(self.run, "x", "leave it", task_action=relay["task_action"])["continue"], "next")
         self.assertEqual(self.next()["lens"], "after")
         report = lensctl.build_report(self.run, lensctl.load(self.run))
         self.assertEqual(report["settle"]["review-1"]["findings"], {"dismissed": 1})
         self.assertEqual(report["gates"][0]["answer"], "leave it")
 
     def test_design_finding_fix_goes_to_fix_with_decision(self):
-        units, _ = self.review_round()
+        actions, _ = self.review_round()
         self.findings("review-security", [self.finding("f1", lens="review-security")])
-        for u in units:
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "design"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         relay = self.next()
-        lensctl.cmd_answer(self.run, "x", "fix it as proposed", unit=relay["unit"])
+        lensctl.cmd_answer(self.run, "x", "fix it as proposed", task_action=relay["task_action"])
         self.assertEqual(self.next()["lens"], "fix")
 
     def test_finding_that_keeps_returning_escalates(self):
-        units, _ = self.review_round()
-        self.findings("review-correctness-t1", [self.finding("f1")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1")])
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         for n in (2, 3):
             fix = self.next()
             self.assertEqual(fix["lens"], "fix")
             self.edit("a/a.go", f"package x\n// try {n}\n")
-            self.done(fix["unit"])
+            self.done(fix["task_action"])
             rereview, _ = self.dispatch_all()
             r = next(u for u in rereview if u["lens"] == "review-correctness")
-            self.findings(r["unit"], [self.finding(f"f{n}")])
+            self.findings(r["task_action"], [self.finding(f"f{n}")])
             for u in rereview:
-                self.done(u["unit"])
+                self.done(u["task_action"])
             tri = self.next()
             self.triaged([{"id": f"f{n}", "sources": [f"f{n}"], "verdict": "confirmed", "blocking": True,
                            "class": "defect", "duplicate_of": "f1"}])
-            self.done(tri["unit"])
+            self.done(tri["task_action"])
         relay = self.next()
         self.assertEqual(relay["action"], "relay")
         self.assertIn("came back", relay["question"]["question"])
 
     def test_epoch_cap_halts(self):
         settle.MAX_EPOCHS = 0
-        units, _ = self.review_round()
-        self.findings("review-correctness-t1", [self.finding("f1")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1")])
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         fix = self.next()
         self.edit("a/a.go", "package x\n// fixed\n")
-        out = self.done(fix["unit"])
+        out = self.done(fix["task_action"])
         self.assertIn("epochs", out["halt"]["reason"])
         self.assertEqual(self.next()["action"], "halt")
 
     def test_failed_reviewer_retries_then_halts(self):
-        units, _ = self.review_round()
-        lensctl.cmd_record(self.run, "x", "failed", "boom", unit=units[0])
+        actions, _ = self.review_round()
+        lensctl.cmd_record(self.run, "x", "failed", "boom", task_action=actions[0])
         again = self.next()
-        self.assertEqual(again["unit"], units[0])
-        out = lensctl.cmd_record(self.run, "x", "failed", "boom", unit=units[0])
+        self.assertEqual(again["task_action"], actions[0])
+        out = lensctl.cmd_record(self.run, "x", "failed", "boom", task_action=actions[0])
         self.assertIsNotNone(out["halt"])
 
     def test_resume_requeues_running_reviewers(self):
-        units, _ = self.review_round()
+        actions, _ = self.review_round()
         out = lensctl.cmd_resume(self.run)
-        self.assertEqual((out["action"], out["unit"], out["attempt"]), ("dispatch", units[0], 1))
+        self.assertEqual((out["action"], out["task_action"], out["attempt"]), ("dispatch", actions[0], 1))
 
     def test_user_feedback_goes_straight_to_fix_then_radius_review(self):
         st = lensctl.load(self.run)
@@ -300,14 +306,14 @@ class SettleTest(SettleCase):
         self.assertEqual((fix["lens"], fix["params"]["findings"]), ("fix", ["user-1"]))
         self.assertTrue(os.path.exists(os.path.join(self.run, "feedback", "review-1.jsonl.consumed")))
         self.edit("b/b.go", "package x\n// renamed\n")
-        self.done(fix["unit"])
+        self.done(fix["task_action"])
         rereview, _ = self.dispatch_all()
-        self.assertEqual(sorted(u["unit"].split("-e")[0] for u in rereview), ["review-correctness-t2", "review-security"])
+        self.assertEqual(sorted(u["task_action"].split("-e")[0] for u in rereview), ["review-correctness", "review-security"])
 
     def writer_group(self):
         st = lensctl.load(self.run)
         e = next(x for x in st["pipeline"]["lenses"] if x["name"] == "review-1")
-        e.update(lenses=["contract-test", "e2e-test"], per_task=[], per_boundary=["contract-test"], writers=True)
+        e.update(lenses=["contract-test", "e2e-test"], per_boundary=["contract-test"], writers=True)
         lensctl.save(self.run, st)
         os.makedirs(os.path.join(self.run, "scenarios", "contract"))
         for b, pkg in (("blob-store", "a"), ("api", "b")):
@@ -316,26 +322,26 @@ class SettleTest(SettleCase):
 
     def test_contract_tests_run_one_per_boundary(self):
         self.writer_group()
-        units, _ = self.review_round()
-        self.assertEqual(sorted(units), ["contract-test-api", "contract-test-blob-store", "e2e-test"])
+        actions, _ = self.review_round()
+        self.assertEqual(sorted(actions), ["contract-test-api", "contract-test-blob-store", "e2e-test"])
 
     def test_writers_never_overlap_the_fixer(self):
         self.writer_group()
-        units, _ = self.review_round()
+        actions, _ = self.review_round()
         self.findings("contract-test-blob-store", [self.finding("f1", lens="contract-test")])
         self.done("contract-test-blob-store")
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         self.assertEqual(self.next()["action"], "wait")
         for u in ("contract-test-api", "e2e-test"):
             self.done(u)
         fix = self.next()
         self.assertEqual(fix["lens"], "fix")
         self.edit("a/a.go", "package x\n// fixed\n")
-        self.done(fix["unit"])
+        self.done(fix["task_action"])
         rereview, _ = self.dispatch_all()
-        self.assertEqual(sorted(u["unit"].split("-e")[0] for u in rereview), ["contract-test-blob-store", "e2e-test"])
+        self.assertEqual(sorted(u["task_action"].split("-e")[0] for u in rereview), ["contract-test-blob-store", "e2e-test"])
 
     def gate(self, select=None):
         st = lensctl.load(self.run)
@@ -349,101 +355,102 @@ class SettleTest(SettleCase):
     def test_deselected_lens_is_never_dispatched(self):
         self.gate({"review-security": {"apply": False, "reason": "no trust boundary"},
                    "review-correctness": {"apply": False, "reason": "ignored: always on"}})
-        units, _ = self.review_round()
-        self.assertEqual(sorted(units), ["review-correctness-t1", "review-correctness-t2"])
+        actions, _ = self.review_round()
+        self.assertEqual(sorted(actions), ["review-correctness"])
         self.assertEqual(self.group()["deselected"], {"review-security": "no trust boundary"})
         self.assertEqual(settle.report(lensctl.load(self.run))["review-1"]["deselected"],
                          {"review-security": "no trust boundary"})
 
     def test_missing_selection_drops_nothing(self):
         self.gate()
-        units, _ = self.review_round()
-        self.assertEqual(sorted(units), ["review-correctness-t1", "review-correctness-t2", "review-security"])
+        actions, _ = self.review_round()
+        self.assertEqual(sorted(actions), ["review-correctness", "review-security"])
 
     def test_deselected_lens_is_skipped_on_radius_rereview(self):
         self.gate({"review-security": {"apply": False, "reason": "none"}})
-        units, _ = self.review_round()
-        self.findings("review-correctness-t1", [self.finding("f1")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1")])
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         fix = self.next()
         self.edit("a/a.go", "package x\n// fixed\n")
-        self.done(fix["unit"])
+        self.done(fix["task_action"])
         rereview, _ = self.dispatch_all()
-        self.assertEqual([u["unit"].split("-e")[0] for u in rereview], ["review-correctness-t1"])
+        self.assertEqual([u["task_action"].split("-e")[0] for u in rereview], ["review-correctness"])
 
     def test_not_applicable_retires_the_lens_for_later_epochs(self):
-        units, _ = self.review_round()
-        self.findings("review-correctness-t1", [self.finding("f1")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1")])
+        for u in actions:
             if u == "review-security":
-                lensctl.cmd_record(self.run, "x", "not_applicable", "no trust boundary", unit=u)
+                lensctl.cmd_record(self.run, "x", "not_applicable", "no trust boundary", task_action=u)
             else:
                 self.done(u)
         self.assertEqual(self.group()["retired"], ["review-security"])
-        self.assertEqual(self.group()["units"]["review-security"]["status"], "done")
+        self.assertEqual(self.group()["task_actions"]["review-security"]["status"], "done")
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         fix = self.next()
         self.edit("a/a.go", "package x\n// fixed\n")
-        self.done(fix["unit"])
+        self.done(fix["task_action"])
         rereview, _ = self.dispatch_all()
-        self.assertEqual([u["unit"].split("-e")[0] for u in rereview], ["review-correctness-t1"])
+        self.assertEqual([u["task_action"].split("-e")[0] for u in rereview], ["review-correctness"])
         self.assertEqual(settle.report(lensctl.load(self.run))["review-1"]["retired"], ["review-security"])
 
-    def test_not_applicable_retires_only_that_task(self):
-        units, _ = self.review_round()
-        self.findings("review-correctness-t2", [self.finding("f1", file="b/b.go")])
-        for u in units:
-            if u == "review-correctness-t1":
-                lensctl.cmd_record(self.run, "x", "not_applicable", "nothing here", unit=u)
+    def test_not_applicable_retires_only_that_boundary(self):
+        self.writer_group()
+        actions, _ = self.review_round()
+        self.findings("contract-test-blob-store", [self.finding("f1", lens="contract-test")])
+        for key in actions:
+            if key == "contract-test-api":
+                lensctl.cmd_record(self.run, "x", "not_applicable", "nothing here", task_action=key)
             else:
-                self.done(u)
-        self.assertEqual(self.group()["retired"], ["review-correctness:t1"])
+                self.done(key)
+        self.assertEqual(self.group()["retired"], ["contract-test:api"])
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         fix = self.next()
         self.edit("a/a.go", "package x\n// fixed\n")
         self.edit("b/b.go", "package x\n// fixed\n")
-        self.done(fix["unit"])
+        self.done(fix["task_action"])
         rereview, _ = self.dispatch_all()
-        self.assertEqual(sorted(u["unit"].split("-e")[0] for u in rereview), ["review-correctness-t2", "review-security"])
+        self.assertEqual(sorted(u["task_action"].split("-e")[0] for u in rereview), ["contract-test-blob-store", "e2e-test"])
 
     def test_radius_not_applicable_does_not_retire(self):
-        units, _ = self.review_round()
-        self.findings("review-correctness-t1", [self.finding("f1")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1")])
+        for u in actions:
             self.done(u)
         tri = self.next()
         self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": True, "class": "defect"}])
-        self.done(tri["unit"])
+        self.done(tri["task_action"])
         fix = self.next()
         self.edit("a/a.go", "package x\n// fixed\n")
-        self.done(fix["unit"])
+        self.done(fix["task_action"])
         rereview, _ = self.dispatch_all()
-        sec = next(u["unit"] for u in rereview if u["unit"].startswith("review-security"))
-        lensctl.cmd_record(self.run, "x", "not_applicable", "none in radius", unit=sec)
+        sec = next(u["task_action"] for u in rereview if u["task_action"].startswith("review-security"))
+        lensctl.cmd_record(self.run, "x", "not_applicable", "none in radius", task_action=sec)
         self.assertEqual(self.group()["retired"], [])
 
     def test_not_applicable_from_a_triage_unit_is_rejected(self):
-        units, _ = self.review_round()
-        self.findings("review-correctness-t1", [self.finding("f1")])
-        for u in units:
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1")])
+        for u in actions:
             self.done(u)
         tri = self.next()
         with self.assertRaises(lensctl.LensError):
-            lensctl.cmd_record(self.run, "x", "not_applicable", "", unit=tri["unit"])
+            lensctl.cmd_record(self.run, "x", "not_applicable", "", task_action=tri["task_action"])
 
     def test_unit_dispute_rewinds_to_earlier_lens(self):
-        units, _ = self.review_round()
-        with open(os.path.join(self.run, "disputes", f"{units[0]}-1.json"), "w") as f:
+        actions, _ = self.review_round()
+        with open(os.path.join(self.run, "disputes", f"{actions[0]}-1.json"), "w") as f:
             json.dump({"target_lens": "plan", "claim": "task split is wrong", "evidence": "x"}, f)
-        out = lensctl.cmd_record(self.run, "x", "blocked", unit=units[0])
+        out = lensctl.cmd_record(self.run, "x", "blocked", task_action=actions[0])
         self.assertEqual(out["rewound_to"], "plan")
         self.assertNotIn("review-1", lensctl.load(self.run).get("settle", {}))
 
@@ -458,15 +465,15 @@ class TwoGroupTest(SettleCase):
     ])
 
     def triage_group(self, group, lens, fid):
-        units, _ = self.review_round()
-        self.assertEqual(units, [lens])
+        actions, _ = self.review_round()
+        self.assertEqual(actions, [lens])
         epoch = lensctl.load(self.run)["settle"][group]["epochs"][-1]
         self.findings(lens, [{"id": fid, "lens": lens, "location": {"file": "a/a.go", "line": 1},
                               "claim": "bug", "evidence": "e", "epoch": epoch}])
         self.done(lens)
         tri = self.next()
         self.triaged([{"id": fid, "sources": [fid], "verdict": "dropped"}])
-        return tri["unit"]
+        return tri["task_action"]
 
     def test_triage_units_are_unique_across_groups(self):
         first = self.triage_group("review-1", "review-security", "f1")

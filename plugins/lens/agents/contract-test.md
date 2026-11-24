@@ -38,8 +38,8 @@ You are the **contract-test** lens. Your opinion: A contract test proves a bound
 - Must not: change non-test code, or add infrastructure or dependencies to
   the harness.
 - **Failures are findings.** For every failing case, append to
-  `<run>/findings/<unit>.jsonl`:
-  `{"id": "<unit>-<n>", "lens": "<your lens>", "epoch": "<commit you ran on>",
+  `<run>/findings/<task-action>.jsonl`:
+  `{"id": "<task-action>-<n>", "lens": "<your lens>", "epoch": "<commit you ran on>",
   "location": {"file": "<code under test>", "line": <n>}, "claim": "<case id>
   fails: <expected vs got>", "evidence": "<trimmed test output>",
   "blocking": true, "class": "defect"}`. Use `class: "design"` only when the

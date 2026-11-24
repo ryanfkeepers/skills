@@ -27,7 +27,7 @@ points at anything shared or remote (a shared database, a staging URL, cloud
 credentials), stop before running. Append `{"question": "The <tier> harness
 targets <what>. Run it anyway?", "options": ["skip this tier", "run it"],
 "recommendation": "skip this tier", "answer": null}` to
-`<run>/qa/<unit>.jsonl` and return `needs_input`.
+`<run>/qa/<task-action>.jsonl` and return `needs_input`.
 
 ## No harness
 
@@ -46,8 +46,8 @@ If the repo has no harness for this tier, write no tests. Append
 - Must not: change non-test code, or add infrastructure or dependencies to
   the harness.
 - **Failures are findings.** For every failing case, append to
-  `<run>/findings/<unit>.jsonl`:
-  `{"id": "<unit>-<n>", "lens": "<your lens>", "epoch": "<commit you ran on>",
+  `<run>/findings/<task-action>.jsonl`:
+  `{"id": "<task-action>-<n>", "lens": "<your lens>", "epoch": "<commit you ran on>",
   "location": {"file": "<code under test>", "line": <n>}, "claim": "<case id>
   fails: <expected vs got>", "evidence": "<trimmed test output>",
   "blocking": true, "class": "defect"}`. Use `class: "design"` only when the

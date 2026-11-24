@@ -25,7 +25,7 @@ workspace, and the conventions core for those files.
 
 ## Writes
 
-`<run>/fixes/<unit>.json`: `{"<finding id>": ["<file#symbol changed>"]}`.
+`<run>/fixes/<task-action>.json`: `{"<finding id>": ["<file#symbol changed>"]}`.
 
 ## Must not
 

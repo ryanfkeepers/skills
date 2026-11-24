@@ -30,7 +30,7 @@ user's answer on a design finding. Follow it exactly.
 
 ## Writes
 
-`<run>/fixes/<unit>.json`: `{"<finding id>": ["<file#symbol changed>"]}`.
+`<run>/fixes/<task-action>.json`: `{"<finding id>": ["<file#symbol changed>"]}`.
 
 ## Must not
 
@@ -40,7 +40,7 @@ user's answer on a design finding. Follow it exactly.
   decision says to.
 - Add comments, or weaken or delete a test to make it pass.
 - When a finding can only be fixed by changing the design, don't improvise.
-  Write `disputes/<unit>-<n>.json` (`target_lens: "design"`) and return
+  Write `disputes/<task-action>-<n>.json` (`target_lens: "design"`) and return
   `blocked`.
 
 ## Reply

@@ -1,14 +1,16 @@
 """Settlement: concurrent read-only reviewers, one writer, re-review by radius.
 
-Reviewers read a pinned epoch (a commit id of the run's single revision) and
-append findings to findings/<unit>.jsonl. Triage validates and classifies them
-in batches into findings/triaged.jsonl. One writer at a time applies queued
-findings: fix in the blocking pass, review-patcher in the deferred pass. Each
-write is a new epoch; its changed files plus their 1-hop graph neighbors are
-the radius, and every reviewer whose scope touches the radius re-reviews just
-that radius. Design findings, and findings that keep coming back, go to the
-user as decisions. A pass is settled when nothing runs, nothing is queued, and
-the last epoch produced no confirmed findings.
+The build's tasks end at the grid. Settlement sees one change: the run's single
+revision, checked before a group starts. Reviewers read a pinned epoch (a
+commit id of that revision) and append findings to
+findings/<task-action>.jsonl. Triage validates and classifies them in batches
+into findings/triaged.jsonl. One writer at a time applies queued findings: fix
+in the blocking pass, review-patcher in the deferred pass. Each write is a new
+epoch; its changed files plus their 1-hop graph neighbors are the radius, and
+every reviewer whose scope touches the radius re-reviews just that radius.
+Design findings, and findings that keep coming back, go to the user as
+decisions. A pass is settled when nothing runs, nothing is queued, and the
+last epoch produced no confirmed findings.
 """
 import json
 import os
@@ -78,8 +80,14 @@ def workspace(run):
     return read_json(os.path.join(run, "workspace.json"))["path"]
 
 
-def task_targets(run):
-    return {tid: set(grid.target_files(t)) for tid, t in grid.load_tasks(run).items()}
+def assert_one_revision(run):
+    """Reviewers diff base_commit..epoch as one change, so the run must be exactly one revision."""
+    ws = read_json(os.path.join(run, "workspace.json"))
+    revs = cores.jj(ws["path"], "log", "--no-graph", "-r", f"{ws['base_commit']}..@",
+                    "-T", 'commit_id ++ "\\n"').split()
+    if len(revs) != 1:
+        raise cores.CoreError(f"the run must be one revision on {ws['base_commit'][:12]}, "
+                              f"found {len(revs)}")
 
 
 def boundaries(run):
@@ -93,8 +101,8 @@ def boundaries(run):
     return out
 
 
-def new_unit(lens, kind, params, task=None):
-    return {"lens": lens, "kind": kind, "task": task, "status": "pending", "attempts": 0,
+def new_task_action(lens, kind, params):
+    return {"lens": lens, "kind": kind, "status": "pending", "attempts": 0,
             "params": params, "respawn": False}
 
 
@@ -127,48 +135,48 @@ def deselected(run, e):
     return out
 
 
-def retire_key(lens, scope=None):
-    """Identity of a lens for retirement: the lens, narrowed by task or boundary when it runs per unit."""
-    return f"{lens}:{scope}" if scope else lens
+def retire_key(lens, boundary=None):
+    """Identity of a lens for retirement: the lens, narrowed by boundary when it runs per boundary."""
+    return f"{lens}:{boundary}" if boundary else lens
 
 
-def unit_retire_key(u):
-    return retire_key(u["lens"], u.get("task") or u["params"].get("boundary"))
+def action_retire_key(ta):
+    return retire_key(ta["lens"], ta["params"].get("boundary"))
 
 
 def retire(s, key):
-    """The unit reported not_applicable: retire its lens and cancel its queued re-reviews.
+    """The task-action reported not_applicable: retire its lens and cancel its queued re-reviews.
 
     Only a full-scope review can retire a lens. A radius review saw a few files, so its
     not_applicable says nothing about the rest of the change.
     """
-    u = s["units"][key]
-    u["status"] = "done"
-    if u["params"].get("scope") == "radius":
+    ta = s["task_actions"][key]
+    ta["status"] = "done"
+    if ta["params"].get("scope") == "radius":
         return
-    rk = unit_retire_key(u)
+    rk = action_retire_key(ta)
     s.setdefault("retired", [])
     if rk not in s["retired"]:
         s["retired"].append(rk)
-    for other in s["units"].values():
-        if other["kind"] == "review" and other["status"] == "pending" and unit_retire_key(other) == rk:
+    for other in s["task_actions"].values():
+        if other["kind"] == "review" and other["status"] == "pending" and action_retire_key(other) == rk:
             other["status"] = "done"
 
 
 def init(run, st, name, e):
+    assert_one_revision(run)
     ws = workspace(run)
     epoch = grid.commit_of_workspace(ws)
     feedback = consume_feedback(run, name)
     if feedback:
         st.setdefault("settle", {})[name] = {
-            "pass": "blocking", "epochs": [epoch], "units": {}, "untriaged": [], "seq": 0, "new_findings": 0,
-            "retired": [], "deselected": {},
+            "pass": "blocking", "epochs": [epoch], "task_actions": {}, "untriaged": [], "seq": 0,
+            "new_findings": 0, "retired": [], "deselected": {},
             "items": {r["id"]: {"state": "queued", "blocking": True, "rounds": 0, "class": "defect",
                                 "decision": r.get("claim")} for r in feedback},
         }
         return
-    units = {}
-    tasks = sorted(task_targets(run)) if e.get("per_task") else []
+    actions = {}
     bounds = boundaries(run) if e.get("per_boundary") else {}
     dropped = deselected(run, e)
     for lens in e["lenses"]:
@@ -176,26 +184,25 @@ def init(run, st, name, e):
             continue
         if lens in e.get("per_boundary", []):
             for b in bounds:
-                units[f"{lens}-{b}"] = new_unit(lens, "review", {"epoch": epoch, "scope": "full", "boundary": b})
-        elif lens in e.get("per_task", []):
-            for tid in tasks:
-                units[f"{lens}-{tid}"] = new_unit(lens, "review", {"epoch": epoch, "scope": "full", "task": tid}, tid)
+                actions[f"{lens}-{b}"] = new_task_action(lens, "review",
+                                                         {"epoch": epoch, "scope": "full", "boundary": b})
         else:
-            units[lens] = new_unit(lens, "review", {"epoch": epoch, "scope": "full"})
+            actions[lens] = new_task_action(lens, "review", {"epoch": epoch, "scope": "full"})
     st.setdefault("settle", {})[name] = {
-        "pass": "blocking", "epochs": [epoch], "units": units, "untriaged": [],
+        "pass": "blocking", "epochs": [epoch], "task_actions": actions, "untriaged": [],
         "items": {}, "seq": 0, "new_findings": 0, "retired": [], "deselected": dropped,
     }
 
 
 def next_key(s, prefix):
-    """Unit key unique across the run: callers prefix the group name, since units are looked up run-wide."""
+    """Task-action key unique across the run: callers prefix the group name, since keys are looked up run-wide."""
     s["seq"] += 1
     return f"{prefix}-{s['seq']}"
 
 
 def busy(s, kinds):
-    return [k for k, u in s["units"].items() if u["kind"] in kinds and u["status"] in ("running", "needs_input")]
+    return [k for k, ta in s["task_actions"].items()
+            if ta["kind"] in kinds and ta["status"] in ("running", "needs_input")]
 
 
 def running_count(s):
@@ -207,17 +214,17 @@ def running_count(s):
 
 def next_action(run, st, name, e, max_agents):
     s = st["settle"][name]
-    for key, u in s["units"].items():
-        if u["status"] == "needs_input":
-            return {"action": "relay", "lens": u["lens"], "unit": key, "respawn": u["respawn"]}
+    for key, ta in s["task_actions"].items():
+        if ta["status"] == "needs_input":
+            return {"action": "relay", "lens": ta["lens"], "task_action": key, "respawn": ta["respawn"]}
     for kind in ("triage", "fix"):
-        retry = [k for k, u in s["units"].items() if u["kind"] == kind and u["status"] == "pending"]
+        retry = [k for k, ta in s["task_actions"].items() if ta["kind"] == kind and ta["status"] == "pending"]
         if retry and not busy(s, (kind,)):
             return dispatch(s, retry[0])
     if s["untriaged"] and not busy(s, ("triage",)):
         key = next_key(s, f"{name}-triage")
         epoch = s["epochs"][-1]
-        s["units"][key] = new_unit("triage", "triage", {
+        s["task_actions"][key] = new_task_action("triage", "triage", {
             "findings": list(s["untriaged"]), "epoch": epoch, "pass": s["pass"],
             "stale": stale_ids(run, s, epoch)})
         s["untriaged"] = []
@@ -230,10 +237,11 @@ def next_action(run, st, name, e, max_agents):
         key = next_key(s, f"{name}-{fixer}")
         for i in batch:
             s["items"][i]["state"] = "fixing"
-        s["units"][key] = new_unit(fixer, "fix", {"findings": batch, "epoch": s["epochs"][-1], "pass": s["pass"]})
+        s["task_actions"][key] = new_task_action(fixer, "fix",
+                                                 {"findings": batch, "epoch": s["epochs"][-1], "pass": s["pass"]})
         return dispatch(s, key)
-    for key, u in s["units"].items():
-        if u["status"] == "pending" and u["kind"] == "review" and running_count(s) < max_agents \
+    for key, ta in s["task_actions"].items():
+        if ta["status"] == "pending" and ta["kind"] == "review" and running_count(s) < max_agents \
                 and not (writers and busy(s, ("fix",))):
             return dispatch(s, key)
     if running_count(s):
@@ -251,10 +259,10 @@ def next_action(run, st, name, e, max_agents):
 
 
 def dispatch(s, key):
-    u = s["units"][key]
-    u.update(status="running", attempts=u["attempts"] + 1, respawn=False)
-    return {"action": "dispatch", "lens": u["lens"], "unit": key, "task": u["task"],
-            "agent": f"lens:{u['lens']}", "params": u["params"], "attempt": u["attempts"]}
+    ta = s["task_actions"][key]
+    ta.update(status="running", attempts=ta["attempts"] + 1, respawn=False)
+    return {"action": "dispatch", "lens": ta["lens"], "task_action": key,
+            "agent": f"lens:{ta['lens']}", "params": ta["params"], "attempt": ta["attempts"]}
 
 
 def stale_ids(run, s, epoch):
@@ -271,8 +279,8 @@ def stale_ids(run, s, epoch):
 
 
 def find_raw(run, s, fid):
-    for key, u in s["units"].items():
-        if u["kind"] != "review":
+    for key, ta in s["task_actions"].items():
+        if ta["kind"] != "review":
             continue
         for row in read_jsonl(os.path.join(run, "findings", f"{key}.jsonl")):
             if row.get("id") == fid:
@@ -285,22 +293,22 @@ def find_raw(run, s, fid):
 
 def record_done(run, st, name, e, key):
     s = st["settle"][name]
-    u = s["units"][key]
-    u["status"] = "done"
-    if u["kind"] == "review":
+    ta = s["task_actions"][key]
+    ta["status"] = "done"
+    if ta["kind"] == "review":
         ids = [r["id"] for r in read_jsonl(os.path.join(run, "findings", f"{key}.jsonl")) if r.get("id")]
         s["untriaged"] += [i for i in ids if i not in s["items"] and i not in s["untriaged"]]
         return {}
-    if u["kind"] == "triage":
-        return ingest_triage(run, s, u)
+    if ta["kind"] == "triage":
+        return ingest_triage(run, s, ta)
     return after_write(run, st, name, e, key)
 
 
-def ingest_triage(run, s, u):
+def ingest_triage(run, s, ta):
     asked = []
     for row in read_jsonl(os.path.join(run, "findings", "triaged.jsonl")):
         fid = row.get("id")
-        if not fid or fid in s["items"] or not set(row.get("sources", [fid])) & set(u["params"]["findings"]):
+        if not fid or fid in s["items"] or not set(row.get("sources", [fid])) & set(ta["params"]["findings"]):
             continue
         if row.get("verdict") != "confirmed":
             s["items"][fid] = {"state": "dropped", "blocking": False, "rounds": 0}
@@ -339,19 +347,19 @@ def decision(s, fid, row, why):
         q = {"question": f"This finding came back after {MAX_ROUNDS} fix rounds: {row.get('claim')}",
              "options": ["try again", "accept as is", "stop the run"],
              "recommendation": "accept as is", "rendering": row.get("evidence", "")}
-    s["units"][key] = dict(new_unit("decision", "decision", {"finding": fid, "why": why}),
-                           status="needs_input", question=dict(q, answer=None))
+    s["task_actions"][key] = dict(new_task_action("decision", "decision", {"finding": fid, "why": why}),
+                                  status="needs_input", question=dict(q, answer=None))
     return key
 
 
 def answer_decision(s, key, answer):
-    u = s["units"][key]
-    item = s["items"][u["params"]["finding"]]
-    u["question"]["answer"] = answer
-    u["status"] = "done"
+    ta = s["task_actions"][key]
+    item = s["items"][ta["params"]["finding"]]
+    ta["question"]["answer"] = answer
+    ta["status"] = "done"
     a = answer.lower()
     if a.startswith("stop"):
-        return {"halt": f"user stopped the run on finding {u['params']['finding']}"}
+        return {"halt": f"user stopped the run on finding {ta['params']['finding']}"}
     if a.startswith(("leave", "accept")):
         item["state"] = "dismissed"
     else:
@@ -361,8 +369,8 @@ def answer_decision(s, key, answer):
 
 def after_write(run, st, name, e, key):
     s = st["settle"][name]
-    u = s["units"][key]
-    for fid in u["params"]["findings"]:
+    ta = s["task_actions"][key]
+    for fid in ta["params"]["findings"]:
         s["items"][fid]["state"] = "fixed"
     ws = workspace(run)
     prev, new = s["epochs"][-1], grid.commit_of_workspace(ws)
@@ -375,7 +383,6 @@ def after_write(run, st, name, e, key):
     changed = grid.changed_files(ws, prev, new)
     rad = refresh_and_radius(run, changed)
     s["new_findings"] = 0
-    targets = task_targets(run)
     bounds = boundaries(run) if e.get("per_boundary") else {}
     rad_dirs = {os.path.dirname(f) for f in rad}
     retired = set(s.get("retired", []))
@@ -387,28 +394,21 @@ def after_write(run, st, name, e, key):
             for b, pkg in bounds.items():
                 if pkg in rad_dirs and retire_key(lens, b) not in retired:
                     rk = next_key(s, f"{lens}-{b}-e{len(s['epochs']) - 1}")
-                    s["units"][rk] = new_unit(lens, "review", {"epoch": new, "scope": "radius", "radius": rad,
-                                                                "boundary": b})
-        elif lens in e.get("per_task", []):
-            for tid, files in targets.items():
-                hit = sorted(files & set(rad))
-                if hit and retire_key(lens, tid) not in retired:
-                    rk = next_key(s, f"{lens}-{tid}-e{len(s['epochs']) - 1}")
-                    s["units"][rk] = new_unit(lens, "review", {"epoch": new, "scope": "radius", "radius": rad,
-                                                                "task": tid}, tid)
+                    s["task_actions"][rk] = new_task_action(lens, "review", {"epoch": new, "scope": "radius",
+                                                                             "radius": rad, "boundary": b})
         elif rad and retire_key(lens) not in retired:
             rk = next_key(s, f"{lens}-e{len(s['epochs']) - 1}")
-            s["units"][rk] = new_unit(lens, "review", {"epoch": new, "scope": "radius", "radius": rad})
+            s["task_actions"][rk] = new_task_action(lens, "review", {"epoch": new, "scope": "radius", "radius": rad})
     return {"epoch": new, "radius": rad}
 
 
 def record_failed(st, name, key, retries):
     s = st["settle"][name]
-    u = s["units"][key]
-    if u["attempts"] > retries:
-        u["status"] = "failed"
+    ta = s["task_actions"][key]
+    if ta["attempts"] > retries:
+        ta["status"] = "failed"
         return {"halt": f"{key} failed twice"}
-    u["status"] = "pending"
+    ta["status"] = "pending"
     return {}
 
 
@@ -423,5 +423,5 @@ def report(st):
         out[name] = {"epochs": len(s["epochs"]) - 1, "findings": states,
                      "retired": sorted(s.get("retired", [])), "deselected": s.get("deselected", {}),
                      "fix_rounds": sum(it["rounds"] for it in s["items"].values()),
-                     "units": len(s["units"])}
+                     "task_actions": len(s["task_actions"])}
     return out

@@ -15,7 +15,6 @@ reviewer is a missed defect. When in doubt, keep the lens.
 
 - The change: in `workspace.path` (`LENSCTL info --run <run>`),
   `jj diff --from <workspace.base_commit> --to @`.
-- `<run>/tasks/*.json`: what each task builds and which files it touches.
 - The graph snapshot (`snapshot.live`), to see what the touched files call
   and what calls them. A neighbor's concurrency, I/O, or trust boundary counts
   as the change's when the change reaches it.

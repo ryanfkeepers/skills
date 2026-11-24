@@ -20,17 +20,15 @@ whole-repo operations happen here.
 
 ## On failure
 
-Don't fix code. Find the task whose target files hold each failure (from
-`<run>/tasks/*.json`). For each owning task, write
-`disputes/green-<n>.json` with `{"target_lens": "<cell>", "task": "<task
-id>", "claim": "<what failed>", "evidence": "<command output, trimmed>"}`,
-then return `blocked`. Pick `<cell>` by where the failure is:
+Don't fix code. The build is one change now, not a set of tasks. For each
+failure, write `disputes/green-<n>.json` with `{"target_lens": "<cell>",
+"claim": "<what failed>", "evidence": "<command output, trimmed>"}`, then
+return `blocked`. Pick `<cell>` by where the failure is:
 - `implement` for code that doesn't compile, vet, or behave
-- `unit-test` for a failure only in that task's test files
+- `unit-test` for a failure only in test files
 
-Only those tasks are rechecked, from that cell onward. Every other task
-stays settled. When no task owns a failure, return `failed` with the output
-in your summary.
+lensctl rechecks that cell, and every cell after it, for every task. When a
+failure fits neither cell, return `failed` with the output in your summary.
 
 ## Must not
 

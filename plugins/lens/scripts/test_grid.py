@@ -240,27 +240,59 @@ class GridTest(unittest.TestCase):
         self.assertEqual(out["rewound_to"], "design")
         self.assertIsNone(lensctl.load(self.run)["grid"])
 
-    def test_green_dispute_rechecks_only_the_owning_task(self):
-        self.tasks({"id": "t1", "target": ["a/a.go"]}, {"id": "t2", "target": ["b/b.go"], "blocked_by": ["t1"]})
+    def test_green_dispute_rechecks_that_cell_for_every_task(self):
+        self.tasks({"id": "t1", "target": ["a/a.go"]}, {"id": "t2", "target": ["b/b.go"], "blocked_by": ["t1"]},
+                   {"id": "t3", "kind": "test", "target": ["a/a_bench_test.go"]})
         self.run_task("t1", ["a/a.go"], ["a/a_test.go"])
         self.run_task("t2", ["b/b.go"], ["b/b_test.go"])
+        self.assertEqual(self.dispatch(), ("t3", "implement"))
+        self.write("a/a_bench_test.go")
+        self.record("t3", "implement")
         self.assertEqual(lensctl.cmd_next(self.run)["lens"], "green")
         with open(os.path.join(self.run, "disputes", "green-1.json"), "w") as f:
-            json.dump({"target_lens": "implement", "task": "t2", "claim": "vet fails in b.go", "evidence": "x"}, f)
+            json.dump({"target_lens": "unit-test", "claim": "b_test.go fails", "evidence": "x"}, f)
         out = lensctl.cmd_record(self.run, "green", "blocked")
-        self.assertEqual(out["rechecking"], ["implement-t2"])
+        self.assertEqual(out["rechecking"], ["unit-test", "test-coverage"])
         st = lensctl.load(self.run)
-        self.assertTrue(grid.settled(st["grid"]["tasks"]["t1"]))
-        self.assertEqual(st["grid"]["tasks"]["t2"]["cells"]["scaffold"]["status"], "done")
+        for tid in ("t1", "t2"):
+            cells = st["grid"]["tasks"][tid]["cells"]
+            self.assertEqual([cells[c]["status"] for c in CELLS], ["done", "done", "pending", "pending"])
+        self.assertTrue(grid.settled(st["grid"]["tasks"]["t3"]))
         self.assertEqual(st["lenses"]["green"]["status"], "pending")
-        self.assertEqual(self.dispatch(), ("t2", "implement"))
-        feedback = lensctl.cmd_disputes(self.run, "implement-t2")["disputes"]
-        self.assertEqual([d["claim"] for d in feedback], ["vet fails in b.go"])
-        for lens in ("implement", "unit-test", "test-coverage"):
-            if lens != "implement":
-                self.dispatch()
-            self.record("t2", lens)
+        feedback = lensctl.cmd_disputes(self.run, "unit-test")["disputes"]
+        self.assertEqual([d["claim"] for d in feedback], ["b_test.go fails"])
+        for tid in ("t1", "t2"):
+            for lens in ("unit-test", "test-coverage"):
+                self.assertEqual(self.dispatch(), (tid, lens))
+                self.record(tid, lens)
         self.assertEqual(lensctl.cmd_next(self.run)["lens"], "green")
+
+    # ---- test tasks ------------------------------------------------------
+
+    def test_test_task_runs_only_implement_and_may_write_its_tests(self):
+        self.tasks({"id": "t1", "kind": "test", "target": ["a/a_bench_test.go#BenchmarkA"]})
+        self.assertEqual(self.dispatch(), ("t1", "implement"))
+        self.write("a/a_bench_test.go")
+        self.assertEqual(self.record("t1", "implement")["status"], "done")
+        self.assertEqual(lensctl.cmd_next(self.run)["lens"], "green")
+        self.assertEqual(list(lensctl.load(self.run)["grid"]["tasks"]["t1"]["cells"]), ["implement"])
+
+    def test_test_task_may_not_write_code(self):
+        self.tasks({"id": "t1", "kind": "test", "target": ["a/a_bench_test.go"]})
+        self.dispatch()
+        self.write("a/a_bench_test.go")
+        self.write("a/a.go")
+        self.assertEqual(self.record("t1", "implement")["status"], "pending")
+        self.assertFalse(os.path.exists(os.path.join(self.ws, "a", "a.go")))
+
+    def test_code_task_implement_may_not_write_tests(self):
+        self.tasks({"id": "t1", "target": ["a/a.go", "a/a_test.go"]})
+        self.dispatch()
+        self.record("t1", "scaffold")
+        self.dispatch()
+        self.write("a/a.go")
+        self.write("a/a_test.go")
+        self.assertEqual(self.record("t1", "implement")["status"], "pending")
 
     def test_resume_requeues_running_cells(self):
         self.tasks({"id": "t1", "target": ["a/a.go"]})

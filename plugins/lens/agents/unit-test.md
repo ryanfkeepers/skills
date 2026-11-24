@@ -21,6 +21,9 @@ cover branches.
   (`LENSCTL core resolve --run <run> --kind conventions --paths <target files>`).
 - `<run>/coverage/<task>.json`, when present: uncovered branches from
   test-coverage. Cover them.
+- `LENSCTL disputes --run <run> --lens unit-test`: feedback from lenses after
+  the grid (e.g. a break no test caught) when your cell is reset. They concern
+  the whole change, so act on the rows that touch your targets.
 
 ## Do
 

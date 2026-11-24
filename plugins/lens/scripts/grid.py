@@ -1,9 +1,11 @@
 """The build grid: tasks x build lenses, scheduled from tasks/*.json.
 
 A task's cells run in lens order (scaffold, implement, unit-test,
-test-coverage). A task starts only after every task in its blocked_by has
-settled. Ready cells from different tasks run at the same time in the run's
-single workspace, unless their tasks share a file in shared_files. After each
+test-coverage). A test task (kind "test": the tests are the deliverable) gets
+only an implement cell, which writes its test targets. A task starts only
+after every task in its blocked_by has settled. Ready cells from different
+tasks run at the same time in the run's single workspace, unless their tasks
+share a file in shared_files. After each
 cell, the files it changed must be a subset of what that cell may touch;
 anything else is restored and the cell fails. A failed cell is retried alone,
 and a retry that passes alone counts as a spurious failure.
@@ -17,6 +19,7 @@ import cores
 TEST_PATTERNS = ("*_test.go", "test_*.py", "*_test.py", "*.test.*", "*.spec.*")
 TEST_DIRS = ("testdata/", "tests/", "__tests__/", "mocks/", "fakes/")
 WRITES = {"scaffold": "code", "implement": "code", "unit-test": "tests", "test-coverage": None}
+TEST_TASK_CELLS = ("implement",)
 
 
 def load_tasks(run):
@@ -39,6 +42,14 @@ def is_test(path):
     return any(fnmatch.fnmatch(base, p) for p in TEST_PATTERNS) or any(d in path for d in TEST_DIRS)
 
 
+def is_test_task(task):
+    return task.get("kind") == "test"
+
+
+def task_cells(task, cells):
+    return [c for c in cells if c in TEST_TASK_CELLS] if is_test_task(task) else list(cells)
+
+
 def fresh_cell():
     return {"status": "pending", "attempts": 0, "solo": False, "concurrent": False,
             "start_commit": None, "started_at": None, "ended_at": None, "respawn": False}
@@ -56,11 +67,12 @@ def init(run, st, cells):
         "cells": cells,
         "spurious": 0,
         "tasks": {tid: {
+            "kind": t.get("kind", "code"),
             "targets": target_files(t),
             "shared": sorted(set(t.get("shared_files", []))),
             "blocked_by": t.get("blocked_by", []),
             "coverage_rounds": 0,
-            "cells": {c: fresh_cell() for c in cells},
+            "cells": {c: fresh_cell() for c in task_cells(t, cells)},
         } for tid, t in tasks.items()},
     }
 
@@ -76,7 +88,7 @@ def running(grid):
 
 def next_cell(grid, task):
     for lens in grid["cells"]:
-        if task["cells"][lens]["status"] != "done":
+        if lens in task["cells"] and task["cells"][lens]["status"] != "done":
             return lens
     return None
 
@@ -130,27 +142,27 @@ def allowed(grid, tid, lens, concurrent_tids):
     """Files this cell may have changed, plus files cells running beside it may have changed."""
     task = grid["tasks"][tid]
     mine = set()
-    kind = WRITES.get(lens)
+    writes = WRITES.get(lens)
     for f in task["targets"] + task["shared"]:
-        if kind == "code" and not is_test(f):
+        if writes == "code" and (is_test_task(task) or not is_test(f)):
             mine.add(f)
     others = set()
     for other in concurrent_tids:
         t = grid["tasks"][other]
         others |= set(t["targets"]) | set(t["shared"])
-    return kind, mine, others
+    return writes, mine, others
 
 
 def out_of_bounds(grid, tid, lens, files, concurrent_tids):
-    kind, mine, others = allowed(grid, tid, lens, concurrent_tids)
+    writes, mine, others = allowed(grid, tid, lens, concurrent_tids)
     task_dirs = {os.path.dirname(f) for f in grid["tasks"][tid]["targets"]}
     bad = []
     for f in files:
         if f in others:
             continue
-        if kind == "code" and f in mine:
+        if writes == "code" and f in mine:
             continue
-        if kind == "tests" and is_test(f) and (os.path.dirname(f) in task_dirs or any(d in f for d in TEST_DIRS)):
+        if writes == "tests" and is_test(f) and (os.path.dirname(f) in task_dirs or any(d in f for d in TEST_DIRS)):
             continue
         bad.append(f)
     return bad

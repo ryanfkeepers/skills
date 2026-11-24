@@ -199,6 +199,9 @@ def next_action(run):
         if lens["status"] == "pending" and not e.get("implemented"):
             lens.update(status="skipped", note="not implemented")
             continue
+        if lens["status"] == "pending" and e.get("only_for") and not change_type_in(run, e["only_for"]):
+            lens.update(status="skipped", note=f"only for {', '.join(e['only_for'])} changes")
+            continue
         reuse = e.get("reuse_core")
         if lens["status"] == "pending" and reuse and not st.get("refresh") \
                 and cores.core_exists(lens_home(), st["repo_slug"], reuse):
@@ -245,6 +248,13 @@ def next_action(run):
                 "run": run, "attempt": lens["attempts"]}
     save(run, st)
     return {"action": "done"}
+
+
+def change_type_in(run, types):
+    """Whether the brief's change type is one of types. An unknown type counts as a match."""
+    path = os.path.join(run, "brief", "change_type.json")
+    kind = read_json(path).get("type") if os.path.exists(path) else None
+    return kind is None or kind in types
 
 
 def run_code_lens(run, st, name):
@@ -312,7 +322,7 @@ CODE_LENSES = {
 # ---- build grid ----------------------------------------------------------
 
 
-def unit_key(lens, task):
+def cell_key(lens, task):
     return f"{lens}-{task}" if task else lens
 
 
@@ -329,7 +339,7 @@ def grid_next(run, st, name):
                 if cell["status"] == "needs_input":
                     save(run, st)
                     return {"action": "relay", "lens": lens, "task": tid,
-                            "question": pending_question(run, unit_key(lens, tid)), "respawn": cell["respawn"]}
+                            "question": pending_question(run, cell_key(lens, tid)), "respawn": cell["respawn"]}
         cells = grid.ready(g, st["pipeline"].get("max_agents", 32))
         if cells:
             tid, lens = cells[0]
@@ -337,7 +347,7 @@ def grid_next(run, st, name):
         busy = grid.running(g)
         if busy:
             save(run, st)
-            return {"action": "wait", "running": [unit_key(lens, tid) for tid, lens in busy]}
+            return {"action": "wait", "running": [cell_key(lens, tid) for tid, lens in busy]}
         if all(grid.settled(t) for t in g["tasks"].values()):
             state.update(status="done", ended_at=now())
             save(run, st)
@@ -374,7 +384,7 @@ def grid_record(run, st, lens, task, status, summary):
     cell = g["tasks"][task]["cells"][lens]
     if cell["status"] not in ("running", "needs_input"):
         raise LensError(f"cell {lens} for {task} is {cell['status']}, not running")
-    key = unit_key(lens, task)
+    key = cell_key(lens, task)
     if status == "needs_input":
         rows = read_jsonl(qa_path(run, key))
         open_rows = [r for r in rows if r.get("answer") is None]
@@ -431,7 +441,7 @@ def coverage_round(run, g, task):
 def route_cell_dispute(run, lens, task):
     st = load(run)
     g = st["grid"]
-    key = unit_key(lens, task)
+    key = cell_key(lens, task)
     files = unrouted_disputes(run, st, key)
     if not files:
         raise LensError(f"cell {key} reported blocked with no new file in disputes/")
@@ -453,7 +463,8 @@ def route_cell_dispute(run, lens, task):
         save(run, st)
         return {"lens": lens, "task": task, "status": "failed", "halt": st["halt"]}
     for name in order[reset_from:]:
-        g["tasks"][task]["cells"][name] = grid.fresh_cell()
+        if name in g["tasks"][task]["cells"]:
+            g["tasks"][task]["cells"][name] = grid.fresh_cell()
     save(run, st)
     return {"lens": lens, "task": task, "status": "pending", "reset_from": order[reset_from]}
 
@@ -480,8 +491,8 @@ def settle_next(run, st, name):
         save(run, st)
         return None
     if out["action"] == "relay":
-        u = st["settle"][name]["units"][out["unit"]]
-        out["question"] = u["question"] if u["kind"] == "decision" else pending_question(run, out["unit"])
+        ta = st["settle"][name]["task_actions"][out["task_action"]]
+        out["question"] = ta["question"] if ta["kind"] == "decision" else pending_question(run, out["task_action"])
     if out["action"] == "dispatch":
         out["run"] = run
     out["group"] = name
@@ -497,26 +508,26 @@ def parallel_next(run, st, name):
     if not group:
         if e.get("per_slice"):
             slices = read_json(os.path.join(run, "stack.json")).get("slices", [])
-            units = {f"{e['lenses'][0]}-{i + 1}": settle.new_unit(e["lenses"][0], "review",
-                                                                 {"change_id": sl["change_id"], "slice": i + 1})
-                     for i, sl in enumerate(slices)}
+            actions = {f"{e['lenses'][0]}-{i + 1}": settle.new_task_action(
+                e["lenses"][0], "review", {"change_id": sl["change_id"], "slice": i + 1})
+                for i, sl in enumerate(slices)}
         else:
-            units = {lens: settle.new_unit(lens, "review", {}) for lens in e["lenses"]}
+            actions = {lens: settle.new_task_action(lens, "review", {}) for lens in e["lenses"]}
         group = {"pass": "parallel", "epochs": [], "untriaged": [], "items": {}, "seq": 0, "new_findings": 0,
-                 "units": units}
+                 "task_actions": actions}
         st["settle"][name] = group
         state.update(status="running", attempts=1, started_at=now())
-    for key, u in group["units"].items():
-        if u["status"] == "needs_input":
+    for key, ta in group["task_actions"].items():
+        if ta["status"] == "needs_input":
             save(run, st)
-            return {"action": "relay", "lens": u["lens"], "unit": key, "group": name,
-                    "question": pending_question(run, key), "respawn": u["respawn"]}
-    for key, u in group["units"].items():
-        if u["status"] == "pending":
+            return {"action": "relay", "lens": ta["lens"], "task_action": key, "group": name,
+                    "question": pending_question(run, key), "respawn": ta["respawn"]}
+    for key, ta in group["task_actions"].items():
+        if ta["status"] == "pending":
             out = dict(settle.dispatch(group, key), run=run, group=name)
             save(run, st)
             return out
-    busy = [k for k, u in group["units"].items() if u["status"] == "running"]
+    busy = [k for k, ta in group["task_actions"].items() if ta["status"] == "running"]
     if busy:
         save(run, st)
         return {"action": "wait", "running": busy}
@@ -525,89 +536,89 @@ def parallel_next(run, st, name):
     return None
 
 
-def settle_unit(st, unit):
+def find_task_action(st, task_action):
     for name, s in (st.get("settle") or {}).items():
-        if unit in s["units"]:
-            return name, s["units"][unit]
-    raise LensError(f"no settle unit {unit!r}")
+        if task_action in s["task_actions"]:
+            return name, s["task_actions"][task_action]
+    raise LensError(f"no task-action {task_action!r}")
 
 
-def settle_record(run, st, unit, status, summary):
-    name, u = settle_unit(st, unit)
-    if u["status"] not in ("running", "needs_input"):
-        raise LensError(f"unit {unit} is {u['status']}, not running")
+def settle_record(run, st, task_action, status, summary):
+    name, ta = find_task_action(st, task_action)
+    if ta["status"] not in ("running", "needs_input"):
+        raise LensError(f"task-action {task_action} is {ta['status']}, not running")
     e = entry(st, name)
     out = {}
     if status == "done" and e.get("scope") == "parallel":
-        write_summary(run, unit, summary)
-        u["status"] = "done"
+        write_summary(run, task_action, summary)
+        ta["status"] = "done"
     elif status == "done":
-        write_summary(run, unit, summary)
+        write_summary(run, task_action, summary)
         try:
-            out = settle.record_done(run, st, name, e, unit)
+            out = settle.record_done(run, st, name, e, task_action)
         except cores.CoreError as err:
             out = {"halt": str(err)}
     elif status == "not_applicable":
-        if u["kind"] != "review":
-            raise LensError(f"unit {unit} is a {u['kind']}; only a reviewer can report not_applicable")
-        write_summary(run, unit, summary)
+        if ta["kind"] != "review":
+            raise LensError(f"task-action {task_action} is a {ta['kind']}; only a reviewer can report not_applicable")
+        write_summary(run, task_action, summary)
         if e.get("scope") == "parallel":
-            u["status"] = "done"
+            ta["status"] = "done"
         else:
-            settle.retire(st["settle"][name], unit)
+            settle.retire(st["settle"][name], task_action)
     elif status == "failed":
-        out = settle.record_failed(st, name, unit, st["pipeline"].get("retries", 1))
+        out = settle.record_failed(st, name, task_action, st["pipeline"].get("retries", 1))
     elif status == "needs_input":
-        rows = read_jsonl(qa_path(run, unit))
+        rows = read_jsonl(qa_path(run, task_action))
         open_rows = [r for r in rows if r.get("answer") is None]
         if not open_rows:
-            raise LensError(f"unit {unit} reported needs_input with no open question in qa/{unit}.jsonl")
+            raise LensError(f"task-action {task_action} reported needs_input with no open question in qa/{task_action}.jsonl")
         open_rows[0].setdefault("asked_at", now())
-        write_jsonl(qa_path(run, unit), rows)
-        u["status"] = "needs_input"
+        write_jsonl(qa_path(run, task_action), rows)
+        ta["status"] = "needs_input"
     elif status == "blocked":
         save(run, st)
-        return route_dispute(run, unit, at=name)
+        return route_dispute(run, task_action, at=name)
     else:
         raise LensError(f"unknown status {status!r}")
     if out.get("halt"):
-        st["halt"] = {"lens": unit, "reason": out["halt"]}
+        st["halt"] = {"lens": task_action, "reason": out["halt"]}
     save(run, st)
-    return dict({"unit": unit, "status": u["status"], "halt": st["halt"]}, **{k: v for k, v in out.items() if k != "halt"})
+    return dict({"task_action": task_action, "status": ta["status"], "halt": st["halt"]}, **{k: v for k, v in out.items() if k != "halt"})
 
 
-def settle_answer(run, st, unit, answer):
-    name, u = settle_unit(st, unit)
-    if u["status"] != "needs_input":
-        raise LensError(f"unit {unit} is {u['status']}, not waiting for input")
-    if u["kind"] == "decision":
-        u["question"]["answered_at"] = now()
-        out = settle.answer_decision(st["settle"][name], unit, answer)
-        append_gate(run, unit, u["question"])
+def settle_answer(run, st, task_action, answer):
+    name, ta = find_task_action(st, task_action)
+    if ta["status"] != "needs_input":
+        raise LensError(f"task-action {task_action} is {ta['status']}, not waiting for input")
+    if ta["kind"] == "decision":
+        ta["question"]["answered_at"] = now()
+        out = settle.answer_decision(st["settle"][name], task_action, answer)
+        append_gate(run, task_action, ta["question"])
         if out.get("halt"):
-            st["halt"] = {"lens": unit, "reason": out["halt"]}
+            st["halt"] = {"lens": task_action, "reason": out["halt"]}
         save(run, st)
-        return {"unit": unit, "continue": "next"}
-    answer_row(run, unit, answer)
-    respawn = u["respawn"]
-    u.update(status="running", respawn=False)
+        return {"task_action": task_action, "continue": "next"}
+    answer_row(run, task_action, answer)
+    respawn = ta["respawn"]
+    ta.update(status="running", respawn=False)
     save(run, st)
-    return {"unit": unit, "continue": "respawn" if respawn else "send_message"}
+    return {"task_action": task_action, "continue": "respawn" if respawn else "send_message"}
 
 
-def append_gate(run, unit, question):
+def append_gate(run, task_action, question):
     """Decisions lensctl asks itself are logged as qa rows so the report counts them."""
-    rows = read_jsonl(qa_path(run, unit)) + [question]
-    write_jsonl(qa_path(run, unit), rows)
+    rows = read_jsonl(qa_path(run, task_action)) + [question]
+    write_jsonl(qa_path(run, task_action), rows)
 
 
 # ---- record --------------------------------------------------------------
 
 
-def cmd_record(run, lens, status, summary="", task=None, unit=None):
+def cmd_record(run, lens, status, summary="", task=None, task_action=None):
     st = load(run)
-    if unit:
-        return settle_record(run, st, unit, status, summary)
+    if task_action:
+        return settle_record(run, st, task_action, status, summary)
     if task:
         return grid_record(run, st, lens, task, status, summary)
     entry(st, lens)
@@ -669,10 +680,9 @@ def route_dispute(run, lens, at=None):
     for name in files:
         d = read_json(os.path.join(run, "disputes", name))
         target = d.get("target_lens")
-        cell = grid_cell_target(st, target, d.get("task"), here)
-        if cell:
-            st["disputes"].append({"file": name, "from": lens, "target": unit_key(*cell), "at": now()})
-            cells.append(cell)
+        if grid_cell_target(st, target, here):
+            st["disputes"].append({"file": name, "from": lens, "target": target, "at": now()})
+            cells.append(target)
             continue
         if target not in st["order"] or index_of(st, target) >= here and not (at is None and target == lens):
             st["halt"] = {"lens": lens, "reason": f"dispute {name} targets {target!r}, not an earlier lens"}
@@ -689,35 +699,35 @@ def route_dispute(run, lens, at=None):
     return recheck_cells(run, cells, reason=f"dispute from {lens}")
 
 
-def grid_cell_target(st, target, task, here):
-    """(cell lens, task) when a dispute names one task's build cell, from a lens after the grid."""
+def grid_cell_target(st, target, here):
+    """Whether a dispute from a lens after the grid names a build cell."""
     g = st.get("grid")
-    if not g or not task or task not in g["tasks"] or target not in g["cells"]:
-        return None
+    if not g or target not in g["cells"]:
+        return False
     build = next((n for n in st["order"] if entry(st, n).get("scope") == "grid"), None)
-    if build is None or index_of(st, build) >= here:
-        return None
-    return target, task
+    return build is not None and index_of(st, build) < here
 
 
 def recheck_cells(run, cells, reason):
-    """Scoped recheck: reset only the named tasks' cells (from the named cell on), reopen the grid,
-    and rerun every lens after it. Settled tasks stay settled."""
+    """After the grid the run is one change: reset the named cells, and every cell after
+    them, for every task that has them. Then reopen the grid and rerun every lens after it."""
     st = load(run)
     g = st["grid"]
     build = next(n for n in st["order"] if entry(st, n).get("scope") == "grid")
-    for lens, task in cells:
-        order = g["cells"]
-        for name in order[order.index(lens):]:
-            g["tasks"][task]["cells"][name] = grid.fresh_cell()
+    order = g["cells"]
+    reset = order[min(order.index(c) for c in cells):]
+    for task in g["tasks"].values():
+        for name in reset:
+            if name in task["cells"]:
+                task["cells"][name] = grid.fresh_cell()
     st["lenses"][build].update(status="running", ended_at=None)
     for name in st["order"][index_of(st, build) + 1:]:
         st["lenses"][name] = fresh_lens()
         (st.get("settle") or {}).pop(name, None)
     st["halt"] = None
-    st["rewinds"].append({"to": build, "cells": [unit_key(l, t) for l, t in cells], "reason": reason, "at": now()})
+    st["rewinds"].append({"to": build, "cells": reset, "reason": reason, "at": now()})
     save(run, st)
-    return {"rechecking": [unit_key(l, t) for l, t in cells], "reason": reason}
+    return {"rechecking": reset, "reason": reason}
 
 
 def cmd_disputes(run, lens):
@@ -734,15 +744,15 @@ def cmd_disputes(run, lens):
 # ---- relay ---------------------------------------------------------------
 
 
-def cmd_answer(run, lens, answer, task=None, unit=None):
+def cmd_answer(run, lens, answer, task=None, task_action=None):
     st = load(run)
-    if unit:
-        return settle_answer(run, st, unit, answer)
+    if task_action:
+        return settle_answer(run, st, task_action, answer)
     if task:
         cell = st["grid"]["tasks"][task]["cells"][lens]
         if cell["status"] != "needs_input":
             raise LensError(f"cell {lens} for {task} is {cell['status']}, not waiting for input")
-        answer_row(run, unit_key(lens, task), answer)
+        answer_row(run, cell_key(lens, task), answer)
         respawn = cell["respawn"]
         cell.update(status="running", respawn=False)
         save(run, st)
@@ -836,11 +846,11 @@ def cmd_resume(run):
         elif lens["status"] == "needs_input":
             lens["respawn"] = True
     for group in (st.get("settle") or {}).values():
-        for u in group["units"].values():
-            if u["status"] == "running":
-                u.update(status="pending", attempts=max(u["attempts"] - 1, 0))
-            elif u["status"] == "needs_input" and u["kind"] != "decision":
-                u["respawn"] = True
+        for ta in group["task_actions"].values():
+            if ta["status"] == "running":
+                ta.update(status="pending", attempts=max(ta["attempts"] - 1, 0))
+            elif ta["status"] == "needs_input" and ta["kind"] != "decision":
+                ta["respawn"] = True
     for task in (st.get("grid") or {}).get("tasks", {}).values():
         for cell in task["cells"].values():
             if cell["status"] == "running":
@@ -1035,14 +1045,14 @@ def build_parser():
     s.add_argument("--status", required=True, choices=["done", "needs_input", "failed", "blocked", "not_applicable"])
     s.add_argument("--summary", default="")
     s.add_argument("--task")
-    s.add_argument("--unit")
+    s.add_argument("--task-action")
 
     s = sub.add_parser("answer")
     s.add_argument("--run", required=True)
     s.add_argument("--lens", required=True)
     s.add_argument("--answer", required=True)
     s.add_argument("--task")
-    s.add_argument("--unit")
+    s.add_argument("--task-action")
 
     s = sub.add_parser("rewind")
     s.add_argument("--run", required=True)
@@ -1092,9 +1102,9 @@ def main(argv=None):
         elif a.cmd == "next":
             out = cmd_next(a.run)
         elif a.cmd == "record":
-            out = cmd_record(a.run, a.lens, a.status, a.summary, a.task, a.unit)
+            out = cmd_record(a.run, a.lens, a.status, a.summary, a.task, a.task_action)
         elif a.cmd == "answer":
-            out = cmd_answer(a.run, a.lens, a.answer, a.task, a.unit)
+            out = cmd_answer(a.run, a.lens, a.answer, a.task, a.task_action)
         elif a.cmd == "rewind":
             out = rewind(a.run, a.to, a.reason)
         elif a.cmd == "add-lens":

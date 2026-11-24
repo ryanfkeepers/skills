@@ -49,10 +49,10 @@ is missing.
 
 intake → workspace* → graph* → explore →
 design → design-trim → visualize-design → plan → build grid (scaffold,
-implement, unit-test, test-coverage per task) → green → negative-catch →
+implement, unit-test, test-coverage per task) → green → negative-catch (fixes only) →
 review-select → review set 1 →
 review set 2 → pseudolinter → vibediff → visualize-changes → docs ∥ comments
-→ scenarios → contract ∥ integration ∥ e2e tests → negative-catch → ticket → stack-shape →
+→ scenarios → contract ∥ integration ∥ e2e tests → negative-catch (fixes only) → ticket → stack-shape →
 describe (per slice) → apply-descriptions* → publish → wait → pr-followup →
 wait → pr-followup → run-report* → cleanup*
 
@@ -72,6 +72,10 @@ established lens. The report lists the ad-hoc lenses a run added.
 
 - **Build grid**:
   - A task starts once every task in its `blocked_by` has settled.
+  - A test task (`"kind": "test"`: the tests are the deliverable, such as a
+    benchmark) gets only an implement cell, which may write its test targets.
+    Routine tests for a code task are never a task; its unit-test cell
+    writes them.
   - Independent tasks run at once (up to 32 agents) in the single
     workspace, except tasks that share a file in `shared_files`.
   - After each cell, lensctl checks that the cell changed only files it was
@@ -80,13 +84,25 @@ established lens. The report lists the ad-hoc lenses a run added.
     spurious failure.
   - Whole-repo operations (tidy, codegen) run in `green`, which runs alone
     after the grid.
+- **After the grid** the run is one change, not a set of tasks. No lens
+  after the grid reviews, tests, or routes by task. A dispute that names a
+  build cell (from `green` or `negative-catch`) rechecks that cell, and every
+  cell after it, for every task.
+- **Change-type gates**: a lens with `only_for` in `pipeline.json` runs only
+  when `brief/change_type.json` is one of those types. An unknown type runs
+  it. Both negative-catch lenses are `only_for: ["fix"]`.
 - **Settlement** (both review sets and the second test set):
+  - Each group starts by checking that the run is exactly one revision on
+    `workspace.base_commit`, and halts otherwise.
+  - Every reviewer reviews the whole change once. Only contract-test fans
+    out, once per boundary. Each dispatched reviewer, triage, or fix is a
+    task-action.
   - Before review set 1, `review-select` rules out the reviewers with no
     surface in the change (`review-select.json`). It errs toward keeping a
     lens, and the `always` list in `pipeline.json` (correctness, conventions)
     is never dropped. A missing selection drops nothing.
   - A reviewer with nothing at all in scope replies `not_applicable`. When it
-    was a full-scope review, lensctl retires that lens (per task or boundary for per-unit lenses) for the rest
+    was a full-scope review, lensctl retires that lens (per boundary for contract-test) for the rest
     of the pass, so fix epochs don't re-dispatch it. Retirement resets on a
     rewind. The report lists dropped and retired lenses.
   - Reviewers read a pinned epoch (the run revision's commit id).
