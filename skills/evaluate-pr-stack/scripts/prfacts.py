@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import time
 
 # The stack walk is shared with the pr-stack-re-approval skill (same plugin).
 sys.path.insert(
@@ -36,13 +37,19 @@ GENERATED_PATHS = re.compile(
 )
 GENERATED_MARKER = re.compile(r"(Code generated .* DO NOT EDIT|DO NOT EDIT\.? ?This file (is|was) (auto)?generated)",
                               re.IGNORECASE)
+FAILED_CONCLUSIONS = {"FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ERROR"}
 ARTIFACT_LINK = re.compile(r"https://claude\.ai/(?:code/)?artifact/[A-Za-z0-9_-]+")
 
 THREADS_QUERY = """
 query($owner:String!, $repo:String!, $number:Int!, $after:String) {
   repository(owner:$owner, name:$repo) {
     pullRequest(number:$number) {
-      title body headRefOid
+      title body headRefOid mergeable
+      commits(last:1) { nodes { commit { statusCheckRollup { contexts(first:100) { nodes {
+        __typename
+        ... on CheckRun { name conclusion isRequired(pullRequestNumber:$number) }
+        ... on StatusContext { context state isRequired(pullRequestNumber:$number) }
+      } } } } } }
       comments(first:100) { nodes { body } }
       reviewThreads(first:100, after:$after) {
         pageInfo { hasNextPage endCursor }
@@ -144,7 +151,22 @@ def ai_threads(nodes):
     return out
 
 
-def cmd_facts(gh, repo, number):
+def failing_checks(pr):
+    """Checks on the head commit that failed, each flagged required or not."""
+    out = []
+    for commit in pr["commits"]["nodes"]:
+        rollup = commit["commit"]["statusCheckRollup"]
+        for c in (rollup["contexts"]["nodes"] if rollup else []):
+            if c["__typename"] == "CheckRun":
+                name, result = c["name"], c["conclusion"]
+            else:
+                name, result = c["context"], c["state"]
+            if result in FAILED_CONCLUSIONS:
+                out.append({"name": name, "result": result, "required": bool(c["isRequired"])})
+    return out
+
+
+def cmd_facts(gh, repo, number, sleep=time.sleep):
     pr, threads = fetch_threads(gh, repo, number)
     oid = pr["headRefOid"]
     counted, generated = [], []
@@ -163,8 +185,12 @@ def cmd_facts(gh, repo, number):
     ai = ai_threads(threads)
     links = sorted(set(ARTIFACT_LINK.findall(pr["body"] or "")
                        + [m for c in pr["comments"]["nodes"] for m in ARTIFACT_LINK.findall(c["body"])]))
+    failing = failing_checks(pr)
     return {
         "title": pr["title"],
+        "mergeable": prstack.resolve_mergeable(gh, repo, number, pr["mergeable"], sleep),
+        "blocking_ci_failures": [c["name"] for c in failing if c["required"]],
+        "other_ci_failures": [c["name"] for c in failing if not c["required"]],
         "description": (pr["body"] or "")[:DESCRIPTION_LIMIT],
         "head": oid,
         "loc_counted": loc,

@@ -23,15 +23,18 @@ def thread(login, typename, resolved, body="fix this", path="a.go", line=3):
 
 
 class FakeGh:
-    def __init__(self, files, threads, body="", comments=(), raw=""):
+    def __init__(self, files, threads, body="", comments=(), raw="", mergeable="MERGEABLE", contexts=()):
         self.files, self.threads, self.body = files, threads, body
+        self.mergeable, self.contexts = mergeable, list(contexts)
         self.comments, self.raw, self.calls = comments, raw, []
 
     def __call__(self, args):
         self.calls.append(args)
         if args[0] == "api" and args[1] == "graphql":
             return json.dumps({"data": {"repository": {"pullRequest": {
-                "title": "t", "body": self.body, "headRefOid": OID,
+                "title": "t", "body": self.body, "headRefOid": OID, "mergeable": self.mergeable,
+                "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": self.contexts}}
+                                                  if self.contexts else None}}]},
                 "comments": {"nodes": [{"body": c} for c in self.comments]},
                 "reviewThreads": {"pageInfo": {"hasNextPage": False, "endCursor": None},
                                   "nodes": self.threads}}}}})
@@ -128,6 +131,35 @@ class VisualizationLinks(unittest.TestCase):
 
     def test_none(self):
         self.assertEqual(facts(files=[], threads=[], body=None)["visualization_links"], [])
+
+
+def check_run(name, conclusion, required):
+    return {"__typename": "CheckRun", "name": name, "conclusion": conclusion, "isRequired": required}
+
+
+def status(name, state, required):
+    return {"__typename": "StatusContext", "context": name, "state": state, "isRequired": required}
+
+
+class Blockers(unittest.TestCase):
+    def test_clean(self):
+        out = facts(files=[], threads=[])
+        self.assertEqual(out["mergeable"], "MERGEABLE")
+        self.assertEqual((out["blocking_ci_failures"], out["other_ci_failures"]), ([], []))
+
+    def test_conflict_is_reported(self):
+        self.assertEqual(facts(files=[], threads=[], mergeable="CONFLICTING")["mergeable"], "CONFLICTING")
+
+    def test_required_failure_blocks_optional_does_not(self):
+        out = facts(files=[], threads=[], contexts=[
+            check_run("build", "FAILURE", True),
+            check_run("lint", "TIMED_OUT", False),
+            status("ci/legacy", "ERROR", True),
+            check_run("test", "SUCCESS", True),
+            check_run("slow", None, True),
+        ])
+        self.assertEqual(out["blocking_ci_failures"], ["build", "ci/legacy"])
+        self.assertEqual(out["other_ci_failures"], ["lint"])
 
 
 class Cli(unittest.TestCase):
