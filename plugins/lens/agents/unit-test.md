@@ -16,6 +16,10 @@ branches.
 
 - `<run>/tasks.json`, for the plan's target files.
 - `<run>/impl/implement-full.json` and the target files, internals included.
+- `design/flow.json` and `design/decisions.json`, to judge a failing test
+  against the intended behavior.
+- `<run>/qa/<key>.jsonl`, when you are re-run after asking the user: the
+  answered row is the user's decision.
 - `<run>/scaffold/implement-interface.json` for dependencies you need to
   fake.
 - The conventions core `tests.md` for your targets
@@ -43,6 +47,45 @@ Then measure coverage, scoped to the packages you touched (for Go,
 reach. Do at most two measure-and-cover rounds. Leave out generated code and
 unreachable panics.
 
+## When a test fails
+
+A failure means the test is wrong, the design missed something, or the code
+has a bug. A dispute sends implement back through the whole pipeline, so rule
+out the first two before blaming the code. Which checks apply depends on
+whether the failing test is yours: read the workspace diff (`jj diff` on
+`@`). A test the diff adds or changes is **new**; one the diff leaves alone
+is **existing**.
+
+**New test** (you wrote it, or changed it):
+1. Re-read the test for its own mistakes: a wrong expectation, a fake that
+   misbehaves, setup the real code never sees.
+2. Compare what it asserts with what the code does and with
+   `design/flow.json`, to confirm the test encodes the intended behavior
+   rather than a misreading of it.
+3. Only when both hold, dispute.
+
+**Existing test** (the diff never touched it, so it passed before this
+change and the change broke it):
+1. Stale test: do the change's goals (`tasks.json`, `design/flow.json`) mean
+   this behavior was supposed to change, so the test should have moved with
+   it? Update the test only when that is plain. Otherwise leave it: editing a
+   passing test until it is green hides the regression it exists to catch.
+   Never edit a test task's cases, even here.
+2. Design gap: does the failure reveal a caller, state, or invariant that
+   `design/flow.json` and `design/decisions.json` never accounted for? Then
+   neither the test nor the code is clearly wrong, and the user owns the
+   call. Don't dispute and don't patch: append to `<run>/qa/<key>.jsonl`
+   `{"question": "<test, the behavior it protects, what the change did to
+   it>", "options": ["update the test", "dispute the code"],
+   "recommendation": "<your call>", "answer": null}` and return
+   `needs_input`. On a re-run, read the answered row first and do what it
+   says.
+3. Only when neither applies, dispute.
+
+To dispute, write `disputes/unit-test-<n>.json` with `{"target_lens":
+"implement", "claim": "<the bug>", "evidence": "<failing test and output>"}`
+and return `blocked`. Say in the evidence which checks above you ran.
+
 ## Writes
 
 `<run>/coverage.json`:
@@ -56,10 +99,8 @@ listing only what is still uncovered after your last round.
   are in or in `testdata/`, `tests/`, `__tests__/`, `mocks/`, `fakes/`, and
   asks the user what to do with anything else.
 - Add comments.
-- When a test shows a bug, don't bend the test. Write
-  `disputes/unit-test-<n>.json` with `{"target_lens": "implement", "claim":
-  "<the bug>", "evidence": "<failing test and output>"}` and return
-  `blocked`.
+- Bend a test to make it pass, or dispute the code before the checks under
+  "When a test fails" are done.
 - Create a revision. Write every change into the workspace's `@`; never
   run `jj new`, `jj commit`, or `jj squash`.
 
