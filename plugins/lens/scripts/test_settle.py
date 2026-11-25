@@ -73,10 +73,8 @@ class SettleCase(unittest.TestCase):
         self.run = lensctl.cmd_init(self.repo, "p", pipeline)["run"]
         out = lensctl.cmd_next(self.run)
         self.assertEqual(out["lens"], "plan")
-        os.makedirs(os.path.join(self.run, "tasks"))
-        for tid, target in (("t1", "a/a.go"), ("t2", "b/b.go")):
-            with open(os.path.join(self.run, "tasks", f"{tid}.json"), "w") as f:
-                json.dump({"id": tid, "target": [target]}, f)
+        with open(os.path.join(self.run, "tasks.json"), "w") as f:
+            json.dump({"tasks": [{"id": "t1", "target": ["a/a.go"]}, {"id": "t2", "target": ["b/b.go"]}]}, f)
         graph = os.path.join(self.run, "graph.json")
         with open(graph, "w") as f:
             json.dump(GRAPH, f)
@@ -149,6 +147,12 @@ class SettleTest(SettleCase):
         group = self.group()["task_actions"].values()
         self.assertTrue(all(ta["params"]["epoch"] == epoch for ta in group if "epoch" in ta["params"]))
         self.assertTrue(all("task" not in ta and "task" not in ta["params"] for ta in group))
+
+    def test_next_all_hands_out_every_ready_reviewer_then_waits(self):
+        out = lensctl.cmd_next_all(self.run)
+        self.assertEqual([a["action"] for a in out["actions"]], ["dispatch", "dispatch", "wait"])
+        self.assertEqual(sorted(a["lens"] for a in out["actions"][:2]), ["review-correctness", "review-security"])
+        self.assertEqual(lensctl.cmd_next_all(self.run)["actions"][0]["action"], "wait")
 
     def test_a_run_of_more_than_one_revision_halts(self):
         sh(self.ws, "jj", "new")
@@ -482,6 +486,150 @@ class TwoGroupTest(SettleCase):
         self.assertNotEqual(first, second)
         self.done(second)
         self.assertEqual(self.next()["lens"], "after")
+
+
+class RaisersTest(SettleCase):
+    PIPELINE = dict(PIPELINE, lenses=[
+        {"name": "workspace", "scope": "code", "implemented": True},
+        {"name": "plan", "scope": "run", "implemented": True},
+        {"name": "review-1", "scope": "settle", "implemented": True, "rerun": "raisers",
+         "lenses": ["review-correctness", "review-security", "review-performance"]},
+        {"name": "after", "scope": "run", "implemented": True},
+    ])
+
+    def raise_and_fix(self, actions, lens, fid, text, key=None, **row):
+        """One reviewer raises a blocking defect; triage confirms it; the fixer edits a/a.go."""
+        self.findings(key or lens, [self.finding(fid, lens=lens)])
+        for u in actions:
+            self.done(u)
+        tri = self.next()
+        self.triaged([dict({"id": fid, "sources": [fid], "verdict": "confirmed", "blocking": True,
+                            "class": "defect", "lens": lens, "claim": "bug"}, **row)])
+        self.done(tri["task_action"])
+        fix = self.next()
+        self.assertEqual(fix["lens"], "fix")
+        self.edit("a/a.go", f"package x\n// {text}\n")
+        return self.done(fix["task_action"])
+
+    def drain_clean(self, expect):
+        again, _ = self.dispatch_all()
+        self.assertEqual(sorted(u["lens"] for u in again), sorted(expect))
+        for u in again:
+            self.done(u["task_action"])
+        return again
+
+    def test_only_the_reviewer_that_raised_it_rereviews_the_radius(self):
+        actions, _ = self.review_round()
+        self.raise_and_fix(actions, "review-security", "f1", "fixed")
+        again = self.drain_clean(["review-security"])
+        self.assertEqual(again[0]["params"]["scope"], "radius")
+        self.assertEqual(again[0]["params"]["radius"], ["a/a.go", "c/c.go"])
+
+    def test_sweep_reviews_the_whole_change_with_every_reviewer_then_settles(self):
+        actions, _ = self.review_round()
+        self.raise_and_fix(actions, "review-security", "f1", "fixed")
+        self.drain_clean(["review-security"])
+        sweep = self.drain_clean(["review-correctness", "review-security", "review-performance"])
+        self.assertTrue(all(u["params"]["scope"] == "full" for u in sweep))
+        self.assertTrue(all("-sweep2" in u["task_action"] for u in sweep))
+        self.assertEqual(self.next()["lens"], "after")
+
+    def test_a_clean_first_batch_needs_no_sweep(self):
+        actions, _ = self.review_round()
+        for u in actions:
+            self.done(u)
+        self.assertEqual(self.next()["lens"], "after")
+
+    def test_sweep_findings_loop_back_into_targeted_reruns(self):
+        actions, _ = self.review_round()
+        self.raise_and_fix(actions, "review-security", "f1", "one")
+        self.drain_clean(["review-security"])
+        sweep, _ = self.dispatch_all()
+        self.raise_and_fix([u["task_action"] for u in sweep], "review-performance", "f2", "two",
+                           key="review-performance-sweep2")
+        self.drain_clean(["review-performance"])
+        relay = self.next()
+        self.assertEqual(relay["action"], "relay")
+        self.assertEqual(self.group()["loop"], 2)
+
+    def two_loops(self):
+        actions, _ = self.review_round()
+        self.raise_and_fix(actions, "review-security", "f1", "one", eli5="The lock was never released.")
+        self.drain_clean(["review-security"])
+        sweep, _ = self.dispatch_all()
+        self.raise_and_fix([u["task_action"] for u in sweep], "review-performance", "f2", "two",
+                           key="review-performance-sweep2")
+        self.drain_clean(["review-performance"])
+        return self.next()
+
+    def test_every_second_loop_with_unswept_fixes_asks_the_user_with_a_table(self):
+        relay = self.two_loops()
+        self.assertEqual(relay["action"], "relay")
+        table = relay["question"]["rendering"]
+        self.assertIn("The lock was never released.", table)
+        self.assertLess(table.index("review-security"), table.index("review-performance"))
+        self.assertIn("fixed and re-checked by a full sweep", table)
+        self.assertIn("fixed, not yet re-checked by a full sweep", table)
+        self.assertEqual(relay["question"]["options"], ["continue", "stop here"])
+
+    def test_continue_starts_another_full_sweep(self):
+        relay = self.two_loops()
+        lensctl.cmd_answer(self.run, "x", "continue", task_action=relay["task_action"])
+        sweep, _ = self.dispatch_all()
+        self.assertEqual(sorted(u["lens"] for u in sweep),
+                         ["review-correctness", "review-performance", "review-security"])
+        self.assertEqual(self.group()["loop"], 3)
+
+    def test_stop_here_settles_without_another_sweep(self):
+        relay = self.two_loops()
+        lensctl.cmd_answer(self.run, "x", "stop here", task_action=relay["task_action"])
+        self.assertEqual(self.next()["lens"], "after")
+        report = lensctl.build_report(self.run, lensctl.load(self.run))
+        self.assertTrue(report["settle"]["review-1"]["stopped_unswept"])
+
+    def test_pre_existing_bug_is_stored_never_fixed_and_reported(self):
+        actions, _ = self.review_round()
+        self.findings("review-security", [self.finding("f1", lens="review-security")])
+        for u in actions:
+            self.done(u)
+        tri = self.next()
+        self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "pre_existing", "lens": "review-security",
+                       "claim": "old nil deref", "location": {"file": "b/b.go", "line": 9},
+                       "repro": "base b/b.go:9 derefs p unchecked"}])
+        self.done(tri["task_action"])
+        self.assertEqual(self.next()["lens"], "after")
+        report = lensctl.build_report(self.run, lensctl.load(self.run))
+        found = report["settle"]["review-1"]["pre_existing"]
+        self.assertEqual(found[0]["repro"], "base b/b.go:9 derefs p unchecked")
+        self.assertEqual(found[0]["location"], {"file": "b/b.go", "line": 9})
+        lines = lensctl.cmd_report(self.run)["rendering"]
+        self.assertTrue(any("old nil deref" in l and "b/b.go:9" in l and "derefs p" in l for l in lines))
+
+
+class HeldDuplicateTest(SettleCase):
+    def test_a_held_finding_that_repeats_in_the_blocking_pass_never_dispatches_an_empty_fix(self):
+        actions, _ = self.review_round()
+        self.findings("review-correctness", [self.finding("f1", file="b/b.go")])
+        for u in actions:
+            self.done(u)
+        tri = self.next()
+        self.triaged([{"id": "f1", "sources": ["f1"], "verdict": "confirmed", "blocking": False, "class": "defect"}])
+        self.done(tri["task_action"])
+        self.assertEqual(self.group()["items"]["f1"]["state"], "held")
+        s = lensctl.load(self.run)
+        s["settle"]["review-1"]["untriaged"] = ["f2"]
+        lensctl.save(self.run, s)
+        self.findings("review-correctness", [self.finding("f2", file="b/b.go")])
+        s = lensctl.load(self.run)
+        s["settle"]["review-1"]["task_actions"]["review-correctness"]["status"] = "done"
+        lensctl.save(self.run, s)
+        tri = self.next()
+        self.triaged([{"id": "f2", "sources": ["f2"], "verdict": "confirmed", "blocking": False,
+                       "class": "defect", "duplicate_of": "f1"}])
+        self.done(tri["task_action"])
+        nxt = self.next()
+        self.assertEqual(nxt["lens"], "review-patcher")
+        self.assertEqual(nxt["params"]["findings"], ["f1"])
 
 
 if __name__ == "__main__":

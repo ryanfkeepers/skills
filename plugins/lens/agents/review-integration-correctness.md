@@ -56,7 +56,7 @@ where `<task-action>` is your dispatch prompt's task-action key:
   local and keeps behavior the same.
 - `class`: `defect` is fixed automatically. `design` goes to the user.
 - Propose both labels. Triage decides.
-- No findings: write nothing and say so in your summary.
+- No findings: write nothing and say so in your summary file.
 
 ## Must not (every review lens)
 
@@ -71,7 +71,19 @@ naming what you checked. lensctl retires you from this pass, so you won't be
 dispatched again for later fix epochs. Use `done` whenever there was anything
 for you to examine.
 
+## Protocol
+
+The dispatch prompt gives the run directory, `LENSCTL`, your key (your
+task-action when you have one, else your lens name), `params`, the
+workspace, and the attempt. Every read, write and command runs inside the
+workspace; never touch another checkout. Read only the inputs this contract
+names and write only its outputs. To ask the user, append your question to
+`qa/<key>.jsonl` and return `needs_input`. When an earlier lens's output
+stops you, write `disputes/<key>-<n>.json` and return `blocked`.
+
 ## Reply
 
-End with exactly one line of JSON:
-`{"status": "done|needs_input|failed|blocked|not_applicable", "summary": "<at most 10 lines>"}`.
+Write anything the user should read beyond one line to
+`<run>/summaries/<key>.txt`. Your whole reply is then exactly one line of
+JSON, with nothing before or after it:
+`{"status": "done|needs_input|failed|blocked|not_applicable", "summary": "<one line>"}`.

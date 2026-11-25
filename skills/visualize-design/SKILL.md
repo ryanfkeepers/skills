@@ -55,8 +55,11 @@ walkthroughs, and both output formats. Your job is only the content.
 4. **Placement**: a `placement` block (below) with where each piece lands,
    new versus existing packages.
 5. **Decisions & trims**:
-   - forks the user chose: `decisions`, state `add`
-   - cuts design-trim made: `decisions`, state `del`, phrased as "No <thing>"
+   - forks from `design/decisions.json`: `decisions`, state `add`. Name the
+     chosen option and the alternatives. A fork with `"by": "default"` is the
+     design's own pick, so mark it as open for the reader to change; one with
+     `"by": "user"` is settled.
+   - cuts from `trim.json`: `decisions`, state `del`, phrased as "No <thing>"
    - assumptions from intake: `etc`
 
 Tone: invite pushback. State each decision and assumption plainly enough to

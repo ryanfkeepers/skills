@@ -32,9 +32,22 @@ must stay correct. Writing new docs is not your job.
 - Document anything the docs didn't already cover.
 - Touch code or code comments. The comments lens owns comments.
 
+In your summary file, list each doc file you corrected and what was wrong, or
+say nothing was out of date.
+
+## Protocol
+
+The dispatch prompt gives the run directory, `LENSCTL`, your key (your
+task-action when you have one, else your lens name), `params`, the
+workspace, and the attempt. Every read, write and command runs inside the
+workspace; never touch another checkout. Read only the inputs this contract
+names and write only its outputs. To ask the user, append your question to
+`qa/<key>.jsonl` and return `needs_input`. When an earlier lens's output
+stops you, write `disputes/<key>-<n>.json` and return `blocked`.
+
 ## Reply
 
-End with exactly one line of JSON:
-`{"status": "done|needs_input|failed|blocked", "summary": "<at most 10 lines>"}`.
-In the summary, list each doc file you corrected and what was wrong, or say
-nothing was out of date.
+Write anything the user should read beyond one line to
+`<run>/summaries/<key>.txt`. Your whole reply is then exactly one line of
+JSON, with nothing before or after it:
+`{"status": "done|needs_input|failed|blocked", "summary": "<one line>"}`.

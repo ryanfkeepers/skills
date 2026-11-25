@@ -18,9 +18,9 @@ import shutil
 import sys
 import time
 
+import bounds
 import coherence
 import cores
-import grid
 import settle
 
 PIPELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pipeline.json")
@@ -187,6 +187,23 @@ def cmd_next(run):
     return out
 
 
+MAX_BATCH = 64
+
+
+def cmd_next_all(run):
+    """Every dispatch that is ready now, then the one action that ends the batch (wait, relay, halt, ...).
+
+    Each dispatch is marked running as it is handed out, so the orchestrator starts them all in one turn.
+    """
+    actions = []
+    for _ in range(MAX_BATCH):
+        out = cmd_next(run)
+        actions.append(out)
+        if out["action"] != "dispatch":
+            break
+    return {"actions": actions}
+
+
 def next_action(run):
     st = load(run)
     if st["halt"]:
@@ -202,6 +219,12 @@ def next_action(run):
         if lens["status"] == "pending" and e.get("only_for") and not change_type_in(run, e["only_for"]):
             lens.update(status="skipped", note=f"only for {', '.join(e['only_for'])} changes")
             continue
+        if lens["status"] == "pending":
+            due = checkpoint_due(st, st["order"].index(name))
+            if due:
+                st["lenses"][due]["checkpointed"] = True
+                save(run, st)
+                return {"action": "checkpoint", "after": due, "run": run}
         reuse = e.get("reuse_core")
         if lens["status"] == "pending" and reuse and not st.get("refresh") \
                 and cores.core_exists(lens_home(), st["repo_slug"], reuse):
@@ -209,11 +232,6 @@ def next_action(run):
             continue
         if lens["status"] == "pending" and e.get("scope") == "code":
             out = run_code_lens(run, st, name)
-            if out:
-                return out
-            continue
-        if e.get("scope") == "grid":
-            out = grid_next(run, st, name)
             if out:
                 return out
             continue
@@ -243,11 +261,27 @@ def next_action(run):
             return {"action": "wait", "running": [name]}
         lens.update(status="running", attempts=lens["attempts"] + 1,
                     started_at=now(), respawn=False)
+        if e.get("bounds") and os.path.exists(os.path.join(run, "workspace.json")):
+            ws = read_json(os.path.join(run, "workspace.json"))["path"]
+            lens.setdefault("start_commit", settle.commit_of_workspace(ws))
         save(run, st)
         return {"action": "dispatch", "lens": name, "agent": f"lens:{e.get('agent', name)}",
                 "run": run, "attempt": lens["attempts"]}
     save(run, st)
     return {"action": "done"}
+
+
+def checkpoint_due(st, upto):
+    """The nearest finished lens before position `upto`, when it is marked `checkpoint` and not yet offered.
+
+    Nothing is in flight then: the next lens has not started. The offer is made once, so a resume after
+    the user clears the conversation does not repeat it.
+    """
+    for name in reversed(st["order"][:upto]):
+        state = st["lenses"][name]
+        if state["status"] == "done":
+            return name if entry(st, name).get("checkpoint") and not state.get("checkpointed") else None
+    return None
 
 
 def change_type_in(run, types):
@@ -317,156 +351,6 @@ CODE_LENSES = {
     "cleanup": lambda run, st, answers: cores.cleanup_lens(run, st),
     "run-report": code_report,
 }
-
-
-# ---- build grid ----------------------------------------------------------
-
-
-def cell_key(lens, task):
-    return f"{lens}-{task}" if task else lens
-
-
-def grid_next(run, st, name):
-    """One action for the grid, or None once every task has settled."""
-    state = st["lenses"][name]
-    try:
-        if not st.get("grid"):
-            grid.init(run, st, entry(st, name)["cells"])
-            state.update(status="running", attempts=1, started_at=now())
-        g = st["grid"]
-        for tid, task in g["tasks"].items():
-            for lens, cell in task["cells"].items():
-                if cell["status"] == "needs_input":
-                    save(run, st)
-                    return {"action": "relay", "lens": lens, "task": tid,
-                            "question": pending_question(run, cell_key(lens, tid)), "respawn": cell["respawn"]}
-        cells = grid.ready(g, st["pipeline"].get("max_agents", 32))
-        if cells:
-            tid, lens = cells[0]
-            return grid_dispatch(run, st, tid, lens)
-        busy = grid.running(g)
-        if busy:
-            save(run, st)
-            return {"action": "wait", "running": [cell_key(lens, tid) for tid, lens in busy]}
-        if all(grid.settled(t) for t in g["tasks"].values()):
-            state.update(status="done", ended_at=now())
-            save(run, st)
-            return None
-        stuck = [tid for tid, t in g["tasks"].items() if not grid.settled(t)]
-        raise cores.CoreError(f"grid cannot progress; unsettled tasks {stuck} (check blocked_by for cycles)")
-    except cores.CoreError as err:
-        st["halt"] = {"lens": name, "reason": str(err)}
-        state["status"] = "failed"
-        save(run, st)
-        return {"action": "halt", **st["halt"]}
-
-
-def grid_dispatch(run, st, tid, lens):
-    g = st["grid"]
-    ws = read_json(os.path.join(run, "workspace.json"))["path"]
-    busy = [t for t, _ in grid.running(g)]
-    cell = g["tasks"][tid]["cells"][lens]
-    cell.update(status="running", attempts=cell["attempts"] + 1, started_at=now(), respawn=False,
-                start_commit=grid.commit_of_workspace(ws), concurrent=bool(busy), overlap=sorted(set(busy)))
-    for other, other_lens in grid.running(g):
-        if other != tid:
-            o = g["tasks"][other]["cells"][other_lens]
-            o["overlap"] = sorted(set(o.get("overlap", [])) | {tid})
-    save(run, st)
-    return {"action": "dispatch", "lens": lens, "task": tid, "agent": f"lens:{lens}",
-            "run": run, "attempt": cell["attempts"]}
-
-
-def grid_record(run, st, lens, task, status, summary):
-    g = st.get("grid")
-    if not g or task not in g["tasks"] or lens not in g["tasks"][task]["cells"]:
-        raise LensError(f"no grid cell {lens} for task {task}")
-    cell = g["tasks"][task]["cells"][lens]
-    if cell["status"] not in ("running", "needs_input"):
-        raise LensError(f"cell {lens} for {task} is {cell['status']}, not running")
-    key = cell_key(lens, task)
-    if status == "needs_input":
-        rows = read_jsonl(qa_path(run, key))
-        open_rows = [r for r in rows if r.get("answer") is None]
-        if not open_rows:
-            raise LensError(f"cell {key} reported needs_input with no open question in qa/{key}.jsonl")
-        open_rows[0].setdefault("asked_at", now())
-        write_jsonl(qa_path(run, key), rows)
-        cell["status"] = "needs_input"
-        save(run, st)
-        return {"lens": lens, "task": task, "status": "needs_input"}
-    if status == "blocked":
-        save(run, st)
-        return route_cell_dispute(run, lens, task)
-    if status == "done":
-        ws = read_json(os.path.join(run, "workspace.json"))["path"]
-        end = grid.commit_of_workspace(ws)
-        files = grid.changed_files(ws, cell["start_commit"], end)
-        bad = grid.out_of_bounds(g, task, lens, files, cell.get("overlap", []))
-        if bad:
-            grid.restore(ws, cell["start_commit"], bad)
-            status, summary = "failed", f"changed files outside its bounds (restored): {', '.join(bad)}"
-    if status == "done":
-        write_summary(run, key, summary)
-        if cell["solo"] and cell.get("failed_concurrent"):
-            g["spurious"] += 1
-        cell.update(status="done", ended_at=now())
-        if lens == "test-coverage":
-            coverage_round(run, g, task)
-    elif status == "failed":
-        cell["failed_concurrent"] = bool(cell.get("overlap"))
-        if cell["attempts"] > st["pipeline"].get("retries", 1):
-            st["halt"] = {"lens": key, "reason": summary.strip() or "failed"}
-            cell["status"] = "failed"
-        else:
-            cell.update(status="pending", solo=True)
-    else:
-        raise LensError(f"unknown status {status!r}")
-    save(run, st)
-    return {"lens": lens, "task": task, "status": cell["status"], "halt": st["halt"]}
-
-
-def coverage_round(run, g, task):
-    """Uncovered branches go back to unit-test once; leftovers stay in the report."""
-    path = os.path.join(run, "coverage", f"{task}.json")
-    gaps = read_json(path).get("gaps", []) if os.path.exists(path) else []
-    t = g["tasks"][task]
-    if gaps and t["coverage_rounds"] == 0:
-        t["coverage_rounds"] = 1
-        for lens in ("unit-test", "test-coverage"):
-            if lens in t["cells"]:
-                t["cells"][lens] = dict(grid.fresh_cell(), attempts=0)
-
-
-def route_cell_dispute(run, lens, task):
-    st = load(run)
-    g = st["grid"]
-    key = cell_key(lens, task)
-    files = unrouted_disputes(run, st, key)
-    if not files:
-        raise LensError(f"cell {key} reported blocked with no new file in disputes/")
-    order = g["cells"]
-    reset_from = None
-    for name in files:
-        d = read_json(os.path.join(run, "disputes", name))
-        target = d.get("target_lens")
-        st["disputes"].append({"file": name, "from": key, "target": target, "at": now()})
-        if target in order and order.index(target) <= order.index(lens):
-            i = order.index(target)
-            reset_from = i if reset_from is None else min(reset_from, i)
-            continue
-        if target in st["order"] and index_of(st, target) < index_of(st, "build"):
-            save(run, st)
-            return rewind(run, target, reason=f"dispute from {key}")
-        st["halt"] = {"lens": key, "reason": f"dispute {name} targets {target!r}, which it cannot route to"}
-        g["tasks"][task]["cells"][lens]["status"] = "failed"
-        save(run, st)
-        return {"lens": lens, "task": task, "status": "failed", "halt": st["halt"]}
-    for name in order[reset_from:]:
-        if name in g["tasks"][task]["cells"]:
-            g["tasks"][task]["cells"][name] = grid.fresh_cell()
-    save(run, st)
-    return {"lens": lens, "task": task, "status": "pending", "reset_from": order[reset_from]}
 
 
 # ---- settlement ----------------------------------------------------------
@@ -615,18 +499,19 @@ def append_gate(run, task_action, question):
 # ---- record --------------------------------------------------------------
 
 
-def cmd_record(run, lens, status, summary="", task=None, task_action=None):
+def cmd_record(run, lens, status, summary="", task_action=None):
     st = load(run)
     if task_action:
         return settle_record(run, st, task_action, status, summary)
-    if task:
-        return grid_record(run, st, lens, task, status, summary)
     entry(st, lens)
     state = st["lenses"][lens]
     if state["status"] not in ("running", "needs_input"):
         raise LensError(f"lens {lens} is {state['status']}, not running")
     if status == "done":
         write_summary(run, lens, summary)
+        held = hold_out_of_bounds(run, st, lens)
+        if held:
+            return held
         state.update(status="done", ended_at=now())
     elif status == "needs_input":
         rows = read_jsonl(qa_path(run, lens))
@@ -652,11 +537,68 @@ def cmd_record(run, lens, status, summary="", task=None, task_action=None):
     return {"lens": lens, "status": state["status"], "halt": st["halt"]}
 
 
+def hold_out_of_bounds(run, st, lens):
+    """A build lens finished with files outside the plan's directories: ask the user, change nothing."""
+    state = st["lenses"][lens]
+    role = entry(st, lens).get("bounds")
+    scope = bounds.plan_scope(run) if role else None
+    if not scope or not state.get("start_commit"):
+        return None
+    ws = read_json(os.path.join(run, "workspace.json"))["path"]
+    files = settle.changed_files(ws, state["start_commit"], settle.commit_of_workspace(ws))
+    bad = bounds.out_of_bounds(role, files, scope)
+    if not bad:
+        return None
+    question = {
+        "question": f"The {lens} lens changed {len(bad)} file(s) outside the directories the plan targets. "
+                    "Nothing has been undone. What should I do with them?",
+        "options": ["keep them", "restore them"], "recommendation": "keep them",
+        "rendering": "\n".join(f"- {f}" for f in bad) + "\nType your own instruction to send the lens back with it.",
+        "answer": None, "asked_at": now()}
+    write_jsonl(qa_path(run, lens), read_jsonl(qa_path(run, lens)) + [question])
+    state.update(status="needs_input", hold=bad)
+    save(run, st)
+    return {"lens": lens, "status": "needs_input", "halt": st["halt"], "held": bad}
+
+
+def resolve_hold(run, st, lens, answer):
+    """The user's answer to a held lens: keep the files, restore them, or send the lens back with an instruction."""
+    state = st["lenses"][lens]
+    files = state.pop("hold")
+    answer_row(run, lens, answer)
+    choice = answer.strip().lower()
+    if choice.startswith("restore"):
+        ws = read_json(os.path.join(run, "workspace.json"))["path"]
+        cores.must(["jj", "--no-pager", "restore", "--from", state["start_commit"], *files], cwd=ws)
+    if choice.startswith(("keep", "restore")):
+        state.update(status="done", ended_at=now())
+        save(run, st)
+        return {"lens": lens, "continue": "next"}
+    folder = os.path.join(run, "disputes")
+    os.makedirs(folder, exist_ok=True)
+    name = f"{lens}-bounds-{sum(1 for n in os.listdir(folder) if n.startswith(f'{lens}-bounds-')) + 1}.json"
+    write_json(os.path.join(folder, name), {
+        "target_lens": lens, "claim": answer,
+        "evidence": "files outside the plan's directories: " + ", ".join(files)})
+    st["disputes"].append({"file": name, "from": "lensctl", "target": lens, "at": now()})
+    start = state["start_commit"]
+    save(run, st)
+    out = rewind(run, lens, reason=f"user instruction after {lens} left the plan's directories")
+    st = load(run)
+    st["lenses"][lens]["start_commit"] = start
+    save(run, st)
+    return dict(out, **{"continue": "next"})
+
+
 def write_summary(run, lens, summary):
+    """Keep the one-line summary the orchestrator passes, but never overwrite a file the agent wrote itself."""
+    path = os.path.join(run, "summaries", f"{lens}.txt")
+    if os.path.exists(path):
+        return
     lines = summary.strip().splitlines()
     if len(lines) > SUMMARY_MAX_LINES:
         lines = lines[:SUMMARY_MAX_LINES - 1] + [f"... ({len(lines) - SUMMARY_MAX_LINES + 1} lines cut)"]
-    with open(os.path.join(run, "summaries", f"{lens}.txt"), "w") as f:
+    with open(path, "w") as f:
         f.write("\n".join(lines) + ("\n" if lines else ""))
 
 
@@ -676,14 +618,10 @@ def route_dispute(run, lens, at=None):
     if not files:
         raise LensError(f"lens {lens} reported blocked with no new file in disputes/")
     here = index_of(st, at or lens)
-    targets, cells = [], []
+    targets = []
     for name in files:
         d = read_json(os.path.join(run, "disputes", name))
         target = d.get("target_lens")
-        if grid_cell_target(st, target, here):
-            st["disputes"].append({"file": name, "from": lens, "target": target, "at": now()})
-            cells.append(target)
-            continue
         if target not in st["order"] or index_of(st, target) >= here and not (at is None and target == lens):
             st["halt"] = {"lens": lens, "reason": f"dispute {name} targets {target!r}, not an earlier lens"}
             st["lenses"][at or lens]["status"] = "failed"
@@ -691,43 +629,9 @@ def route_dispute(run, lens, at=None):
             return {"lens": lens, "status": "failed", "halt": st["halt"]}
         st["disputes"].append({"file": name, "from": lens, "target": target, "at": now()})
         targets.append(target)
-    if targets:
-        earliest = min(targets, key=lambda t: index_of(st, t))
-        save(run, st)
-        return rewind(run, earliest, reason=f"dispute from {lens}")
+    earliest = min(targets, key=lambda t: index_of(st, t))
     save(run, st)
-    return recheck_cells(run, cells, reason=f"dispute from {lens}")
-
-
-def grid_cell_target(st, target, here):
-    """Whether a dispute from a lens after the grid names a build cell."""
-    g = st.get("grid")
-    if not g or target not in g["cells"]:
-        return False
-    build = next((n for n in st["order"] if entry(st, n).get("scope") == "grid"), None)
-    return build is not None and index_of(st, build) < here
-
-
-def recheck_cells(run, cells, reason):
-    """After the grid the run is one change: reset the named cells, and every cell after
-    them, for every task that has them. Then reopen the grid and rerun every lens after it."""
-    st = load(run)
-    g = st["grid"]
-    build = next(n for n in st["order"] if entry(st, n).get("scope") == "grid")
-    order = g["cells"]
-    reset = order[min(order.index(c) for c in cells):]
-    for task in g["tasks"].values():
-        for name in reset:
-            if name in task["cells"]:
-                task["cells"][name] = grid.fresh_cell()
-    st["lenses"][build].update(status="running", ended_at=None)
-    for name in st["order"][index_of(st, build) + 1:]:
-        st["lenses"][name] = fresh_lens()
-        (st.get("settle") or {}).pop(name, None)
-    st["halt"] = None
-    st["rewinds"].append({"to": build, "cells": reset, "reason": reason, "at": now()})
-    save(run, st)
-    return {"rechecking": reset, "reason": reason}
+    return rewind(run, earliest, reason=f"dispute from {lens}")
 
 
 def cmd_disputes(run, lens):
@@ -744,22 +648,15 @@ def cmd_disputes(run, lens):
 # ---- relay ---------------------------------------------------------------
 
 
-def cmd_answer(run, lens, answer, task=None, task_action=None):
+def cmd_answer(run, lens, answer, task_action=None):
     st = load(run)
     if task_action:
         return settle_answer(run, st, task_action, answer)
-    if task:
-        cell = st["grid"]["tasks"][task]["cells"][lens]
-        if cell["status"] != "needs_input":
-            raise LensError(f"cell {lens} for {task} is {cell['status']}, not waiting for input")
-        answer_row(run, cell_key(lens, task), answer)
-        respawn = cell["respawn"]
-        cell.update(status="running", respawn=False)
-        save(run, st)
-        return {"lens": lens, "task": task, "continue": "respawn" if respawn else "send_message"}
     state = st["lenses"][lens]
     if state["status"] != "needs_input":
         raise LensError(f"lens {lens} is {state['status']}, not waiting for input")
+    if state.get("hold"):
+        return resolve_hold(run, st, lens, answer)
     answer_row(run, lens, answer)
     if entry(st, lens).get("scope") == "code":
         state["status"] = "pending"
@@ -789,8 +686,6 @@ def rewind(run, to, reason="manual"):
     start = index_of(st, to)
     for name in st["order"][start:]:
         st["lenses"][name] = fresh_lens()
-        if entry(st, name).get("scope") == "grid":
-            st["grid"] = None
         (st.get("settle") or {}).pop(name, None)
     st["halt"] = None
     st["rewinds"].append({"to": to, "reason": reason, "at": now()})
@@ -803,7 +698,6 @@ def taken_names(st):
     for e in st["pipeline"]["lenses"] + st["pipeline"].get("init", []):
         names.add(e["name"])
         names.update(e.get("lenses", []))
-        names.update(e.get("cells", []))
     return names
 
 
@@ -838,7 +732,7 @@ def cmd_add_lens(run, name, agent, after, agents_dir=AGENTS):
     return {"added": name, "agent": agent, "after": after, "position": at}
 
 
-def cmd_resume(run):
+def cmd_resume(run, batch=False):
     st = load(run)
     for lens in st["lenses"].values():
         if lens["status"] == "running":
@@ -851,14 +745,8 @@ def cmd_resume(run):
                 ta.update(status="pending", attempts=max(ta["attempts"] - 1, 0))
             elif ta["status"] == "needs_input" and ta["kind"] != "decision":
                 ta["respawn"] = True
-    for task in (st.get("grid") or {}).get("tasks", {}).values():
-        for cell in task["cells"].values():
-            if cell["status"] == "running":
-                cell.update(status="pending", attempts=max(cell["attempts"] - 1, 0))
-            elif cell["status"] == "needs_input":
-                cell["respawn"] = True
     save(run, st)
-    return cmd_next(run)
+    return cmd_next_all(run) if batch else cmd_next(run)
 
 
 def cmd_latest(repo):
@@ -896,17 +784,8 @@ def build_report(run, st):
                 wait = round(row["answered_at"] - row["asked_at"], 1)
             gates.append({"lens": fname[:-len(".jsonl")], "question": row.get("question"),
                           "answer": row.get("answer"), "wait_seconds": wait})
-    g = st.get("grid") or {}
-    build = None
-    if g:
-        gaps = {}
-        for tid in g["tasks"]:
-            path = os.path.join(run, "coverage", f"{tid}.json")
-            left = read_json(path).get("gaps", []) if os.path.exists(path) else []
-            if left:
-                gaps[tid] = left
-        build = {"tasks": len(g["tasks"]), "cells": sum(len(t["cells"]) for t in g["tasks"].values()),
-                 "spurious_failures": g["spurious"], "coverage_gaps": gaps}
+    cov = os.path.join(run, "coverage.json")
+    build = read_json(cov) if os.path.exists(cov) else None
     report = {
         "run_id": st["run_id"],
         "build": build,
@@ -942,14 +821,20 @@ def cmd_report(run):
         lines.append(f"{len(report['disputes'])} dispute(s), {len(report['rewinds'])} rewind(s)")
     if report.get("build"):
         b = report["build"]
-        lines.append(f"build: {b['tasks']} task(s), {b['spurious_failures']} spurious failure(s), "
-                     f"{len(b['coverage_gaps'])} task(s) with coverage gaps left")
+        left = len(b.get("gaps", []))
+        lines.append(f"build: {b.get('percent')}% covered, {left} uncovered branch(es) left")
     for name, grp in (report.get("settle") or {}).items():
         lines.append(f"{name}: {grp['epochs']} fix epoch(s), findings {grp['findings']}")
         if grp.get("deselected"):
             lines.append(f"{name}: not selected for review: " + ", ".join(sorted(grp["deselected"])))
         if grp.get("retired"):
             lines.append(f"{name}: retired as not applicable: " + ", ".join(grp["retired"]))
+        if grp.get("stopped_unswept"):
+            lines.append(f"{name}: stopped by you before the last fixes were re-checked by a full sweep")
+        for pre in grp.get("pre_existing", []):
+            loc = pre.get("location") or {}
+            lines.append(f"{name}: already broken before this change, not fixed: {loc.get('file')}:{loc.get('line')} "
+                         f"{pre.get('claim')}; repro: {pre.get('repro')}")
     sig = (report.get("coherence") or {}).get("signals")
     if sig:
         lines.append(f"coherence: cross-community {sig['cross_community_ratio']} (p75 {sig['cross_community_baseline_p75']}), "
@@ -1036,7 +921,10 @@ def build_parser():
     s.add_argument("--only", help="run a single lens, e.g. a core refresh")
     s.add_argument("--init", action="store_true", help="build the cores a run needs")
 
-    for name in ("next", "resume", "report"):
+    s = sub.add_parser("next")
+    s.add_argument("--run", required=True)
+    s.add_argument("--all", action="store_true", help="every ready dispatch, then the action that ends the batch")
+    for name in ("resume", "report"):
         sub.add_parser(name).add_argument("--run", required=True)
 
     s = sub.add_parser("record")
@@ -1044,15 +932,15 @@ def build_parser():
     s.add_argument("--lens", required=True)
     s.add_argument("--status", required=True, choices=["done", "needs_input", "failed", "blocked", "not_applicable"])
     s.add_argument("--summary", default="")
-    s.add_argument("--task")
     s.add_argument("--task-action")
+    s.add_argument("--next", action="store_true", help="also return what to run next")
 
     s = sub.add_parser("answer")
     s.add_argument("--run", required=True)
     s.add_argument("--lens", required=True)
     s.add_argument("--answer", required=True)
-    s.add_argument("--task")
     s.add_argument("--task-action")
+    s.add_argument("--next", action="store_true", help="also return what to run next")
 
     s = sub.add_parser("rewind")
     s.add_argument("--run", required=True)
@@ -1100,17 +988,21 @@ def main(argv=None):
                 check_initialized(a.repo)
             out = cmd_init(a.repo, proposal, base=a.base, only=a.only, init=a.init)
         elif a.cmd == "next":
-            out = cmd_next(a.run)
+            out = cmd_next_all(a.run) if a.all else cmd_next(a.run)
         elif a.cmd == "record":
-            out = cmd_record(a.run, a.lens, a.status, a.summary, a.task, a.task_action)
+            out = cmd_record(a.run, a.lens, a.status, a.summary, a.task_action)
+            if a.next:
+                out = dict(cmd_next_all(a.run), recorded=out)
         elif a.cmd == "answer":
-            out = cmd_answer(a.run, a.lens, a.answer, a.task, a.task_action)
+            out = cmd_answer(a.run, a.lens, a.answer, a.task_action)
+            if a.next:
+                out = dict(cmd_next_all(a.run), answered=out)
         elif a.cmd == "rewind":
             out = rewind(a.run, a.to, a.reason)
         elif a.cmd == "add-lens":
             out = cmd_add_lens(a.run, a.name, a.agent, a.after)
         elif a.cmd == "resume":
-            out = cmd_resume(a.run)
+            out = cmd_resume(a.run, batch=True)
         elif a.cmd == "report":
             out = cmd_report(a.run)
         elif a.cmd == "core":

@@ -48,8 +48,7 @@ contract-layers) is what `/lens:init` runs: a run never builds a core, and
 is missing.
 
 intake → workspace* → graph* → explore →
-design → design-trim → visualize-design → plan → build grid (scaffold,
-implement, unit-test, test-coverage per task) → green → negative-catch (fixes only) →
+design → visualize-design → plan → implement → unit-test → green → negative-catch (fixes only) →
 review-select → review set 1 →
 review set 2 → pseudolinter → vibediff → visualize-changes → docs ∥ comments
 → scenarios → contract ∥ integration ∥ e2e tests → negative-catch (fixes only) → ticket → stack-shape →
@@ -70,24 +69,39 @@ established lens. The report lists the ad-hoc lenses a run added.
 
 ## Coordination, in code
 
-- **Build grid**:
-  - A task starts once every task in its `blocked_by` has settled.
+- **Build** is two agents, one lens each, in the one revision:
+  - `implement` writes all the initial code for every plan task. The plan
+    is one file, `tasks.json`: an ordered checklist the implementer works
+    through and the later conformance reference, not separate agents.
   - A test task (`"kind": "test"`: the tests are the deliverable, such as a
-    benchmark) gets only an implement cell, which may write its test targets.
-    Routine tests for a code task are never a task; its unit-test cell
-    writes them.
-  - Independent tasks run at once (up to 32 agents) in the single
-    workspace, except tasks that share a file in `shared_files`.
-  - After each cell, lensctl checks that the cell changed only files it was
-    allowed to. Anything else is restored and the cell fails.
-  - A failed cell is retried alone. A retry that passes alone counts as a
-    spurious failure.
+    benchmark) names test files `implement` writes as asked.
+  - `unit-test` writes the unit tests for that code, measures coverage, and
+    closes the gaps it can reach. It never changes non-test code.
+  - A failed lens retries once.
+  - When either lens finishes, lensctl compares its changes with the plan's
+    directories (`bounds.py`). `implement` may change non-test files in a
+    directory that holds a plan target, plus `go.mod`/`go.sum`. `unit-test`
+    may change test files in those directories or in test-support
+    directories. Files outside that are never undone automatically: the run
+    halts and asks the user to keep them, restore them, or give an
+    instruction that sends the lens back.
   - Whole-repo operations (tidy, codegen) run in `green`, which runs alone
-    after the grid.
-- **After the grid** the run is one change, not a set of tasks. No lens
-  after the grid reviews, tests, or routes by task. A dispute that names a
-  build cell (from `green` or `negative-catch`) rechecks that cell, and every
-  cell after it, for every task.
+    after the build.
+- **After the build** the run is one change, not a set of tasks. A dispute
+  that targets `implement` or `unit-test` (from `green`,
+  `negative-catch`, or `unit-test` itself) sends the run back to that lens,
+  which re-runs every lens after it.
+- **Checkpoints**: a lens with `"checkpoint": true` in `pipeline.json`
+  (`visualize-design`, `green`, `review-2`, `visualize-changes`) makes
+  `next` return a `checkpoint` action, once, before the next lens starts.
+  The orchestrator's context is re-read on every turn, so the user can
+  `/clear` and `/lens:resume` there: all state is on disk. They can also
+  decline and continue.
+- **Batched protocol**: `next --all` returns every ready dispatch plus the
+  action that ends the batch, and `record --next` / `answer --next` return
+  that batch too, so the orchestrator spends one turn per wave of agents
+  instead of one per agent. Each agent's whole reply is one JSON line; longer
+  detail goes in `summaries/<key>.txt`, which lensctl never overwrites.
 - **Change-type gates**: a lens with `only_for` in `pipeline.json` runs only
   when `brief/change_type.json` is one of those types. An unknown type runs
   it. Both negative-catch lenses are `only_for: ["fix"]`.
@@ -109,9 +123,22 @@ established lens. The report lists the ad-hoc lenses a run added.
   - Triage validates findings in batches.
   - One writer at a time applies them: `fix` for blocking findings,
     `review-patcher` for deferred ones.
-  - Each write starts a new epoch. Only the lenses whose scope touches the
-    changed files and their 1-hop graph neighbors re-review, and only that
-    radius.
+  - Each write starts a new epoch (a new snapshot of the same one
+    revision; fixers never create a revision). In review sets 1 and 2
+    (`"rerun": "raisers"`), only the reviewers that raised the fixed
+    findings re-review, and only the changed files plus their 1-hop graph
+    neighbors. Groups without that flag re-review every lens whose scope
+    touches that radius.
+  - When no reviewer is waiting and a write happened since the last full
+    batch, every reviewer runs again over the whole change (a sweep). A
+    clean first batch needs no sweep. A sweep that finds problems repeats
+    the process. After every second full loop that still has unswept fixes,
+    the run asks the user whether to continue, with a table of what was
+    caught, in order, and where each item stands.
+  - Triage also checks scope. A defect that is also in the base commit and
+    was not caused by the change is `pre_existing`: never fixed, stored with
+    its reference and repro, and listed in the end summary. A fix request
+    past the tasks or into the brief's non-goals is narrowed or dropped.
   - Blocking findings settle first, then deferred ones.
   - Design findings and findings that keep coming back go to the user.
   - Caps: 2 fix rounds per finding, 16 epochs per pass.

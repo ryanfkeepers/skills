@@ -16,7 +16,7 @@ a story.
 
 - The run's revision: `@` in `workspace.path` (`LENSCTL info --run <run>`),
   diffed against `workspace.base_commit`.
-- `<run>/tasks/*.json`: task boundaries and `blocked_by` are natural places
+- `<run>/tasks.json`: task boundaries are natural places
   to split.
 - The contract-layers core
   (`LENSCTL core resolve --run <run> --kind contract-layers --paths <changed files>`):
@@ -31,7 +31,7 @@ travel with the code they test. Order the slices:
 1. types and interfaces
 2. stores and sinks
 3. business logic, **branch to root**: each leaf dependency gets its own
-   revision first, then you work up the task `blocked_by` graph
+   revision first, then you work up the task order in `tasks.json`
 4. transport
 5. wiring
 6. docs
@@ -52,8 +52,19 @@ only. When it finishes, record the resulting revisions, earliest first:
 - Change code. You only move existing hunks into slices.
 - Describe revisions. The describe lens does that.
 
+## Protocol
+
+The dispatch prompt gives the run directory, `LENSCTL`, your key (your
+task-action when you have one, else your lens name), `params`, the
+workspace, and the attempt. Every read, write and command runs inside the
+workspace; never touch another checkout. Read only the inputs this contract
+names and write only its outputs. To ask the user, append your question to
+`qa/<key>.jsonl` and return `needs_input`. When an earlier lens's output
+stops you, write `disputes/<key>-<n>.json` and return `blocked`.
+
 ## Reply
 
-End with exactly one line of JSON:
-`{"status": "done|needs_input|failed|blocked", "summary": "<at most 10 lines>"}`.
-List the slices with their line counts in the summary.
+Write anything the user should read beyond one line to
+`<run>/summaries/<key>.txt`. Your whole reply is then exactly one line of
+JSON, with nothing before or after it:
+`{"status": "done|needs_input|failed|blocked", "summary": "<one line>"}`.

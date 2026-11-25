@@ -29,20 +29,30 @@ Every command prints one JSON object.
   marked with 🛑, which cores are missing and that `/lens:init` builds them,
   then stop. Nothing was created.
 - **`--resume <run>`:** run `LENSCTL resume --run <run>` and handle its output
-  like a `next` result (below).
+  like a `next --all` result (below).
 
 ## Loop
 
-Repeat `LENSCTL next --run <run>` and act on `action`:
+Run `LENSCTL next --run <run> --all`. It prints `{"actions": [...]}`: every
+dispatch that is ready now, then the one action that ends the batch. Start
+every `dispatch` in one message, as parallel Agent calls, then act on the last
+action:
 
 | action | What you do |
 |---|---|
-| `dispatch` | Start a sub-agent with the Agent tool: `subagent_type` = `agent`, prompt = the dispatch prompt below, **in the background**. Remember its id under `task_action` when present, else `lens` (plus `task`). Then call `next` again right away: more work may be ready to run beside it. When an agent finishes, parse its status line and run `LENSCTL record --run <run> --lens <lens> [--task <task>] [--task-action <task_action>] --status <status> --summary "<summary>"`, then call `next`. |
-| `sleep` | Run `LENSCTL wait --seconds <seconds>` **in the background**, then call `next` (it returns `wait`). When the wait finishes, run `LENSCTL record --run <run> --lens <lens> --status done` and call `next`. |
-| `wait` | Agents are running and nothing else is ready. Wait for the next agent to finish, record it, then call `next`. If you aren't waiting on any agent (the session was interrupted), run `LENSCTL resume --run <run>` instead. |
-| `relay` | When `question.chat` is true, print `question.rendering` as plain text, with no AskUserQuestion and no options, then take the user's next message verbatim as the answer. Never interpret it. Otherwise show `question` to the user with AskUserQuestion, word for word: its `question` text (append `rendering` when present), and its `options`, with `recommendation` first and marked "(Recommended)". Then run `LENSCTL answer --run <run> --lens <lens> [--task <task>] [--task-action <task_action>] --answer "<answer>"`. If that returns `continue: send_message`, continue that agent with SendMessage: "Your question has an answer in your qa file. Continue." If it returns `respawn`, start a fresh agent with the dispatch prompt. If it returns `next`, just call `next`. Record the agent's status line when it returns. |
+| `dispatch` | Start a sub-agent with the Agent tool: `subagent_type` = `agent`, prompt = the dispatch prompt below, **in the background**. Remember its id under `task_action` when present, else `lens`. |
+| `sleep` | Run `LENSCTL wait --seconds <seconds>` **in the background**. When the wait finishes, run `LENSCTL record --run <run> --lens <lens> --status done --next`. |
+| `wait` | Agents are running and nothing else is ready. Wait for the next agent to finish. If you aren't waiting on any agent (the session was interrupted), run `LENSCTL resume --run <run>` instead. |
+| `relay` | When `question.chat` is true, print `question.rendering` as plain text, with no AskUserQuestion and no options, then take the user's next message verbatim as the answer. Never interpret it. Otherwise show `question` to the user with AskUserQuestion, word for word: its `question` text (append `rendering` when present), and its `options`, with `recommendation` first and marked "(Recommended)". Then run `LENSCTL answer --run <run> --lens <lens> [--task-action <task_action>] --answer "<answer>" --next`. If its `answered.continue` is `send_message`, continue that agent with SendMessage: "Your question has an answer in your qa file. Continue." If it is `respawn`, start a fresh agent with the dispatch prompt. If it is `next`, handle the `actions` it returned. |
+| `checkpoint` | A phase just finished (`after`) and nothing is running. The conversation grows with every turn and each turn re-reads all of it, so offer a reset: ask the user with AskUserQuestion, "Run `/clear`, then `/lens:resume`, to continue with a fresh context?", options "clear and resume (Recommended)" and "continue in this session". If they choose to clear, tell them to run `/clear` and then `/lens:resume`, and stop. Everything is saved. If they choose to continue, call `LENSCTL next --run <run> --all`. |
 | `halt` | Stop. Tell the user, marked with 🛑, which lens halted and why, and that `/lens:resume` continues the run once the cause is fixed. |
 | `done` | Run `LENSCTL report --run <run>` and show the user its `rendering` lines. Finished. |
+
+When an agent finishes, its whole reply is one JSON status line. Run
+`LENSCTL record --run <run> --lens <lens> [--task-action <task_action>] --status <status> --summary "<summary>" --next`,
+passing the summary as the line gave it. When several agents finish together,
+add `--next` to the last record only. The output is `{"recorded": ..., "actions": [...]}`:
+handle `actions` exactly as above, with no separate `next` call.
 
 If lensctl prints `{"error": ...}`, stop and report it with 🛑. Don't work
 around it.
@@ -50,18 +60,9 @@ around it.
 ### Dispatch prompt
 
 > Lens run directory: `<run>`. `LENSCTL` is `python3 <absolute path to
-> lensctl.py>`. Task: `<task, or "none">`. Task-action: `<task_action, or "none">`.
-> Params: `<params as JSON, or {}>`. Workspace: `<workspace, or "none">`.
-> Every read, write and command runs inside it; never touch any other
-> checkout. Attempt `<attempt>`. Follow your lens
-> contract exactly: read only the inputs it names, write only its outputs.
-> If you need the user, append your question to `qa/<key>.jsonl` and
-> return `needs_input`. If an earlier lens's output stops you, write
-> `disputes/<key>-<n>.json` and return `blocked`. `<key>` is your task-action
-> when you have one, else `<lens>-<task>` when you have a task, else
-> `<lens>`. End your reply with
-> exactly one line of JSON: `{"status": "done|needs_input|failed|blocked|not_applicable",
-> "summary": "<at most 10 lines>"}`.
+> lensctl.py>`. Key: `<task_action, else lens>`. Params: `<params as JSON, or
+> {}>`. Workspace: `<workspace, or "none">`. Attempt `<attempt>`. Follow your
+> agent contract.
 
 ## Ad-hoc lenses
 

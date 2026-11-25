@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import sys
@@ -120,6 +122,68 @@ class LensctlTest(unittest.TestCase):
             lines = f.read().splitlines()
         self.assertEqual(len(lines), lensctl.SUMMARY_MAX_LINES)
         self.assertIn("cut", lines[-1])
+
+    def mark_checkpoint(self, lens):
+        st = lensctl.load(self.run)
+        lensctl.entry(st, lens)["checkpoint"] = True
+        lensctl.save(self.run, st)
+
+    def test_checkpoint_is_offered_once_between_a_finished_lens_and_the_next(self):
+        self.mark_checkpoint("intake")
+        self.finish("intake")
+        out = lensctl.cmd_next(self.run)
+        self.assertEqual((out["action"], out["after"]), ("checkpoint", "intake"))
+        self.assertEqual(lensctl.cmd_next(self.run)["lens"], "design")
+
+    def test_checkpoint_survives_a_resume_without_repeating(self):
+        self.mark_checkpoint("intake")
+        self.finish("intake")
+        self.assertEqual(lensctl.cmd_next(self.run)["action"], "checkpoint")
+        out = lensctl.cmd_resume(self.run, batch=True)
+        self.assertEqual(out["actions"][0]["lens"], "design")
+
+    def test_checkpoint_waits_until_nothing_is_in_flight(self):
+        self.mark_checkpoint("design")
+        self.finish("intake")
+        self.assertEqual(lensctl.cmd_next(self.run)["lens"], "design")
+        self.assertEqual(lensctl.cmd_next(self.run)["action"], "wait")
+
+    def test_a_rewind_offers_the_checkpoint_again(self):
+        self.mark_checkpoint("intake")
+        self.finish("intake")
+        self.assertEqual(lensctl.cmd_next(self.run)["action"], "checkpoint")
+        lensctl.rewind(self.run, "intake")
+        self.finish("intake")
+        self.assertEqual(lensctl.cmd_next(self.run)["action"], "checkpoint")
+
+    def test_summary_the_agent_wrote_is_never_overwritten(self):
+        lensctl.cmd_next(self.run)
+        with open(os.path.join(self.run, "summaries", "intake.txt"), "w") as f:
+            f.write("the full report\nin two lines\n")
+        lensctl.cmd_record(self.run, "intake", "done", "one line")
+        with open(os.path.join(self.run, "summaries", "intake.txt")) as f:
+            self.assertEqual(f.read(), "the full report\nin two lines\n")
+
+    def test_next_all_ends_the_batch_with_the_first_action_that_is_not_a_dispatch(self):
+        out = lensctl.cmd_next_all(self.run)
+        self.assertEqual([a["action"] for a in out["actions"]], ["dispatch", "wait"])
+        self.assertEqual(out["actions"][0]["lens"], "intake")
+
+    def test_cli_flags_batch_next_after_record_answer_and_resume(self):
+        p = lensctl.build_parser()
+        self.assertTrue(p.parse_args(["next", "--run", "r", "--all"]).all)
+        self.assertTrue(p.parse_args(["record", "--run", "r", "--lens", "l", "--status", "done", "--next"]).next)
+        self.assertTrue(p.parse_args(["answer", "--run", "r", "--lens", "l", "--answer", "a", "--next"]).next)
+
+    def test_record_next_returns_the_record_and_what_runs_next(self):
+        lensctl.cmd_next(self.run)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = lensctl.main(["record", "--run", self.run, "--lens", "intake", "--status", "done", "--next"])
+        out = json.loads(buf.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(out["recorded"]["status"], "done")
+        self.assertTrue(out["actions"])
 
     def test_record_rejects_lens_that_is_not_running(self):
         with self.assertRaises(lensctl.LensError):
