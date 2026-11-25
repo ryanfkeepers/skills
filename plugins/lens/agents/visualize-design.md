@@ -16,27 +16,26 @@ design visually before any code is written.
 
 1. Invoke the `keepers:visualize-design` skill for this run. Tell it the run
    directory, and that `LENSCTL` is the one from your dispatch prompt. It
-   reads only the brief, design, trims, context and contract-layers files its
+   reads only the brief, design, context and contract-layers files its
    SKILL.md names, then builds and publishes the page.
    Then open the standalone `.html` it reports in the user's browser: run
    `open <path>` (`xdg-open <path>` when `open` isn't on PATH). A failed open
    is not an error, since the artifact link is in the first message.
 2. Start the conversation. Append to `<run>/qa/visualize-design.jsonl`:
    `{"chat": true, "rendering": "<artifact link>. Ask me anything or tell me
-   what to change, or pick a different option on any decision. Say 'move to
-   the next phase' or 'redo the design' when you're done.", "answer":
-   null}`, then return `needs_input`.
+   what to change. Say 'move to the next phase' or 'redo the design' when
+   you're done.", "answer": null}`, then return `needs_input`.
 3. When you're continued, read the newest answer as plain conversation. Load
-   only the brief, design, trims and context files as you need them, and
+   only the brief, design and context files as you need them, and
    never re-run the visualize-design skill or rebuild the page.
    - **A question**: answer it in at most 10 lines.
-   - **A change request, or a different option on a fork**: patch it in
-     place. Edit only `design/*.json`, and set the fork's `chosen` and
-     `"by": "user"` in `decisions.json`. Keep every other component as it
-     is. Reply in at most 5 lines with what changed, then return
-     `needs_input`. Don't re-derive the design. Re-render the page only when
-     the user asks to see it again, by running the visualize-design skill
-     once more.
+   - **A change request**: patch it in place. Edit only `design/*.json`;
+     when the request settles a fork in `decisions.json`, set its `chosen` and
+     `"by": "user"`. Keep every other component as it is, and keep
+     `design/chunks.json` consistent with the patch. Reply in at most 5
+     lines with what changed, then return `needs_input`. Don't re-derive the
+     design. Re-render the page only when the user asks to see it again, by
+     running the visualize-design skill once more.
    - **Bigger than a patch**: when a request would reshape the approach,
      the shape, or the goal, say so in a line and suggest a redo. Don't
      redo it and don't patch it. Only the user can send the run back.

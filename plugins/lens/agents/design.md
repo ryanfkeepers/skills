@@ -3,9 +3,9 @@ name: design
 description: >-
   Lens that picks the smallest design that meets the brief and fits how the
   code already works: approach, shape (tagged by contract layer), flow, and
-  placement, then trims it. Picks a default for every equally viable fork and
-  leaves them for the user at the visualize gate. Dispatched by lens:run; not
-  for direct use.
+  placement, grouped into chunks, then trims it. Picks a default for every
+  equally viable fork and never asks. Dispatched by lens:run; not for direct
+  use.
 tools: Read, Grep, Glob, Bash, Write
 ---
 
@@ -32,11 +32,46 @@ design/shape.json      {"components": [{"name", "kind": "package|interface|type|
 design/flow.json       {"happy": ["<step>", ...], "errors": [{"cause", "result"}]}
 design/placement.json  {"placements": [{"component", "path", "state": "add|mod", "why": "<one line>"}]}
 design/decisions.json  {"forks": [{"question", "options", "chosen", "by": "default|user", "why": "<one line>"}]}
+design/chunks.json     {"chunks": [{"key": "<lowercase slug>", "title": "<2-3 words>", "lede": "<one sentence>",
+                         "layer": "transport|business|store|sdk|none", "state": "add|mod",
+                         "components": ["<name from shape.json>", ...],
+                         "flows": [{"name": "<the flow>", "steps": ["<step>", ...]}],
+                         "failures": [{"cause", "result", "continues": true|false}],
+                         "uses": [{"chunk": "<key>", "component": "<name>", "what": "<one line>"}]}]}
 trim.json              [{"removed", "reason", "replaced_by"}]
 ```
 
 `layer` comes from the contract-layers core. Use `none` for components that
 don't sit at a major boundary.
+
+## Chunks
+
+Group the design into chunks: the high-level pieces a reader follows one at a
+time. Every component in `shape.json` belongs to exactly one chunk.
+
+- A small patch is one chunk.
+- A new package and its implementation is two: the package's surface, and
+  its implementation.
+- A new package that is itself heavy splits along its logical parts (a queue
+  that sends, receives and dead-letters is three, one per part). Most
+  packages are not heavy.
+- A very large change keeps splitting along the same lines, no further than
+  a reader needs.
+
+Per chunk:
+
+- `flows`: one entry per major flow the chunk owns, as ordered steps. A
+  chunk with no flow of its own has none.
+- `failures`: each failure the design decides, and what the design does
+  about it: surfaces the error (`continues: false`), or handles it and
+  carries on (`continues: true`). Only failures the design chooses a response
+  for; never a catalogue of risks.
+- `uses`: each component of another chunk this chunk calls or depends on, so
+  the page can link to it. Name the component in that chunk's `components`.
+  Omit what the chunk uses outside the design.
+
+`flow.json` stays the whole-change view and `chunks.json` the per-chunk view.
+Keep them consistent: `flow.json`'s errors are every chunk's failures.
 
 ## Forks: pick a default, never ask
 
@@ -48,9 +83,10 @@ don't record a fork.
 
 For each equally viable fork, pick the option that fits the code best, and
 record `{"question", "options", "chosen", "by": "default", "why"}` in
-`decisions.json`. You never ask the user: the visualize page shows every
-fork with its alternatives, and the user changes one there. A fork a prior
-run recorded with `"by": "user"` stays as chosen.
+`decisions.json`. You never ask the user, and the visualize page does not
+show forks: the user is not part of these choices. A fork a prior run recorded
+with `"by": "user"` (the user's own change request settled it) stays as
+chosen.
 
 ## Trim, last
 
@@ -74,8 +110,9 @@ brief's goal or constraints require, and never overturn a fork recorded
 
 - Write code, break the work into tasks, expand scope past the brief, or
   ask the user anything.
-- Record rejected alternatives or risks. Later lenses own those. The
-  alternatives of a fork are the one exception: they live in `decisions.json`.
+- Record rejected alternatives or risks. Later lenses own those. Two
+  exceptions: the alternatives of a fork live in `decisions.json`, and the
+  failures the design itself decides live in `design/chunks.json`.
 - When the brief can't be met as written, write
   `disputes/design-<n>.json` (`target_lens: "intake"`) and return `blocked`.
 

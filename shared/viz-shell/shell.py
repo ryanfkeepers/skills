@@ -188,6 +188,7 @@ class Page:
         self.spec = spec
         self.warnings = []
         self.block_ids = {}
+        self.tabs_by_key = {}
 
     def warn(self, msg):
         self.warnings.append(msg)
@@ -234,21 +235,51 @@ class Page:
         if not tabs:
             raise SpecError("spec needs at least one tab besides the overview")
         seen = {"overview"}
+        self.tabs_by_key = {}
         for t in tabs:
             key = t.get("key", "")
-            if not slug_ok(key):
-                raise SpecError(f"tab key {key!r} must be a lowercase slug (a-z 0-9 - _)")
+            self.check_tab_key(key)
             if key in seen:
                 raise SpecError(f"duplicate tab key {key!r}")
             seen.add(key)
-            if not t.get("title"):
-                raise SpecError(f"tab {key!r} needs a title")
-            if len(t.get("lede", "")) > MAX_LEDE_CHARS:
-                self.warn(f"tab {key!r} lede is over {MAX_LEDE_CHARS} chars; keep it to one sentence")
-            if not t.get("blocks"):
-                raise SpecError(f"tab {key!r} has no blocks")
-            if "questions" in t:
-                raise SpecError(f"tab {key!r}: 'questions' is not supported; the page shows the design, the room weighs it")
+            self.tabs_by_key[key] = t
+            kids = t.get("children")
+            if kids is None:
+                self.check_tab_fields(t, key, need_blocks=True)
+                continue
+            self.check_tab_fields(t, key, need_blocks=False)
+            if t.get("blocks"):
+                raise SpecError(f"tab {key!r}: a tab with 'children' holds no blocks of its own; put them in a child")
+            if not isinstance(kids, list) or not kids:
+                raise SpecError(f"tab {key!r}: 'children' must be a non-empty list of second-level tabs")
+            sub_seen = set()
+            for c in kids:
+                sub = c.get("key", "")
+                self.check_tab_key(sub)
+                if sub in sub_seen:
+                    raise SpecError(f"tab {key!r}: duplicate child key {sub!r}")
+                sub_seen.add(sub)
+                if "children" in c:
+                    raise SpecError(f"tab {key}/{sub}: tabs nest two levels only")
+                self.check_tab_fields(c, f"{key}/{sub}", need_blocks=False)
+                if not any(c.get(f) for f in ("blocks", "failures", "decisions", "etc")):
+                    raise SpecError(f"tab {key}/{sub}: has no content; leave a section out instead of leaving it empty")
+                self.tabs_by_key[f"{key}--{sub}"] = c
+
+    @staticmethod
+    def check_tab_key(key):
+        if not slug_ok(key) or "--" in key:
+            raise SpecError(f"tab key {key!r} must be a lowercase slug (a-z 0-9 - _) with no '--'")
+
+    def check_tab_fields(self, t, where, need_blocks):
+        if not t.get("title"):
+            raise SpecError(f"tab {where!r} needs a title")
+        if len(t.get("lede", "")) > MAX_LEDE_CHARS:
+            self.warn(f"tab {where!r} lede is over {MAX_LEDE_CHARS} chars; keep it to one sentence")
+        if need_blocks and not t.get("blocks"):
+            raise SpecError(f"tab {where!r} has no blocks")
+        if "questions" in t:
+            raise SpecError(f"tab {where!r}: 'questions' is not supported; the page shows the design, the room weighs it")
 
     def reject_multiline(self, node, where):
         """Code belongs nowhere on this page; multi-line strings are how it sneaks in."""
@@ -289,7 +320,7 @@ class Page:
     def render(self):
         self.validate()
         tabs = self.spec["tabs"]
-        panels = [self.render_tab(t) for t in tabs]
+        panels = [self.render_group(t) if t.get("children") else self.render_tab(t, t["key"]) for t in tabs]
         keys = ["overview"] + [t["key"] for t in tabs]
 
         radios = "".join(
@@ -313,7 +344,30 @@ class Page:
             + self.render_footer()
         )
         self.check_coverage()
-        return body, "\n".join(self.tab_css(k) for k in keys)
+        css = [self.tab_css(k) for k in keys]
+        css += [self.sub_css(t["key"], c["key"]) for t in tabs for c in t.get("children", [])]
+        return body, "\n".join(css)
+
+    def render_group(self, t):
+        """A top tab whose second-level tabs are its own panels, switched by a nested set of radios."""
+        key = t["key"]
+        kids = t["children"]
+        radios = "".join(
+            f'<input type="radio" class="vc-radio" name="vc-sub-{key}" id="vc-t-{key}--{c["key"]}" '
+            f'value="{key}--{c["key"]}"{" checked" if i == 0 else ""} aria-label="{esc(c["title"])}">'
+            for i, c in enumerate(kids)
+        )
+        labels = "".join(
+            f'<label for="vc-t-{key}--{c["key"]}">{esc(c["title"])}{self.badge(c)}</label>' for c in kids
+        )
+        panels = "".join(self.render_tab(c, f'{key}--{c["key"]}', sub=True) for c in kids)
+        lede = f'<p class="vc-lede">{esc(t["lede"])}</p>' if t.get("lede") else ""
+        return (
+            f'<section class="vc-panel" id="vc-p-{key}" aria-labelledby="vc-t-{key}">'
+            f'<div class="vc-panel-head"><h2>{esc(t["title"])}</h2>{lede}</div>'
+            f'{radios}<nav class="vc-subtabs" aria-label="{esc(t["title"])} sections">{labels}</nav>'
+            f'<div class="vc-subpanels">{panels}</div></section>'
+        )
 
     @staticmethod
     def badge(t):
@@ -322,7 +376,7 @@ class Page:
     def tab_title(self, key):
         if key == "overview":
             return "Overview"
-        return next(t["title"] for t in self.spec["tabs"] if t["key"] == key)
+        return self.tabs_by_key[key]["title"]
 
     @staticmethod
     def tab_css(k):
@@ -330,6 +384,16 @@ class Page:
             f"#vc-t-{k}:checked ~ .vc-panels #vc-p-{k} {{ position: static; visibility: visible; pointer-events: auto; }}\n"
             f'#vc-t-{k}:checked ~ .vc-tabs label[for="vc-t-{k}"] {{ color: var(--ink); border-bottom-color: var(--accent); }}\n'
             f'#vc-t-{k}:focus-visible ~ .vc-tabs label[for="vc-t-{k}"] {{ outline: 2px solid var(--accent); outline-offset: -2px; }}'
+        )
+
+    @staticmethod
+    def sub_css(parent, sub):
+        k = f"{parent}--{sub}"
+        shown = f"#vc-t-{parent}:checked ~ .vc-panels #vc-t-{k}:checked"
+        return (
+            f"{shown} ~ .vc-subpanels #vc-p-{k} {{ position: static; visibility: visible; pointer-events: auto; }}\n"
+            f'{shown} ~ .vc-subtabs label[for="vc-t-{k}"] {{ color: var(--ink); border-bottom-color: var(--accent); }}\n'
+            f'#vc-t-{k}:focus-visible ~ .vc-subtabs label[for="vc-t-{k}"] {{ outline: 2px solid var(--accent); outline-offset: -2px; }}'
         )
 
     def render_header(self):
@@ -387,16 +451,16 @@ class Page:
             out.append(self.render_block("overview", b))
         return "".join(out)
 
-    def render_tab(self, t):
-        key = t["key"]
+    def render_tab(self, t, key, sub=False):
         self.begin_tab(t)
-        blocks = "".join(self.render_block(key, b) for b in t["blocks"])
+        blocks = "".join(self.render_block(key, b) for b in t.get("blocks", []))
         self.end_tab_blocks(t)
         lede = f'<p class="vc-lede">{esc(t["lede"])}</p>' if t.get("lede") else ""
+        head = f'<div class="vc-panel-head">{lede}</div>' if sub and lede else (
+            "" if sub else f'<div class="vc-panel-head"><h2>{esc(t["title"])}</h2>{lede}</div>')
         return (
-            f'<section class="vc-panel" id="vc-p-{key}" aria-labelledby="vc-t-{key}">'
-            f'<div class="vc-panel-head"><h2>{esc(t["title"])}</h2>{lede}</div>'
-            f"{self.render_decisions(key)}{blocks}{self.render_failures(key)}{self.render_tree(key)}{self.render_etc(key)}</section>"
+            f'<section class="{"vc-subpanel" if sub else "vc-panel"}" id="vc-p-{key}" aria-labelledby="vc-t-{key}">'
+            f"{head}{self.render_decisions(key)}{blocks}{self.render_failures(key)}{self.render_tree(key)}{self.render_etc(key)}</section>"
         )
 
     def render_block(self, tab, b):
@@ -618,7 +682,7 @@ class Page:
         return f'<div class="vc-wt-static">{"".join(parts)}</div>'
 
     def check_items(self, tab, field, required):
-        items = next(t for t in self.spec["tabs"] if t["key"] == tab).get(field) or []
+        items = self.tabs_by_key[tab].get(field) or []
         if len(items) > MAX_ITEMS:
             self.warn(f"tab {tab!r}: {len(items)} {field}; keep the ones a reader needs to understand the behavior")
         failures = field == "failures"
@@ -719,7 +783,7 @@ class Page:
         return self.render_section("Failure models", cards)
 
     def render_etc(self, tab):
-        items = next(t for t in self.spec["tabs"] if t["key"] == tab).get("etc") or []
+        items = self.tabs_by_key[tab].get("etc") or []
         for i, it in enumerate(items):
             if not isinstance(it, str) or not it.strip():
                 raise SpecError(f"tab {tab!r} etc[{i}]: must be a non-empty string")
@@ -781,9 +845,12 @@ PROBE = """<script>
   var root=document.querySelector('.vc'), t0=Date.now();
   function done(){
     var out={wide:[],mermaid:root.getAttribute('data-mermaid'),width:innerWidth};
-    document.querySelectorAll('.vc-radio').forEach(function(r){
-      r.checked=true; void document.body.offsetHeight;
-      if(document.documentElement.scrollWidth>document.documentElement.clientWidth+1){out.wide.push(r.value);}
+    var wide=function(k){if(document.documentElement.scrollWidth>document.documentElement.clientWidth+1){out.wide.push(k);}};
+    document.querySelectorAll('input.vc-radio[name="vc-tab"]').forEach(function(r){
+      r.checked=true; void document.body.offsetHeight; wide(r.value);
+      document.querySelectorAll('#vc-p-'+r.value+' input.vc-radio').forEach(function(sr){
+        sr.checked=true; void document.body.offsetHeight; wide(sr.value);
+      });
     });
     out.errors=[].map.call(document.querySelectorAll('.vc-mermaid-error'),function(n){
       var p=n.closest('.vc-panel');return (p?p.id.replace('vc-p-',''):'?')+': '+n.getAttribute('data-error');});

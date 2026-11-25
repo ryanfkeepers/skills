@@ -82,6 +82,13 @@ must be one line.
   something the room must not miss (`breaking`, `migration`, `security`).
 - `areas`: package paths, prefixes, or globs this tab accounts for beyond
   the files its boundaries cite. Use `(root)` for repo-root files.
+- `children`: optional list of second-level tabs, each shaped like a tab
+  (`key`, `title`, `lede`, `blocks`, `decisions`, `failures`, `etc`). A tab
+  with `children` holds no `blocks` of its own and shows its children as a
+  second row of tabs under the top row. Two levels only. A child needs at
+  least one of `blocks`, `failures`, `decisions` or `etc`. Keys are slugs
+  with no `--`. A child's link is `page#<tab>--<child>`, and a block in it is
+  `page#<tab>--<child>/<block>`. Only visualize-design uses `children`.
 
 Render order inside a tab: lede → Key decisions → blocks → Failure models →
 Where it lands → Etc. A section with no items is left out. Key decisions come
